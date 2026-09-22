@@ -368,6 +368,22 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .empty { text-align: center; padding: 40px 18px; }
 .empty p { color: var(--muted); margin-top: 0; }
 
+.export-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  border-radius: 10px;
+  background: var(--primary-soft);
+}
+.export-box > div:first-child { flex: 1 1 320px; }
+.export-box p { margin: 2px 0 0; }
+.export-box .actions { margin-top: 0; }
+.export-box #exportProgress { flex-basis: 100%; margin: 0; }
+
 /* ---------- Toast ---------- */
 .toast {
   position: fixed;

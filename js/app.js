@@ -9,10 +9,13 @@
   const OMR = window.OMR;
   const Grading = window.Grading;
   const SheetRenderer = window.SheetRenderer;
+  const ZipWriter = window.ZipWriter;
+  const Xlsx = window.Xlsx;
 
   const STORE_KEY = 'lectorHojas.v1';
   const MAX_IMAGE_SIDE = 2000;
-  const PREVIEW_WIDTH = 1000;
+  const PREVIEW_WIDTH = 1200;
+  const PHOTO_MAX_SIDE = 1600;
   const TABS = ['prueba', 'hoja', 'escanear', 'resultados'];
 
   const $ = (sel, root) => (root || document).querySelector(sel);
@@ -76,7 +79,76 @@
   }
 
   const state = load();
-  const images = new Map(); // id de resultado → vista de la hoja enderezada (sólo en esta sesión)
+  const images = new Map(); // id de resultado → vista de la hoja enderezada (caché en memoria)
+
+  /**
+   * Imágenes de cada resultado (hoja enderezada y foto original) guardadas en
+   * IndexedDB, para que sigan disponibles al recargar la página.
+   */
+  const imageStore = (() => {
+    let dbPromise = null;
+    function open() {
+      if (!dbPromise) {
+        dbPromise = new Promise((resolve, reject) => {
+          if (typeof indexedDB === 'undefined') return reject(new Error('IndexedDB no disponible'));
+          const req = indexedDB.open('lectorHojas', 1);
+          req.onupgradeneeded = () => req.result.createObjectStore('images');
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
+        });
+        dbPromise.catch(() => (dbPromise = null));
+      }
+      return dbPromise;
+    }
+    function run(mode, fn) {
+      return open().then(
+        (db) =>
+          new Promise((resolve, reject) => {
+            const tx = db.transaction('images', mode);
+            const req = fn(tx.objectStore('images'));
+            tx.oncomplete = () => resolve(req ? req.result : undefined);
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error);
+          })
+      );
+    }
+    return {
+      put: (id, value) => run('readwrite', (st) => st.put(value, id)),
+      get: (id) => run('readonly', (st) => st.get(id)).catch(() => null),
+      remove: (id) => run('readwrite', (st) => st.delete(id)).catch(() => {}),
+      clear: () => run('readwrite', (st) => st.clear()).catch(() => {}),
+    };
+  })();
+
+  function forgetImage(id) {
+    const v = images.get(id);
+    if (v && v.url) URL.revokeObjectURL(v.url);
+    images.delete(id);
+    imageStore.remove(id);
+  }
+
+  function forgetAllImages() {
+    for (const v of images.values()) if (v.url) URL.revokeObjectURL(v.url);
+    images.clear();
+    imageStore.clear();
+  }
+
+  async function getView(id) {
+    if (images.has(id)) return images.get(id);
+    const rec = await imageStore.get(id);
+    if (!rec || !rec.sheet) return null;
+    if (images.has(id)) return images.get(id);
+    const view = {
+      url: URL.createObjectURL(rec.sheet),
+      sheetBlob: rec.sheet,
+      photoBlob: rec.photo || null,
+      scale: rec.scale,
+      overlay: rec.overlay,
+      image: null,
+    };
+    images.set(id, view);
+    return view;
+  }
   let selectedResultId = null;
 
   function save() {
@@ -220,7 +292,7 @@
       );
       if (!ok) return false;
       state.results = [];
-      images.clear();
+      forgetAllImages();
       selectedResultId = null;
     }
     Object.assign(cur, normalizeConfig(next));
@@ -406,15 +478,24 @@
     const ctx = cv.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(bmp, 0, 0, w, h);
     if (bmp.close) bmp.close();
-    return OMR.toGray(ctx.getImageData(0, 0, w, h).data, w, h);
+    return { gray: OMR.toGray(ctx.getImageData(0, 0, w, h).data, w, h), canvas: cv };
+  }
+
+  function canvasToBlob(cv, type, quality) {
+    return new Promise((resolve, reject) =>
+      cv.toBlob((b) => (b ? resolve(b) : reject(new Error('No se pudo generar la imagen.'))), type, quality)
+    );
   }
 
   function scanOptions() {
     return { threshold: state.exam.threshold };
   }
 
-  /** Guarda una versión reducida de la hoja enderezada para mostrarla con los resultados. */
-  function makePreview(res) {
+  /**
+   * Prepara las imágenes que se conservan de cada hoja: la hoja enderezada
+   * (sobre la que se dibuja la corrección) y la foto original, como evidencia.
+   */
+  async function makeView(res, photoCanvas) {
     const rect = res.rectified;
     const full = document.createElement('canvas');
     full.width = rect.width;
@@ -434,7 +515,31 @@
     const ctx = cv.getContext('2d');
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(full, 0, 0, cv.width, cv.height);
-    return { url: cv.toDataURL('image/jpeg', 0.85), scale, overlay: res.overlay, image: null };
+    const sheetBlob = await canvasToBlob(cv, 'image/jpeg', 0.88);
+
+    let pc = photoCanvas;
+    const ps = Math.min(1, PHOTO_MAX_SIDE / Math.max(pc.width, pc.height));
+    if (ps < 1) {
+      pc = document.createElement('canvas');
+      pc.width = Math.round(photoCanvas.width * ps);
+      pc.height = Math.round(photoCanvas.height * ps);
+      const pctx = pc.getContext('2d');
+      pctx.imageSmoothingQuality = 'high';
+      pctx.drawImage(photoCanvas, 0, 0, pc.width, pc.height);
+    }
+    const photoBlob = await canvasToBlob(pc, 'image/jpeg', 0.85);
+    return { url: URL.createObjectURL(sheetBlob), sheetBlob, photoBlob, scale, overlay: res.overlay, image: null };
+  }
+
+  let storageWarned = false;
+  function persistView(id, view) {
+    imageStore
+      .put(id, { sheet: view.sheetBlob, photo: view.photoBlob, scale: view.scale, overlay: view.overlay })
+      .catch(() => {
+        if (storageWarned) return;
+        storageWarned = true;
+        toast('No se pudieron guardar las imágenes en este navegador: descarga las evidencias antes de cerrar la página.');
+      });
   }
 
   function createResult(res, fileName) {
@@ -442,6 +547,7 @@
       id: uid(),
       fileName,
       createdAt: Date.now(),
+      scannedAt: Date.now(),
       code: res.id.value,
       name: '',
       answers: res.answers.map((a) => ({ marked: a.marked, uncertain: a.uncertain })),
@@ -482,15 +588,17 @@
       const item = queueItem(file.name || 'foto');
       await nextFrame();
       try {
-        const gray = await fileToGray(file);
+        const { gray, canvas } = await fileToGray(file);
         const res = OMR.scanSheet(gray, layout, scanOptions());
         if (!res.ok) {
           item.error(`${file.name || 'foto'}: ${res.error}`);
           continue;
         }
         const record = createResult(res, file.name || 'foto');
+        const view = await makeView(res, canvas);
         state.results.push(record);
-        images.set(record.id, makePreview(res));
+        images.set(record.id, view);
+        persistView(record.id, view);
         save();
         const g = grade(record);
         const who = record.code ? `Código ${record.code}` : file.name || 'Hoja';
@@ -513,7 +621,7 @@
     msg.textContent = 'Leyendo la hoja…';
     await nextFrame();
     try {
-      const res = OMR.scanSheet(await fileToGray(file), layout, scanOptions());
+      const res = OMR.scanSheet((await fileToGray(file)).gray, layout, scanOptions());
       if (!res.ok) {
         msg.className = 'alert error';
         msg.textContent = res.error;
@@ -614,6 +722,7 @@
           <h2>${esc(name || (r.code ? 'Código ' + r.code : r.fileName))}</h2>
           <div class="actions">
             <span class="muted small">${esc(r.fileName)}</span>
+            ${view ? '<button type="button" class="btn secondary small" data-act="evidence">⬇ Hoja corregida (JPG)</button>' : ''}
             <button type="button" class="btn ghost small danger" data-act="delete">Eliminar</button>
           </div>
         </div>
@@ -642,8 +751,9 @@
                      <span><i style="background:#c62828"></i>Incorrecta / doble</span>
                      <span><i style="border:2px dashed #1565c0"></i>Respuesta correcta</span>
                      <span><i style="border:2px dashed #e0a800;border-radius:2px"></i>Dudosa</span>
+                     <span><i style="background:#6a1b9a;border-radius:0;clip-path:polygon(100% 0,0 50%,100% 100%)"></i>Corregida por el docente</span>
                    </div>`
-                : '<p class="muted small">La imagen de la hoja sólo está disponible durante la sesión en que se escaneó. Las respuestas sí quedan guardadas.</p>'
+                : '<p class="muted small" data-img-status>Cargando imagen…</p>'
             }
           </div>
           <div class="answers-list">${rows}</div>
@@ -651,7 +761,19 @@
       </div>`;
     const list = $('.answers-list', container);
     if (list) list.scrollTop = prevScroll;
-    if (view) drawOverlay($('canvas', container), r, g, view);
+    if (view) {
+      drawOverlay($('canvas', container), r, g, view);
+    } else {
+      getView(r.id).then((v) => {
+        const still = $(`.detail[data-id="${r.id}"]`, container);
+        if (!still) return;
+        if (v) renderDetail(container, r.id);
+        else {
+          const st = $('[data-img-status]', container);
+          if (st) st.textContent = 'No hay imagen guardada para esta hoja. Las respuestas sí quedan guardadas.';
+        }
+      });
+    }
   }
 
   function loadPreviewImage(view) {
@@ -661,52 +783,72 @@
     return img.decode().then(() => (view.image = img));
   }
 
+  /** Dibuja la corrección (colores por respuesta) sobre la hoja enderezada. */
+  function paintCorrection(ctx, img, r, g, view) {
+    ctx.drawImage(img, 0, 0);
+    const s = view.scale;
+    const lw = Math.max(2, img.width / 450);
+    const circle = (b, rad, fill, stroke, dash, width) => {
+      ctx.beginPath();
+      ctx.arc(b.x * s, b.y * s, rad * s, 0, Math.PI * 2);
+      ctx.setLineDash(dash || []);
+      if (fill) {
+        ctx.fillStyle = fill;
+        ctx.fill();
+      }
+      if (stroke) {
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = width || lw;
+        ctx.stroke();
+      }
+    };
+    g.items.forEach((it, q) => {
+      const bubbles = view.overlay.questions[q];
+      if (!bubbles) return;
+      const color = STATUS[it.status].color;
+      for (const m of it.marked) if (bubbles[m]) circle(bubbles[m], bubbles[m].r * 1.15, color + '55', color, null, lw * 1.25);
+      if (it.key !== null && it.status !== 'correct' && bubbles[it.key]) {
+        circle(bubbles[it.key], bubbles[it.key].r * 1.45, null, '#1565c0', [lw * 2, lw * 1.5], lw);
+      }
+      const a = r.answers[q];
+      if (a.uncertain && !a.edited) {
+        const first = bubbles[0];
+        const last = bubbles[bubbles.length - 1];
+        const pad = first.r * 1.7;
+        ctx.setLineDash([lw * 2.5, lw * 1.5]);
+        ctx.strokeStyle = '#e0a800';
+        ctx.lineWidth = lw;
+        ctx.strokeRect((first.x - pad) * s, (first.y - pad) * s, (last.x - first.x + 2 * pad) * s, 2 * pad * s);
+      }
+      if (a.edited) {
+        // Marca de corrección manual: triángulo a la derecha de la fila, apuntando a ella.
+        const last = bubbles[bubbles.length - 1];
+        const t = last.r * 0.7 * s;
+        const x = (last.x + last.r * 1.6) * s + t;
+        const y = last.y * s;
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#6a1b9a';
+        ctx.beginPath();
+        ctx.moveTo(x + t, y - t);
+        ctx.lineTo(x - t * 0.6, y);
+        ctx.lineTo(x + t, y + t);
+        ctx.closePath();
+        ctx.fill();
+      }
+    });
+    (r.idMarks || []).forEach((marked, row) => {
+      const bubbles = view.overlay.id[row];
+      if (!bubbles) return;
+      for (const m of marked) if (bubbles[m]) circle(bubbles[m], bubbles[m].r * 1.2, '#6a1b9a44', '#6a1b9a', null, lw);
+    });
+    ctx.setLineDash([]);
+  }
+
   function drawOverlay(canvas, r, g, view) {
     loadPreviewImage(view).then((img) => {
       canvas.width = img.width;
       canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      const s = view.scale;
-      const circle = (b, rad, fill, stroke, dash, width) => {
-        ctx.beginPath();
-        ctx.arc(b.x * s, b.y * s, rad * s, 0, Math.PI * 2);
-        ctx.setLineDash(dash || []);
-        if (fill) {
-          ctx.fillStyle = fill;
-          ctx.fill();
-        }
-        if (stroke) {
-          ctx.strokeStyle = stroke;
-          ctx.lineWidth = width || 2;
-          ctx.stroke();
-        }
-      };
-      g.items.forEach((it, q) => {
-        const bubbles = view.overlay.questions[q];
-        if (!bubbles) return;
-        const color = STATUS[it.status].color;
-        for (const m of it.marked) circle(bubbles[m], bubbles[m].r * 1.15, color + '55', color, null, 2.5);
-        if (it.key !== null && it.status !== 'correct' && bubbles[it.key]) {
-          circle(bubbles[it.key], bubbles[it.key].r * 1.45, null, '#1565c0', [4, 3], 2);
-        }
-        const a = r.answers[q];
-        if (a.uncertain && !a.edited) {
-          const first = bubbles[0];
-          const last = bubbles[bubbles.length - 1];
-          const pad = first.r * 1.7;
-          ctx.setLineDash([5, 3]);
-          ctx.strokeStyle = '#e0a800';
-          ctx.lineWidth = 2;
-          ctx.strokeRect((first.x - pad) * s, (first.y - pad) * s, (last.x - first.x + 2 * pad) * s, 2 * pad * s);
-        }
-      });
-      (r.idMarks || []).forEach((marked, row) => {
-        const bubbles = view.overlay.id[row];
-        if (!bubbles) return;
-        for (const m of marked) circle(bubbles[m], bubbles[m].r * 1.2, '#6a1b9a44', '#6a1b9a', null, 2);
-      });
-      ctx.setLineDash([]);
+      paintCorrection(canvas.getContext('2d'), img, r, g, view);
     });
   }
 
@@ -719,15 +861,20 @@
       const q = Number(e.target.dataset.q);
       const v = e.target.value;
       if (v === 'multi') return;
-      r.answers[q] = { marked: v === '' ? [] : [Number(v)], uncertain: false, edited: true };
+      const prev = r.answers[q];
+      const original = prev.edited ? prev.original : prev.marked;
+      r.answers[q] = { marked: v === '' ? [] : [Number(v)], uncertain: false, edited: true, original };
     } else if (e.type === 'change' && e.target.matches('input[data-field]')) {
       const field = e.target.dataset.field;
       r[field] = e.target.value.trim();
       if (field === 'code') r.idUncertain = false;
+    } else if (e.type === 'click' && e.target.closest('[data-act="evidence"]')) {
+      downloadSingleEvidence(r);
+      return;
     } else if (e.type === 'click' && e.target.closest('[data-act="delete"]')) {
       if (!confirm('¿Eliminar este resultado?')) return;
       state.results = state.results.filter((x) => x.id !== r.id);
-      images.delete(r.id);
+      forgetImage(r.id);
       save();
       container.innerHTML = '';
       if (selectedResultId === r.id) selectedResultId = null;
@@ -872,6 +1019,400 @@
     });
     const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
     download(`${slug(state.exam.title)}-resultados.csv`, blob);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Evidencias: hojas corregidas, fotos originales y planilla Excel      */
+  /* ------------------------------------------------------------------ */
+
+  function dateStamp(d) {
+    const p2 = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+  }
+
+  function fmtDateTime(ts) {
+    if (!ts) return '–';
+    const d = new Date(ts);
+    const p2 = (n) => String(n).padStart(2, '0');
+    return `${p2(d.getDate())}-${p2(d.getMonth() + 1)}-${d.getFullYear()} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+  }
+
+  function slugPart(s, fallback) {
+    const v = String(s || '')
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-zA-Z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .toLowerCase()
+      .slice(0, 40);
+    return v || fallback;
+  }
+
+  /** Nombre de archivo de la evidencia: 01_07_ana-aravena */
+  function evidenceBaseName(r, index) {
+    const n = String(index + 1).padStart(2, '0');
+    const code = r.code && r.code.indexOf('?') < 0 ? r.code : 'sin-codigo';
+    return `${n}_${slugPart(code, 'sin-codigo')}_${slugPart(displayName(r), 'sin-nombre')}`;
+  }
+
+  function manualEdits(r) {
+    const out = [];
+    r.answers.forEach((a, q) => {
+      if (a.edited) out.push(`P${q + 1}: ${letters(a.original || []) || '—'} → ${letters(a.marked) || '—'}`);
+    });
+    return out;
+  }
+
+  function wrapText(ctx, text, maxW) {
+    const words = text.split(' ');
+    const lines = [];
+    let line = '';
+    for (const w of words) {
+      const test = line ? line + ' ' + w : w;
+      if (ctx.measureText(test).width > maxW && line) {
+        lines.push(line);
+        line = w;
+      } else line = test;
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  /**
+   * Imagen de evidencia: encabezado con los datos del estudiante y la
+   * corrección, la hoja escaneada con las respuestas marcadas en colores y
+   * una leyenda.
+   */
+  async function renderEvidenceCanvas(r, view) {
+    const img = await loadPreviewImage(view);
+    const g = grade(r);
+    const sc = state.exam.scoring;
+    const W = img.width;
+    const f = W / 1200;
+    const pad = Math.round(36 * f);
+    const font = (size, weight) => `${weight || 400} ${Math.round(size * f)}px Arial, Helvetica, sans-serif`;
+    const measure = document.createElement('canvas').getContext('2d');
+
+    // Contenido del encabezado.
+    const lines = [];
+    lines.push({ text: state.exam.title || 'Prueba', font: font(34, 700), color: '#1c2430' });
+    if (state.exam.subtitle) lines.push({ text: state.exam.subtitle, font: font(22), color: '#5d6877' });
+    lines.push({
+      text: `Estudiante: ${displayName(r) || '—'}     Código: ${r.code || '—'}`,
+      font: font(24, 700),
+      color: '#1c2430',
+      gapBefore: 10,
+    });
+    const failed = g.grade !== null && g.grade < sc.gradePass;
+    lines.push({
+      parts: [
+        { text: `Correctas: ${g.correct}   Incorrectas: ${g.wrong + g.multiple}   Omitidas: ${g.blank}   ` },
+        { text: `Puntaje: ${fmtScore(g.score)}/${fmtScore(g.maxScore)}   Logro: ${fmt(g.percent, 0)}%   ` },
+        { text: `Nota: ${fmt(g.grade, 1)}`, color: failed ? '#c62828' : '#1e8e3e', bold: true },
+      ],
+      font: font(24),
+      color: '#1c2430',
+    });
+    lines.push({
+      text: `Escaneada: ${fmtDateTime(r.scannedAt || r.createdAt)}   ·   Archivo: ${r.fileName}   ·   Evidencia generada: ${fmtDateTime(Date.now())}`,
+      font: font(18),
+      color: '#5d6877',
+      gapBefore: 6,
+    });
+    const edits = manualEdits(r);
+    if (edits.length) {
+      measure.font = font(19, 700);
+      for (const l of wrapText(measure, `Correcciones manuales del docente: ${edits.join(', ')}`, W - 2 * pad)) {
+        lines.push({ text: l, font: font(19, 700), color: '#6a1b9a' });
+      }
+    }
+    if (needsReview(r)) {
+      lines.push({ text: 'Atención: la hoja tiene marcas dudosas sin revisar (recuadros amarillos).', font: font(19, 700), color: '#b26a00' });
+    }
+
+    let headerH = pad;
+    for (const l of lines) {
+      headerH += (l.gapBefore || 0) * f + parseInt(l.font.split(' ')[1], 10) * 1.35;
+    }
+    headerH = Math.round(headerH + pad * 0.6);
+    const legendH = Math.round(56 * f);
+
+    const cv = document.createElement('canvas');
+    cv.width = W;
+    cv.height = headerH + img.height + legendH;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, cv.width, cv.height);
+
+    let y = pad;
+    ctx.textBaseline = 'top';
+    for (const l of lines) {
+      y += (l.gapBefore || 0) * f;
+      const size = parseInt(l.font.split(' ')[1], 10);
+      if (l.parts) {
+        let x = pad;
+        for (const part of l.parts) {
+          ctx.font = part.bold ? l.font.replace(/^\d+/, '700') : l.font;
+          ctx.fillStyle = part.color || l.color;
+          ctx.fillText(part.text, x, y);
+          x += ctx.measureText(part.text).width;
+        }
+      } else {
+        ctx.font = l.font;
+        ctx.fillStyle = l.color;
+        ctx.fillText(l.text, pad, y);
+      }
+      y += size * 1.35;
+    }
+    ctx.fillStyle = '#1f4e79';
+    ctx.fillRect(0, headerH - Math.round(4 * f), W, Math.round(4 * f));
+
+    ctx.save();
+    ctx.translate(0, headerH);
+    paintCorrection(ctx, img, r, g, view);
+    ctx.restore();
+
+    // Leyenda.
+    const ly = headerH + img.height + legendH / 2;
+    const items = [
+      { color: '#1e8e3e', label: 'Correcta', fill: true },
+      { color: '#c62828', label: 'Incorrecta / doble marca', fill: true },
+      { color: '#1565c0', label: 'Respuesta correcta', dash: true },
+      { color: '#e0a800', label: 'Dudosa', square: true },
+      { color: '#6a1b9a', label: 'Corregida por el docente', tri: true },
+    ];
+    ctx.font = font(18);
+    ctx.textBaseline = 'middle';
+    let x = pad;
+    const rr = 9 * f;
+    for (const it of items) {
+      ctx.beginPath();
+      ctx.setLineDash(it.dash ? [4 * f, 3 * f] : []);
+      ctx.lineWidth = 2.5 * f;
+      if (it.square) {
+        ctx.strokeStyle = it.color;
+        ctx.strokeRect(x, ly - rr, rr * 2, rr * 2);
+      } else if (it.tri) {
+        ctx.fillStyle = it.color;
+        ctx.moveTo(x + rr * 1.8, ly - rr);
+        ctx.lineTo(x + rr * 0.3, ly);
+        ctx.lineTo(x + rr * 1.8, ly + rr);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        ctx.arc(x + rr, ly, rr, 0, Math.PI * 2);
+        if (it.fill) {
+          ctx.fillStyle = it.color + '55';
+          ctx.fill();
+        }
+        ctx.strokeStyle = it.color;
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#1c2430';
+      ctx.fillText(it.label, x + rr * 2 + 8 * f, ly);
+      x += rr * 2 + 8 * f + ctx.measureText(it.label).width + 26 * f;
+    }
+    return cv;
+  }
+
+  async function downloadSingleEvidence(r) {
+    const view = await getView(r.id);
+    if (!view) return toast('No hay imagen guardada para esta hoja.');
+    const idx = sortedResults().findIndex((x) => x.r.id === r.id);
+    const cv = await renderEvidenceCanvas(r, view);
+    download(`${evidenceBaseName(r, Math.max(0, idx))}.jpg`, await canvasToBlob(cv, 'image/jpeg', 0.9));
+  }
+
+  /** Planilla Excel con los resultados, hipervínculos a las imágenes y análisis por pregunta. */
+  function buildWorkbook(rows, links) {
+    const exam = state.exam;
+    const sc = exam.scoring;
+    const n = exam.numQuestions;
+    const L = (k) => (k === null || k === undefined ? '' : CHOICE_LABELS[k]);
+    const head = [
+      'N°', 'Código', 'Nombre', 'Correctas', 'Incorrectas', 'Omitidas', 'Dobles marcas', 'Puntaje',
+      'Puntaje máximo', '% logro', 'Nota', 'Estado', 'Hoja corregida', 'Foto original', 'Archivo',
+    ];
+    const firstQ = head.length;
+    for (let q = 1; q <= n; q++) head.push('P' + q);
+
+    const sheetRows = [];
+    sheetRows.push([{ v: exam.title || 'Resultados', s: 'title' }]);
+    const info = [
+      exam.subtitle,
+      `Exportado: ${fmtDateTime(Date.now())}`,
+      `Exigencia: ${sc.exigencia}%`,
+      `Puntos por correcta: ${sc.pointsCorrect}`,
+      sc.penaltyWrong ? `Descuento por incorrecta: ${sc.penaltyWrong}` : null,
+    ].filter(Boolean);
+    sheetRows.push([{ v: info.join('   ·   '), s: 'muted' }]);
+    sheetRows.push([{ v: 'Los hipervínculos abren las imágenes guardadas junto a este archivo (carpetas hojas_corregidas y fotos_originales).', s: 'muted' }]);
+    sheetRows.push(head.map((h) => ({ v: h, s: 'header' })));
+    const keyRow = new Array(head.length).fill(null);
+    keyRow[2] = { v: 'CLAVE', s: 'bold' };
+    exam.key.forEach((k, q) => (keyRow[firstQ + q] = { v: L(k) || '–', s: 'bold' }));
+    sheetRows.push(keyRow);
+
+    rows.forEach(({ r, g }, i) => {
+      const edits = manualEdits(r);
+      const status = needsReview(r) ? 'Revisar' : edits.length ? `Corregida manualmente (${edits.length})` : 'OK';
+      const link = links[i] || {};
+      const row = [
+        i + 1,
+        r.code || '',
+        displayName(r),
+        g.correct,
+        g.wrong,
+        g.blank,
+        g.multiple,
+        { v: g.score, s: 'dec1' },
+        g.maxScore,
+        { v: g.percent, s: 'dec1' },
+        g.grade === null ? '' : { v: g.grade, s: g.grade >= sc.gradePass ? 'ok' : 'bad' },
+        status,
+        link.sheet ? { v: 'Ver hoja corregida', link: link.sheet, tooltip: link.sheet } : { v: 'sin imagen', s: 'muted' },
+        link.photo ? { v: 'Ver foto original', link: link.photo, tooltip: link.photo } : { v: 'sin imagen', s: 'muted' },
+        r.fileName,
+      ];
+      g.items.forEach((it) => {
+        const txt = letters(it.marked);
+        row.push(txt ? { v: txt, s: it.status === 'wrong' || it.status === 'multiple' ? 'bad' : 'normal' } : '');
+      });
+      sheetRows.push(row);
+    });
+
+    const headerRow = 4;
+    const lastCol = Xlsx.colName(head.length - 1);
+    const cols = [5, 10, 28, 10, 11, 10, 9, 9, 10, 9, 7, 16, 20, 18, 22].concat(new Array(n).fill(5));
+
+    // Hoja de análisis por pregunta.
+    const c = exam.numChoices;
+    const stats = Grading.itemAnalysis(rows.map((x) => x.r.answers), exam.key, c);
+    const aRows = [[{ v: 'Análisis por pregunta', s: 'title' }], []];
+    aRows.push(['N°', 'Clave', '% de acierto'].concat(CHOICE_LABELS.slice(0, c), ['Omitidas', 'Dobles marcas']).map((h) => ({ v: h, s: 'header' })));
+    for (const st of stats) {
+      aRows.push([st.question, L(st.key) || '–', st.correctPct === null ? '' : { v: st.correctPct, s: 'dec1' }].concat(st.counts, [st.blank, st.multiple]));
+    }
+
+    return Xlsx.build(
+      [
+        { name: 'Resultados', rows: sheetRows, cols, freeze: { row: headerRow + 1, col: 3 }, autoFilter: `A${headerRow}:${lastCol}${headerRow + 1 + rows.length}` },
+        { name: 'Análisis por pregunta', rows: aRows, cols: [6, 8, 13].concat(new Array(c).fill(7), [10, 13]), freeze: { row: 3 } },
+      ],
+      { title: exam.title }
+    );
+  }
+
+  /**
+   * Arma el paquete de evidencias: planilla + hojas corregidas + fotos originales.
+   * Devuelve { folder, files: [{ path, data: Uint8Array }], missing }.
+   */
+  async function buildEvidencePackage(onProgress) {
+    const rows = sortedResults();
+    const folder = `${slugPart(state.exam.title, 'prueba')}_${dateStamp(new Date())}`;
+    const files = [];
+    const links = [];
+    let missing = 0;
+    for (let i = 0; i < rows.length; i++) {
+      const { r } = rows[i];
+      const base = evidenceBaseName(r, i);
+      const view = await getView(r.id);
+      const link = {};
+      if (view) {
+        const cv = await renderEvidenceCanvas(r, view);
+        const blob = await canvasToBlob(cv, 'image/jpeg', 0.9);
+        link.sheet = `hojas_corregidas/${base}.jpg`;
+        files.push({ path: link.sheet, data: new Uint8Array(await blob.arrayBuffer()) });
+        if (view.photoBlob) {
+          link.photo = `fotos_originales/${base}.jpg`;
+          files.push({ path: link.photo, data: new Uint8Array(await view.photoBlob.arrayBuffer()) });
+        }
+      } else {
+        missing++;
+      }
+      links.push(link);
+      if (onProgress) onProgress(i + 1, rows.length);
+      await nextFrame();
+    }
+    files.unshift({ path: 'resultados.xlsx', data: buildWorkbook(rows, links) });
+    files.push({
+      path: 'LEEME.txt',
+      data: new TextEncoder().encode(
+        [
+          `Evidencias: ${state.exam.title || 'Prueba'}`,
+          `Generado: ${fmtDateTime(Date.now())}`,
+          '',
+          'resultados.xlsx     Planilla con puntajes, notas y respuestas. Las columnas',
+          '                    "Hoja corregida" y "Foto original" tienen hipervínculos',
+          '                    que abren la imagen de cada estudiante.',
+          'hojas_corregidas/   Hoja escaneada de cada estudiante con la corrección.',
+          'fotos_originales/   Foto tal como fue tomada, sin procesar.',
+          '',
+          'Importante: si descargaste un ZIP, primero extrae todo su contenido',
+          '(clic derecho > "Extraer todo") y abre el Excel desde la carpeta extraída.',
+          'Los hipervínculos funcionan mientras el Excel y las carpetas de imágenes',
+          'se mantengan juntos (se puede mover o copiar la carpeta completa).',
+          '',
+        ].join('\r\n')
+      ),
+    });
+    return { folder, files, missing };
+  }
+
+  async function withExportButtons(fn) {
+    const btns = [$('#btnExportZip'), $('#btnExportFolder')];
+    btns.forEach((b) => b && (b.disabled = true));
+    const label = $('#exportProgress');
+    try {
+      await fn((i, total) => {
+        label.hidden = false;
+        label.textContent = `Preparando evidencias… ${i}/${total}`;
+      });
+    } finally {
+      btns.forEach((b) => b && (b.disabled = false));
+      label.hidden = true;
+    }
+  }
+
+  function reportMissing(missing) {
+    if (missing) toast(`${missing} hoja(s) no tienen imagen guardada: aparecen en la planilla sin enlace.`);
+  }
+
+  function downloadEvidenceZip() {
+    if (!state.results.length) return;
+    return withExportButtons(async (progress) => {
+      const pkg = await buildEvidencePackage(progress);
+      const bytes = ZipWriter.create(pkg.files.map((f) => ({ name: `${pkg.folder}/${f.path}`, data: f.data })));
+      download(`${pkg.folder}.zip`, new Blob([bytes], { type: 'application/zip' }));
+      toast('ZIP descargado. Extrae todo su contenido antes de abrir el Excel.');
+      reportMissing(pkg.missing);
+    }).catch((e) => toast('No se pudieron exportar las evidencias: ' + e.message));
+  }
+
+  async function saveEvidenceToFolder() {
+    if (!state.results.length || typeof window.showDirectoryPicker !== 'function') return;
+    let dir;
+    try {
+      dir = await window.showDirectoryPicker({ id: 'evidencias', mode: 'readwrite' });
+    } catch (e) {
+      return; // el usuario canceló
+    }
+    return withExportButtons(async (progress) => {
+      const pkg = await buildEvidencePackage(progress);
+      const root = await dir.getDirectoryHandle(pkg.folder, { create: true });
+      for (const f of pkg.files) {
+        const parts = f.path.split('/');
+        let d = root;
+        for (const part of parts.slice(0, -1)) d = await d.getDirectoryHandle(part, { create: true });
+        const fh = await d.getFileHandle(parts[parts.length - 1], { create: true });
+        const w = await fh.createWritable();
+        await w.write(f.data);
+        await w.close();
+      }
+      toast(`Evidencias guardadas en la carpeta "${pkg.folder}".`);
+      reportMissing(pkg.missing);
+    }).catch((e) => toast('No se pudieron guardar las evidencias: ' + e.message));
   }
 
   function exportExam() {
@@ -1026,10 +1567,16 @@
       $('#resultDetail').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     $('#btnExportCsv').addEventListener('click', exportCsv);
+    $('#btnExportZip').addEventListener('click', downloadEvidenceZip);
+    const folderBtn = $('#btnExportFolder');
+    if (typeof window.showDirectoryPicker === 'function') {
+      folderBtn.hidden = false;
+      folderBtn.addEventListener('click', saveEvidenceToFolder);
+    }
     $('#btnClearResults').addEventListener('click', () => {
       if (!confirm(`¿Eliminar los ${state.results.length} resultados? Esta acción no se puede deshacer.`)) return;
       state.results = [];
-      images.clear();
+      forgetAllImages();
       selectedResultId = null;
       save();
       $('#scanDetail').innerHTML = '';

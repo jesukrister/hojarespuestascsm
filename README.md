@@ -29,9 +29,12 @@ cualquier hosting de archivos estáticos.
   en amarillo las marcas dudosas. Cualquier respuesta se puede corregir a mano.
 - **Puntaje y nota**: puntos por correcta, descuento opcional por incorrecta,
   escala de nota con exigencia configurable (por defecto 1,0–7,0 con 60 %).
-- **Resultados**: tabla del curso con estadísticas, análisis por pregunta
-  (% de acierto y distribución de respuestas) y exportación a CSV (compatible
-  con Excel en español).
+- **Resultados**: tabla del curso con estadísticas y análisis por pregunta
+  (% de acierto y distribución de respuestas).
+- **Evidencias para el docente**: descarga una carpeta con la planilla Excel
+  (`resultados.xlsx`), la hoja corregida de cada estudiante en JPG y la foto
+  original. En el Excel, cada estudiante tiene hipervínculos que abren sus
+  imágenes. También se puede exportar sólo un CSV.
 - **Lista del curso** opcional: el número de lista marcado en la hoja se asocia
   automáticamente con el nombre del estudiante.
 
@@ -45,12 +48,39 @@ cualquier hosting de archivos estáticos.
    - buena luz, sin sombras fuertes ni reflejos;
    - hoja lo más plana posible (una leve curvatura se corrige sola).
 4. **Resultados**: revisa las hojas marcadas “revisar”, corrige si es necesario
-   y exporta el CSV.
+   y descarga las evidencias.
 
 La configuración y los resultados se guardan en el navegador
-(`localStorage`). Las imágenes de las hojas sólo se conservan durante la
-sesión; las respuestas leídas quedan guardadas. La configuración de la prueba
-se puede exportar/importar como JSON para usarla en otro dispositivo.
+(`localStorage`) y las imágenes en IndexedDB, así que siguen disponibles al
+recargar la página en el mismo navegador. La configuración de la prueba se
+puede exportar/importar como JSON para usarla en otro dispositivo.
+
+### Evidencias
+
+En **Resultados → Evidencias para el docente**:
+
+- **Descargar evidencias (ZIP)** (todos los navegadores). Al extraerlo queda:
+
+  ```
+  prueba-de-historia_2026-09-22/
+  ├── resultados.xlsx          planilla con hipervínculos
+  ├── hojas_corregidas/        01_07_ana-aravena.jpg, …
+  ├── fotos_originales/        01_07_ana-aravena.jpg, …
+  └── LEEME.txt
+  ```
+
+  **Importante:** extrae todo el ZIP (clic derecho → “Extraer todo”) antes de
+  abrir el Excel; si se abre desde dentro del ZIP, los enlaces no encuentran
+  las imágenes.
+- **Guardar en una carpeta…** (Chrome y Edge de escritorio): escribe esa misma
+  carpeta directamente donde el docente elija, sin ZIP.
+
+Cada hoja corregida muestra un encabezado con el estudiante, el puntaje, la
+nota, la fecha de escaneo y las **correcciones manuales del docente**
+(p. ej. “P6: — → E”), seguido de la hoja con las respuestas marcadas en
+colores. Los enlaces del Excel son relativos: funcionan mientras la planilla y
+las carpetas de imágenes se mantengan juntas (se puede mover o copiar la
+carpeta completa, por ejemplo a un pendrive o a Google Drive para escritorio).
 
 ## Publicar la página
 
@@ -97,6 +127,7 @@ entregar una corrección equivocada sin avisar.
 | `js/sheet.js` | Generación de la hoja en SVG |
 | `js/omr.js` | Motor de reconocimiento de marcas |
 | `js/grading.js` | Corrección, puntaje, nota y análisis por pregunta |
+| `js/xlsx.js`, `js/zip.js` | Generación de la planilla Excel y del ZIP de evidencias |
 | `tests/` | Pruebas automáticas |
 
 ### Cómo funciona el reconocimiento

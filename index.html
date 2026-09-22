@@ -184,9 +184,20 @@
             <div class="card-head">
               <h2>Estudiantes</h2>
               <div class="actions">
-                <button id="btnExportCsv" class="btn secondary" type="button">Exportar CSV</button>
                 <button id="btnClearResults" class="btn danger ghost" type="button">Borrar resultados</button>
               </div>
+            </div>
+            <div class="export-box">
+              <div>
+                <strong>Evidencias para el docente</strong>
+                <p class="muted small">Carpeta con la planilla Excel (<code>resultados.xlsx</code>), cada hoja corregida en JPG y la foto original. En el Excel, cada estudiante tiene enlaces que abren sus imágenes.</p>
+              </div>
+              <div class="actions">
+                <button id="btnExportZip" class="btn primary" type="button">📦 Descargar evidencias (ZIP)</button>
+                <button id="btnExportFolder" class="btn secondary" type="button" hidden>📁 Guardar en una carpeta…</button>
+                <button id="btnExportCsv" class="btn ghost" type="button">Sólo CSV</button>
+              </div>
+              <p id="exportProgress" class="muted small" hidden></p>
             </div>
             <div class="table-wrap">
               <table id="resultsTable" class="results-table"></table>
@@ -215,6 +226,8 @@
   <script src="js/omr.js"></script>
   <script src="js/grading.js"></script>
   <script src="js/sheet.js"></script>
+  <script src="js/zip.js"></script>
+  <script src="js/xlsx.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
