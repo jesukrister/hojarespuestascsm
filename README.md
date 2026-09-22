@@ -15,11 +15,24 @@ cualquier hosting de archivos estáticos.
 - **Configuración de la prueba**: título, 1–120 preguntas, 2–6 alternativas
   (A–F), papel carta, A4 u oficio y 0–10 dígitos de identificación (N° de
   lista o código del estudiante).
+- **Generador de evaluaciones**: se pegan las preguntas y alternativas tal como
+  vengan (de Word, PDF, correo…, incluso desordenadas) y la plataforma las
+  ordena y arma la evaluación imprimible con membrete (establecimiento, logo,
+  asignatura, profesor, curso), campos a elección (nombre, curso, fecha, RUT,
+  puntaje, nota), instrucciones, tipo y tamaño de letra, una o dos columnas.
+  Con un clic se traspasan a la hoja de respuestas la cantidad de preguntas,
+  la clave y los objetivos de aprendizaje.
+- **Objetivos de aprendizaje (OA)**: las preguntas se agrupan por objetivo
+  (`OA12: 1-4`, `OA13: 5-6`…) para ver el logro de cada OA por estudiante y
+  del curso, con niveles Logrado / Medianamente logrado / No logrado.
 - **Clave de respuestas**: se ingresa haciendo clic en las burbujas, escribiendo
   `ABCDA BCD…` o **fotografiando una hoja rellenada con las respuestas
   correctas**. Una pregunta sin clave (`-`) queda anulada y no se considera.
 - **Hoja imprimible** (SVG a tamaño exacto), con marcas de registro, marca de
-  orientación y un código que identifica la configuración.
+  orientación y un código que identifica la configuración. Se puede imprimir
+  **1, 2 o 4 hojas de respuestas por página** (media hoja o cuarto de hoja,
+  con líneas de corte) para ahorrar papel y tinta, y elegir los campos del
+  encabezado (curso, fecha, RUT).
 - **Escaneo** desde la cámara del celular o subiendo varias imágenes a la vez
   (también se pueden arrastrar). Tolera fotos inclinadas, giradas (incluso
   al revés), en perspectiva, con iluminación irregular y con la hoja algo
@@ -40,15 +53,47 @@ cualquier hosting de archivos estáticos.
 
 ## Uso
 
-1. **Prueba**: configura la cantidad de preguntas, alternativas y la clave.
-2. **Hoja**: imprime la hoja (a escala 100 %, sin encabezados del navegador).
-   Puedes descargar un *ejemplo rellenado* para probar el lector sin imprimir.
-3. **Escanear**: toma una foto de cada hoja respondida. Consejos:
+1. **Prueba**: configura la cantidad de preguntas, alternativas, la clave y
+   (opcional) los objetivos de aprendizaje.
+2. **Evaluación** (opcional): pega las preguntas, ajusta el membrete y el
+   formato, imprime la prueba y usa “Usar estas preguntas en la hoja de
+   respuestas” para cargar la cantidad de preguntas, la clave y los OA.
+3. **Hoja**: elige cuántas hojas por página (1, 2 o 4) e imprime (a escala
+   100 %, sin encabezados del navegador). Con 2 o 4 por página, recorta por la
+   línea punteada. Puedes descargar un *ejemplo rellenado* para probar el
+   lector sin imprimir.
+4. **Escanear**: toma una foto de cada hoja respondida. Consejos:
    - la hoja completa en la foto, con las **cuatro esquinas visibles**;
    - buena luz, sin sombras fuertes ni reflejos;
    - hoja lo más plana posible (una leve curvatura se corrige sola).
-4. **Resultados**: revisa las hojas marcadas “revisar”, corrige si es necesario
-   y descarga las evidencias.
+5. **Resultados**: revisa las hojas marcadas “revisar”, corrige si es necesario,
+   revisa el logro por OA y descarga las evidencias.
+
+### Texto que reconoce el generador de evaluaciones
+
+- Preguntas numeradas como `1.`, `1)`, `1.-`, `Pregunta 1:` o sin número.
+- Alternativas `a)`, `A)`, `a.`, `(a)`, una por línea o varias en la misma
+  línea, incluso en desorden.
+- Líneas cortadas por el PDF se vuelven a unir; los listados `I.`, `II.`,
+  `III.` se respetan.
+- Un texto separado por una línea en blanco antes de una pregunta (una
+  lectura, por ejemplo) se imprime junto a esa pregunta.
+- Alternativa correcta: marcada con `*` (`*b) Santiago` o `b) Santiago *`), o
+  una línea final `Clave: 1A 2C 3B…`.
+- `OA12` en una línea sola asigna las preguntas siguientes a ese objetivo.
+- Si los números vienen desordenados, las preguntas se ordenan según su
+  número (se puede desactivar). Se avisa si faltan preguntas, hay números
+  repetidos o alguna tiene menos alternativas que las demás.
+
+### Análisis por objetivo de aprendizaje
+
+En **Prueba → Objetivos de aprendizaje** se escribe un objetivo por línea:
+`OA12: 1-4`, `OA13 Comprensión lectora: 5, 6, 9 a 11`. Los niveles
+(Logrado desde 75 %, Medianamente logrado desde 50 %, por defecto) son
+configurables. El Excel de evidencias incluye una columna `% OA…` por
+estudiante, una hoja **Logro por OA** con el promedio del curso y la
+cantidad de estudiantes en cada nivel, y la matriz estudiante × objetivo con
+colores, además del OA de cada pregunta en el análisis por pregunta.
 
 La configuración y los resultados se guardan en el navegador
 (`localStorage`) y las imágenes en IndexedDB, así que siguen disponibles al
@@ -126,7 +171,8 @@ entregar una corrección equivocada sin avisar.
 | `js/layout.js` | Geometría de la hoja (compartida por el generador y el lector) |
 | `js/sheet.js` | Generación de la hoja en SVG |
 | `js/omr.js` | Motor de reconocimiento de marcas |
-| `js/grading.js` | Corrección, puntaje, nota y análisis por pregunta |
+| `js/grading.js` | Corrección, puntaje, nota, análisis por pregunta y por OA |
+| `js/testdoc.js` | Lectura del texto pegado y evaluación imprimible |
 | `js/xlsx.js`, `js/zip.js` | Generación de la planilla Excel y del ZIP de evidencias |
 | `tests/` | Pruebas automáticas |
 
@@ -141,7 +187,8 @@ entregar una corrección equivocada sin avisar.
    orientación y un código de configuración válido; si el código corresponde
    a otra prueba, se avisa.
 4. Las marcas laterales dividen la hoja en franjas con su propia homografía,
-   para compensar hojas curvadas.
+   para compensar hojas curvadas. Si la hoja fue impresa en otro formato
+   (hoja completa, media o cuarto de hoja) o papel, se detecta y se avisa.
 5. Se endereza la hoja, se normaliza la iluminación y cada columna de
    preguntas se alinea fila por fila con los contornos impresos de las
    burbujas. Si la alineación no es confiable, la foto se rechaza.

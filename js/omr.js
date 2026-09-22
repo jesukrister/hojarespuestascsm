@@ -228,12 +228,12 @@
 
   function findMarkerQuad(blobs, w, h, layout) {
     const cands = markerCandidates(blobs, w, h);
-    if (cands.length < 4) return null;
+    if (cands.length < 4) return [];
     const m = layout.markers;
     const sheetQuadArea = polygonArea(m);
     const expected = (layout.markerSize * layout.markerSize) / sheetQuadArea;
     const sheetAspect = Math.min(layout.width, layout.height) / Math.max(layout.width, layout.height);
-    let best = null;
+    const found = [];
     const n = cands.length;
     for (let i = 0; i < n; i++)
       for (let j = i + 1; j < n; j++)
@@ -256,13 +256,18 @@
             const a2 = (s12 + s30) / 2;
             const aspect = Math.min(a1, a2) / Math.max(a1, a2);
             if (aspect < sheetAspect * 0.45) continue;
+            // Cuadrilátero grande, con marcas de tamaño parecido entre sí y
+            // proporciones cercanas a las de la hoja (la perspectiva puede
+            // alterarlas, por eso ese criterio pesa menos).
             const score =
               qa *
+              (set[3].area / set[0].area) *
               Math.exp(-Math.abs(Math.log(ratio / expected))) *
-              Math.exp(-2 * Math.abs(Math.log(aspect / sheetAspect)));
-            if (!best || score > best.score) best = { score, pts };
+              Math.exp(-Math.abs(Math.log(aspect / sheetAspect)));
+            found.push({ score, pts });
           }
-    return best ? best.pts : null;
+    found.sort((a, b) => b.score - a.score);
+    return found.slice(0, 6).map((f) => f.pts);
   }
 
   function locateMarkers(img, layout) {
@@ -277,8 +282,8 @@
     for (const a of attempts) {
       const bin = adaptiveThreshold(img, Math.round(a.win) | 1, a.ratio);
       const blobs = findBlobs(bin, w, h);
-      const quad = findMarkerQuad(blobs, w, h, layout);
-      if (quad) return { quad, blobs };
+      const quads = findMarkerQuad(blobs, w, h, layout);
+      if (quads.length) return { quads, blobs };
     }
     return null;
   }
@@ -291,7 +296,7 @@
     return layout.sideMarks.map((sm) => {
       const p = project(H, sm.x, sm.y);
       const expArea = Math.pow(sm.size * pxPerMm, 2);
-      const maxDist = 12 * pxPerMm;
+      const maxDist = 12 * (layout.scale || 1) * pxPerMm;
       let best = null;
       let bestD = Infinity;
       for (const b of blobs) {
@@ -359,11 +364,12 @@
   }
 
   function evaluateHypothesis(img, H, layout) {
+    const k = layout.scale || 1;
     const o = layout.orientation;
     const mark = sampleSheetPatch(img, H, o.x, o.y, o.size * 0.5);
     const ref = Math.max(
-      sampleSheetPatch(img, H, o.x, o.y - 6, 2),
-      sampleSheetPatch(img, H, o.x, o.y + 6, 2)
+      sampleSheetPatch(img, H, o.x, o.y - 6 * k, 2 * k),
+      sampleSheetPatch(img, H, o.x, o.y + 6 * k, 2 * k)
     );
     const orientContrast = ref > 1 ? 1 - mark / ref : 0;
 
@@ -372,16 +378,47 @@
     for (const cell of layout.codeCells) {
       codeWhite = Math.max(
         codeWhite,
-        sampleSheetPatch(img, H, cell.x, cell.y - 4.5, 1.5),
-        sampleSheetPatch(img, H, cell.x, cell.y + 4, 1.5)
+        sampleSheetPatch(img, H, cell.x, cell.y - 4.5 * k, 1.5 * k),
+        sampleSheetPatch(img, H, cell.x, cell.y + 4 * k, 1.5 * k)
       );
     }
+    const contrasts = [];
     for (const cell of layout.codeCells) {
       const v = sampleSheetPatch(img, H, cell.x, cell.y, cell.size * 0.5);
-      bits.push(codeWhite > 1 && 1 - v / codeWhite > 0.35 ? 1 : 0);
+      const c = codeWhite > 1 ? 1 - v / codeWhite : 0;
+      contrasts.push(Math.round(c * 100) / 100);
+      bits.push(c > 0.35 ? 1 : 0);
     }
-    const decoded = SheetLayout.decodeConfig(bits);
-    return { orientContrast, bits, decoded };
+    // Nitidez del código: qué tan lejos del umbral quedó la celda más dudosa.
+    // Un código borroso no se usa (evita coincidencias por azar del control).
+    const clarity = Math.min(...contrasts.map((c) => Math.abs(c - 0.35)));
+    const decoded = clarity >= 0.08 ? SheetLayout.decodeConfig(bits) : null;
+    return { orientContrast, bits, decoded, clarity };
+  }
+
+  /**
+   * Intenta leer el código de la hoja suponiendo los otros papeles y formatos.
+   * La posición del código sólo depende del papel y del formato.
+   */
+  function decodeWithOtherFormats(img, quad, layout) {
+    const cur = layout.config;
+    for (const paper of SheetLayout.PAPER_IDS)
+      for (const format of SheetLayout.FORMAT_IDS) {
+        if (paper === cur.paper && format === cur.format) continue;
+        const alt = SheetLayout.computeLayout({ paper, format, numQuestions: 1, numChoices: 2, idDigits: 0 });
+        for (let k = 0; k < 4; k++) {
+          const dst = [quad[k], quad[(k + 1) % 4], quad[(k + 2) % 4], quad[(k + 3) % 4]];
+          const H = solveHomography(alt.markers, dst);
+          if (!H) continue;
+          const ev = evaluateHypothesis(img, H, alt);
+          // Exigencia mayor que para el formato configurado: se prueban muchas
+          // combinaciones, así que se pide orientación nítida y código claro.
+          if (ev.decoded && ev.decoded.paper === paper && ev.decoded.format === format && ev.orientContrast >= 0.3 && ev.clarity >= 0.15) {
+            return ev.decoded;
+          }
+        }
+      }
+    return null;
   }
 
   /* ------------------------------------------------------------------ */
@@ -550,23 +587,24 @@
    * equiespaciadas y un corrimiento de una alternativa completa también
    * "calzaría".
    */
-  function alignGroup(dark, rowsBubbles, ppm, anchor, pitchMm) {
+  function alignGroup(dark, rowsBubbles, ppm, anchor, pitchMm, seedDy, wideFrac) {
     const step = Math.max(1, Math.round(ppm / 5));
     const maxX = Math.round(2 * ppm);
     const wideX = Math.round(1.5 * ppm);
-    const wideY = Math.round(0.45 * pitchMm * ppm);
+    const wideY = Math.round((wideFrac || 0.45) * pitchMm * ppm);
     const nearX = Math.max(step, Math.round(0.4 * ppm));
     const nearY = Math.round(1.0 * ppm);
     const fits = rowsBubbles.map((b) => rowFit(dark, b, ppm));
     const out = new Array(rowsBubbles.length);
-    out[anchor] = searchShift(fits[anchor], 0, 0, wideX, wideY, step, maxX);
+    out[anchor] = searchShift(fits[anchor], 0, Math.round(seedDy || 0), wideX, wideY, step, maxX);
     for (let i = anchor + 1; i < out.length; i++) {
       out[i] = searchShift(fits[i], out[i - 1].dx, out[i - 1].dy, nearX, nearY, step, maxX);
     }
     for (let i = anchor - 1; i >= 0; i--) {
       out[i] = searchShift(fits[i], out[i + 1].dx, out[i + 1].dy, nearX, nearY, step, maxX);
     }
-    return out.map((sft) => ({ dx: sft.dx, dy: sft.dy }));
+    const score = out.reduce((sum, sft) => sum + sft.score, 0) / out.length;
+    return { shifts: out.map((sft) => ({ dx: sft.dx, dy: sft.dy })), score };
   }
 
   /** Umbral de Otsu sobre una lista de valores 0–1. */
@@ -645,16 +683,31 @@
       };
     }
 
-    const quad = found.quad;
-    // Probar las cuatro asignaciones posibles de esquinas (rotaciones).
+    // Para cada cuadrilátero candidato (del más probable al menos probable)
+    // se prueban las cuatro asignaciones de esquinas (rotaciones). Se usa el
+    // primero que muestre la marca de orientación o un código válido.
     let best = null;
-    for (let k = 0; k < 4; k++) {
-      const dst = [quad[k], quad[(k + 1) % 4], quad[(k + 2) % 4], quad[(k + 3) % 4]];
-      const H = solveHomography(layout.markers, dst);
-      if (!H) continue;
-      const ev = evaluateHypothesis(img, H, layout);
-      const score = ev.orientContrast + (ev.decoded ? 1 : 0);
-      if (!best || score > best.score) best = { k, H, ev, score, dst };
+    let quad = found.quads[0];
+    for (const q of found.quads) {
+      let qBest = null;
+      for (let k = 0; k < 4; k++) {
+        const dst = [q[k], q[(k + 1) % 4], q[(k + 2) % 4], q[(k + 3) % 4]];
+        const H = solveHomography(layout.markers, dst);
+        if (!H) continue;
+        const ev = evaluateHypothesis(img, H, layout);
+        const score = ev.orientContrast + (ev.decoded ? 1 : 0);
+        if (!qBest || score > qBest.score) qBest = { k, H, ev, score, dst };
+      }
+      if (!qBest) continue;
+      if (!best) {
+        best = qBest;
+        quad = q;
+      }
+      if (qBest.ev.decoded || qBest.ev.orientContrast >= 0.3) {
+        best = qBest;
+        quad = q;
+        break;
+      }
     }
     if (!best) {
       return { ok: false, corners: quad, error: 'No se pudo calcular la geometría de la hoja.' };
@@ -667,7 +720,11 @@
     const sidePts = locateSideMarks(found.blobs, best.H, layout, pxPerMm);
     const sideFound = sidePts.filter(Boolean).length;
 
-    const decoded = best.ev.decoded;
+    let decoded = best.ev.decoded;
+    // Si el código no se lee con la configuración actual, puede que la hoja se
+    // haya impreso en otro formato o papel (el código queda en otra posición).
+    if (!decoded) decoded = decodeWithOtherFormats(img, quad, layout);
+
     // Sin código legible se exige una marca de orientación nítida y las marcas laterales.
     if (!decoded && (best.ev.orientContrast < 0.3 || sideFound < 2)) {
       return {
@@ -688,7 +745,8 @@
         decoded,
         error:
           `Esta hoja corresponde a otra prueba: ${decoded.numQuestions} preguntas, ${decoded.numChoices} alternativas, ` +
-          `${decoded.idDigits} dígitos de identificación, papel ${paper ? paper.label : decoded.paper}. ` +
+          `${decoded.idDigits} dígitos de identificación, papel ${paper ? paper.label : decoded.paper}` +
+          (decoded.format !== 'full' ? `, ${SheetLayout.FORMATS[decoded.format].label.toLowerCase()}. ` : '. ') +
           'Revise la configuración de la prueba.',
       };
     }
@@ -727,8 +785,17 @@
         }
       });
       const pitchMm = idxs.length > 1 ? Math.abs(rows[idxs[1]][0].y - rows[idxs[0]][0].y) : layout.grid.pitch;
-      const s = alignGroup(dark, idxs.map((ri) => rows[ri]), ppm, anchor, pitchMm);
-      idxs.forEach((ri, k) => (shifts[ri] = s[k]));
+      // Se prueba partir sin corrimiento y corrido media fila hacia arriba y
+      // hacia abajo: entre dos filas hay un falso "calce" (los contornos de
+      // arriba y de abajo) y así se evita quedar atrapado en él.
+      const groupRows = idxs.map((ri) => rows[ri]);
+      const half = (pitchMm * ppm) / 2;
+      let best = alignGroup(dark, groupRows, ppm, anchor, pitchMm, 0, 0.45);
+      for (const seed of [half, -half]) {
+        const alt = alignGroup(dark, groupRows, ppm, anchor, pitchMm, seed, 0.3);
+        if (alt.score > best.score) best = alt;
+      }
+      idxs.forEach((ri, k) => (shifts[ri] = best.shifts[k]));
     }
 
     // Control de alineación. Toda burbuja real tiene su contorno impreso y
@@ -746,6 +813,10 @@
         'Alísela sobre una superficie plana y tome la foto nuevamente.',
     });
     const pitch = layout.grid.pitch;
+    const pitchOf = (g) => {
+      const ix = groups[g];
+      return ix.length > 1 ? Math.abs(rows[ix[1]][0].y - rows[ix[0]][0].y) : pitch;
+    };
     for (let g = 0; g < groups.length; g++) {
       const idxs = groups[g];
       const nb = rows[idxs[0]].length;
@@ -765,11 +836,21 @@
       }
       const sorted = rowC.slice().sort((a, b) => a - b);
       const med = sorted[Math.floor(sorted.length / 2)];
-      if (med < 0.04) continue; // imagen sin contraste suficiente para evaluar
+      // Las burbujas impresas siempre muestran contorno: si una columna no
+      // lo muestra, la lectura cayó fuera de la grilla (o la foto es ilegible).
+      if (med < 0.05) return misaligned();
       if (sorted[0] < med * 0.3) return misaligned();
       for (let k = 0; k < nb; k++) if (posC[k] < med * 0.4) return misaligned();
       const isQuestionColumn = g < layout.grid.columns.length;
       if (!isQuestionColumn) continue;
+      // Con la lectura bien alineada, correrla media fila hace desaparecer los
+      // contornos; si en cambio mejora, la lectura quedó entre dos filas.
+      const halfShift = pitchOf(g) / 2;
+      const meanC = rowC.reduce((a, b) => a + b, 0) / rowC.length;
+      for (const dy of [-halfShift, halfShift]) {
+        const c = idxs.reduce((sum, ri) => sum + shiftedFit(rows[ri], shifts[ri], 0, dy), 0) / idxs.length;
+        if (c > meanC * 0.6) return misaligned();
+      }
       if (posC[nb] > med * 0.45) return misaligned();
       if (idxs.length < 2) continue;
       const first = idxs[0];

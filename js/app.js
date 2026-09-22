@@ -5,7 +5,10 @@
 (function () {
   'use strict';
 
-  const { computeLayout, PAPERS, PAPER_IDS, sameStructure, normalizeConfig, CHOICE_LABELS, LIMITS } = window.SheetLayout;
+  const { computeLayout, PAPERS, PAPER_IDS, FORMATS, FORMAT_IDS, sameStructure, normalizeConfig, CHOICE_LABELS, LIMITS } =
+    window.SheetLayout;
+  const TestDoc = window.TestDoc;
+  const SheetLayout = window.SheetLayout;
   const OMR = window.OMR;
   const Grading = window.Grading;
   const SheetRenderer = window.SheetRenderer;
@@ -16,7 +19,7 @@
   const MAX_IMAGE_SIDE = 2000;
   const PREVIEW_WIDTH = 1200;
   const PHOTO_MAX_SIDE = 1600;
-  const TABS = ['prueba', 'hoja', 'escanear', 'resultados'];
+  const TABS = ['prueba', 'evaluacion', 'hoja', 'escanear', 'resultados'];
 
   const $ = (sel, root) => (root || document).querySelector(sel);
   const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
@@ -37,7 +40,34 @@
       scoring: Object.assign({}, Grading.DEFAULT_SCORING),
       roster: '',
       threshold: null,
+      format: 'full',
+      sheetFields: { curso: true, fecha: true, rut: true },
+      oaText: '',
+      levels: Object.assign({}, Grading.DEFAULT_LEVELS),
+      doc: defaultDoc(),
     };
+  }
+
+  function defaultDoc() {
+    const f = JSON.parse(JSON.stringify(TestDoc.DEFAULT_FORMAT));
+    f.title = '';
+    return { text: '', sortByNumber: true, format: f };
+  }
+
+  function sanitizeDoc(raw) {
+    const d = defaultDoc();
+    if (!raw || typeof raw !== 'object') return d;
+    if (typeof raw.text === 'string') d.text = raw.text;
+    d.sortByNumber = raw.sortByNumber !== false;
+    const f = raw.format || {};
+    for (const k of Object.keys(d.format)) {
+      if (k === 'fields') continue;
+      if (f[k] !== undefined && typeof f[k] === typeof d.format[k]) d.format[k] = f[k];
+    }
+    for (const k of Object.keys(d.format.fields)) {
+      if (f.fields && typeof f.fields[k] === 'boolean') d.format.fields[k] = f.fields[k];
+    }
+    return d;
   }
 
   function sanitizeExam(raw) {
@@ -54,6 +84,13 @@
       if (typeof sc[k] === 'number' && Number.isFinite(sc[k])) exam.scoring[k] = sc[k];
     }
     exam.key = fitKey(Array.isArray(raw.key) ? raw.key : [], exam.numQuestions, exam.numChoices);
+    exam.sheetFields = SheetLayout.normalizeFields(raw.sheetFields);
+    exam.oaText = typeof raw.oaText === 'string' ? raw.oaText : '';
+    const lv = raw.levels || {};
+    for (const k of Object.keys(exam.levels)) {
+      if (typeof lv[k] === 'number' && Number.isFinite(lv[k])) exam.levels[k] = lv[k];
+    }
+    exam.doc = sanitizeDoc(raw.doc);
     return exam;
   }
 
@@ -232,7 +269,7 @@
   function getLayout() {
     try {
       layoutError = '';
-      return computeLayout(state.exam);
+      return computeLayout(Object.assign({}, state.exam, { fields: state.exam.sheetFields }));
     } catch (e) {
       layoutError = e.message;
       return null;
@@ -241,9 +278,11 @@
 
   function updateLayoutError() {
     getLayout();
-    const el = $('#layoutError');
-    el.textContent = layoutError;
-    el.hidden = !layoutError;
+    for (const id of ['#layoutError', '#formatError']) {
+      const el = $(id);
+      el.textContent = layoutError;
+      el.hidden = !layoutError;
+    }
   }
 
   /* ------------------------------------------------------------------ */
@@ -255,6 +294,7 @@
     for (const b of $$('.tabs button')) b.setAttribute('aria-selected', String(b.dataset.tab === name));
     for (const t of TABS) $('#tab-' + t).hidden = t !== name;
     if (name === 'hoja') renderSheetPreview();
+    if (name === 'evaluacion') renderDoc();
     if (name === 'resultados') renderResults();
     if (location.hash !== '#' + name) history.replaceState(null, '', '#' + name);
   }
@@ -271,6 +311,13 @@
     $('#exChoices').value = String(e.numChoices);
     $('#exIdDigits').value = e.idDigits;
     $('#exPaper').value = e.paper;
+    $('#exFormat').value = e.format;
+    $('#sheetSchool').value = e.doc.format.school;
+    for (const cb of $$('[data-sheetfield]')) cb.checked = e.sheetFields[cb.dataset.sheetfield];
+    $('#oaText').value = e.oaText;
+    $('#lvlAchieved').value = e.levels.achieved;
+    $('#lvlPartial').value = e.levels.partial;
+    fillDocForm();
     $('#scPoints').value = e.scoring.pointsCorrect;
     $('#scPenalty').value = e.scoring.penaltyWrong;
     $('#scExigencia').value = e.scoring.exigencia;
@@ -288,7 +335,7 @@
     const cur = state.exam;
     if (!sameStructure(next, cur) && state.results.length) {
       const ok = confirm(
-        `Cambiar el número de preguntas, alternativas, dígitos o el papel hace incompatibles los ${state.results.length} resultados guardados, que serán eliminados. ¿Continuar?`
+        `Cambiar el número de preguntas, alternativas, dígitos, el papel o las hojas por página hace incompatibles los ${state.results.length} resultados guardados, que serán eliminados. ¿Continuar?`
       );
       if (!ok) return false;
       state.results = [];
@@ -306,13 +353,16 @@
       numQuestions: $('#exQuestions').value,
       numChoices: $('#exChoices').value,
       idDigits: $('#exIdDigits').value,
+      format: $('#exFormat').value,
     };
     applyStructure(next);
     fillExamForm();
     save();
     renderKey();
+    renderObjectives();
     updateLayoutError();
     renderResultsBadge();
+    if (!$('#tab-hoja').hidden) renderSheetPreview();
   }
 
   function onScoringInput() {
@@ -373,33 +423,53 @@
   /* 2. Hoja                                                             */
   /* ------------------------------------------------------------------ */
 
+  function sheetOptions(fill) {
+    return {
+      title: state.exam.title || 'Hoja de respuestas',
+      subtitle: state.exam.subtitle,
+      school: state.exam.doc.format.school,
+      fill,
+    };
+  }
+
+  /** Una hoja de respuestas (del tamaño del formato elegido). */
   function sheetSvg(fill) {
     const layout = getLayout();
     if (!layout) return null;
-    return SheetRenderer.renderSVG(layout, {
-      title: state.exam.title || 'Hoja de respuestas',
-      subtitle: state.exam.subtitle,
-      fill,
-    });
+    return SheetRenderer.renderSVG(layout, sheetOptions(fill));
+  }
+
+  /** Página para imprimir, con 1, 2 o 4 hojas de respuestas. */
+  function sheetPage() {
+    const layout = getLayout();
+    if (!layout) return null;
+    return SheetRenderer.renderPageSVG(layout, sheetOptions());
   }
 
   function renderSheetPreview() {
-    const svg = sheetSvg();
-    $('#sheetPreview').innerHTML = svg || `<p class="alert error">${esc(layoutError)}</p>`;
+    const page = sheetPage();
+    const preview = $('#sheetPreview');
+    preview.innerHTML = page ? page.svg : `<p class="alert error">${esc(layoutError)}</p>`;
+    preview.classList.toggle('landscape', !!(page && page.landscape));
+    $('#cutTip').hidden = state.exam.format === 'full';
   }
 
-  function printSheet() {
-    const svg = sheetSvg();
-    if (!svg) return toast(layoutError);
-    const paper = PAPERS[state.exam.paper];
+  function setPageStyle(css) {
     let style = $('#pageStyle');
     if (!style) {
       style = document.createElement('style');
       style.id = 'pageStyle';
       document.head.appendChild(style);
     }
-    style.textContent = `@page { size: ${paper.width}mm ${paper.height}mm; margin: 0; }`;
-    $('#printArea').innerHTML = svg;
+    style.textContent = css;
+  }
+
+  function printSheet() {
+    const page = sheetPage();
+    if (!page) return toast(layoutError);
+    setPageStyle(`@page { size: ${page.width}mm ${page.height}mm; margin: 0; }`);
+    $('#printArea').className = 'print-area';
+    $('#printArea').innerHTML = page.svg;
     window.print();
   }
 
@@ -418,15 +488,15 @@
   }
 
   async function downloadSample() {
+    const layout = getLayout();
     const svg = sheetSvg(sampleFill());
     if (!svg) return toast(layoutError);
-    const paper = PAPERS[state.exam.paper];
-    const ppm = 6; // ~150 ppp
+    const ppm = layout.format.id === 'full' ? 6 : 8; // ~150–200 ppp
     const img = new Image();
     img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
     await img.decode();
-    const sw = Math.round(paper.width * ppm);
-    const sh = Math.round(paper.height * ppm);
+    const sw = Math.round(layout.width * ppm);
+    const sh = Math.round(layout.height * ppm);
     const pad = Math.round(sw * 0.1);
     const cv = document.createElement('canvas');
     cv.width = sw + 2 * pad;
@@ -438,6 +508,211 @@
     ctx.rotate((3 * Math.PI) / 180); // leve giro, como una foto real
     ctx.drawImage(img, -sw / 2, -sh / 2, sw, sh);
     cv.toBlob((blob) => download(`${slug(state.exam.title)}-ejemplo.png`, blob), 'image/png');
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Objetivos de aprendizaje                                            */
+  /* ------------------------------------------------------------------ */
+
+  function currentObjectives() {
+    return Grading.parseObjectives(state.exam.oaText, state.exam.numQuestions);
+  }
+
+  function renderObjectives() {
+    const parsed = currentObjectives();
+    const box = $('#oaSummary');
+    const status = $('#oaStatus');
+    if (!state.exam.oaText.trim()) {
+      box.innerHTML = '';
+      status.textContent = '';
+      return;
+    }
+    const rows = parsed.objectives
+      .map((o) => `<tr><td><strong>${esc(o.name)}</strong></td><td>${esc(Grading.formatRanges(o.questions))}</td><td class="num">${o.questions.length}</td></tr>`)
+      .join('');
+    const notes = [];
+    for (const e of parsed.errors) notes.push(`<li class="bad">${esc(e)}</li>`);
+    if (parsed.unassigned.length) {
+      notes.push(`<li>Preguntas sin objetivo (no se consideran en el análisis por OA): ${esc(Grading.formatRanges(parsed.unassigned))}.</li>`);
+    }
+    if (parsed.repeated.length) {
+      notes.push(`<li>Preguntas asignadas a más de un objetivo: ${esc(Grading.formatRanges(parsed.repeated))}.</li>`);
+    }
+    box.innerHTML =
+      (rows ? `<table class="oa-table"><thead><tr><th>Objetivo</th><th>Preguntas</th><th class="num">N°</th></tr></thead><tbody>${rows}</tbody></table>` : '') +
+      (notes.length ? `<ul class="warn-list">${notes.join('')}</ul>` : '');
+    status.textContent = parsed.objectives.length ? `${parsed.objectives.length} objetivo(s)` : '';
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* 2. Evaluación (generador de la prueba)                              */
+  /* ------------------------------------------------------------------ */
+
+  let docParsed = { questions: [], warnings: [] };
+
+  function fillDocForm() {
+    const d = state.exam.doc;
+    const f = d.format;
+    $('#docText').value = d.text;
+    $('#docSort').checked = d.sortByNumber;
+    $('#docSchool').value = f.school;
+    $('#docTitle').value = f.title;
+    $('#docSubject').value = f.subject;
+    $('#docTeacher').value = f.teacher;
+    $('#docCourse').value = f.course;
+    $('#docPaper').value = f.paper;
+    $('#docInstructions').value = f.instructions;
+    $('#docFont').value = f.fontFamily;
+    $('#docFontSize').value = String(f.fontSize);
+    $('#docColumns').value = String(f.columns);
+    $('#docLetters').value = f.letterStyle;
+    $('#docOptLayout').value = f.optionsLayout;
+    $('#docShowOA').checked = f.showOA;
+    for (const cb of $$('[data-docfield]')) cb.checked = !!f.fields[cb.dataset.docfield];
+    $('#docLogoPreview').hidden = !f.logo;
+    $('#docLogoRemove').hidden = !f.logo;
+    if (f.logo) $('#docLogoPreview').src = f.logo;
+    else $('#docLogoPreview').removeAttribute('src');
+  }
+
+  function docFormat() {
+    const f = Object.assign({}, state.exam.doc.format);
+    f.title = f.title || state.exam.title || 'Evaluación';
+    return f;
+  }
+
+  function docMaxScore() {
+    const n = docParsed.questions.length;
+    return n ? Math.round(n * state.exam.scoring.pointsCorrect * 100) / 100 : '';
+  }
+
+  function renderDoc() {
+    const d = state.exam.doc;
+    docParsed = TestDoc.parseQuestions(d.text, { sortByNumber: d.sortByNumber });
+    const qs = docParsed.questions;
+    const maxOpts = qs.reduce((m, q) => Math.max(m, q.options.length), 0);
+    const withKey = qs.filter((q) => q.correct !== null).length;
+    const oas = Array.from(new Set(qs.map((q) => q.oa).filter(Boolean)));
+    $('#docSummary').textContent = qs.length
+      ? `${qs.length} pregunta(s) · hasta ${maxOpts} alternativas` +
+        (withKey ? ` · ${withKey} con respuesta correcta` : '') +
+        (oas.length ? ` · ${oas.length} OA` : '')
+      : '';
+    const warn = $('#docWarnings');
+    warn.innerHTML = docParsed.warnings.map((w) => `<li>${esc(w)}</li>`).join('');
+    warn.hidden = !docParsed.warnings.length;
+    $('#docApply').disabled = !qs.length;
+    $('#docPrint').disabled = !qs.length;
+    const preview = $('#docPreview');
+    const paper = PAPERS[d.format.paper] || PAPERS.carta;
+    preview.style.width = paper.width + 'mm';
+    preview.innerHTML = qs.length
+      ? TestDoc.renderTestHTML(qs, docFormat(), { maxScore: docMaxScore(), intro: docParsed.intro })
+      : '<p class="muted doc-empty">Pega las preguntas arriba para ver la evaluación.</p>';
+  }
+
+  let docTimer = null;
+  function scheduleDocRender() {
+    clearTimeout(docTimer);
+    docTimer = setTimeout(renderDoc, 250);
+  }
+
+  function readDocForm() {
+    const f = state.exam.doc.format;
+    f.school = $('#docSchool').value;
+    f.title = $('#docTitle').value;
+    f.subject = $('#docSubject').value;
+    f.teacher = $('#docTeacher').value;
+    f.course = $('#docCourse').value;
+    f.paper = $('#docPaper').value;
+    f.instructions = $('#docInstructions').value;
+    f.fontFamily = $('#docFont').value;
+    f.fontSize = Number($('#docFontSize').value) || 12;
+    f.columns = Number($('#docColumns').value) || 1;
+    f.letterStyle = $('#docLetters').value;
+    f.optionsLayout = $('#docOptLayout').value;
+    f.showOA = $('#docShowOA').checked;
+    for (const cb of $$('[data-docfield]')) f.fields[cb.dataset.docfield] = cb.checked;
+    state.exam.doc.text = $('#docText').value;
+    state.exam.doc.sortByNumber = $('#docSort').checked;
+    $('#sheetSchool').value = f.school;
+    save();
+    scheduleDocRender();
+  }
+
+  async function loadLogo(file) {
+    try {
+      const bmp = await loadBitmap(file);
+      const w0 = bmp.naturalWidth || bmp.width;
+      const h0 = bmp.naturalHeight || bmp.height;
+      const sc = Math.min(1, 400 / Math.max(w0, h0));
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(w0 * sc));
+      cv.height = Math.max(1, Math.round(h0 * sc));
+      cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+      if (bmp.close) bmp.close();
+      state.exam.doc.format.logo = cv.toDataURL('image/png');
+      save();
+      fillDocForm();
+      renderDoc();
+    } catch (e) {
+      toast('No se pudo leer la imagen del logo.');
+    }
+  }
+
+  function printDoc() {
+    renderDoc();
+    if (!docParsed.questions.length) return;
+    const paper = PAPERS[state.exam.doc.format.paper] || PAPERS.carta;
+    setPageStyle(
+      `@page { size: ${paper.width}mm ${paper.height}mm; margin: 15mm 15mm 18mm; ` +
+        `@bottom-right { content: "Página " counter(page) " de " counter(pages); font: 9pt Arial, sans-serif; color: #555; } }`
+    );
+    $('#printArea').className = 'print-area print-doc';
+    $('#printArea').innerHTML = TestDoc.renderTestHTML(docParsed.questions, docFormat(), { maxScore: docMaxScore(), intro: docParsed.intro });
+    window.print();
+  }
+
+  function injectDocStyles() {
+    const st = document.createElement('style');
+    st.textContent = TestDoc.TEST_CSS;
+    document.head.appendChild(st);
+  }
+
+  /** Traspasa las preguntas de la evaluación a la hoja de respuestas: cantidad, alternativas, clave y OA. */
+  function applyDocToSheet() {
+    renderDoc();
+    const qs = docParsed.questions;
+    if (!qs.length) return;
+    const n = Math.min(qs.length, LIMITS.maxQuestions);
+    const c = Math.min(LIMITS.maxChoices, Math.max(LIMITS.minChoices, qs.reduce((m, q) => Math.max(m, q.options.length), 0)));
+    const withKey = qs.filter((q) => q.correct !== null).length;
+    const oaMap = new Map();
+    qs.slice(0, n).forEach((q, i) => {
+      if (!q.oa) return;
+      if (!oaMap.has(q.oa)) oaMap.set(q.oa, []);
+      oaMap.get(q.oa).push(i);
+    });
+    const changes = [`${n} preguntas con ${c} alternativas (${CHOICE_LABELS[0]}–${CHOICE_LABELS[c - 1]})`];
+    if (withKey) changes.push(`la clave de ${withKey} pregunta(s)`);
+    if (oaMap.size) changes.push(`${oaMap.size} objetivo(s) de aprendizaje`);
+    if (qs.length > LIMITS.maxQuestions) changes.push(`(sólo se usan las primeras ${LIMITS.maxQuestions} preguntas)`);
+    if (!confirm(`Se configurará la hoja de respuestas con: ${changes.join(', ')}. ¿Continuar?`)) return;
+    if (!applyStructure(Object.assign({}, state.exam, { numQuestions: n, numChoices: c }))) return;
+    if (withKey) state.exam.key = fitKey(qs.slice(0, n).map((q) => q.correct), n, c);
+    if (oaMap.size) {
+      state.exam.oaText = Array.from(oaMap.entries())
+        .map(([name, idx]) => `${name}: ${Grading.formatRanges(idx)}`)
+        .join('\n');
+    }
+    if (!state.exam.title && state.exam.doc.format.title) state.exam.title = state.exam.doc.format.title;
+    save();
+    fillExamForm();
+    renderKey();
+    renderObjectives();
+    updateLayoutError();
+    renderResultsBadge();
+    toast('Hoja de respuestas configurada con las preguntas de la evaluación.');
   }
 
   /* ------------------------------------------------------------------ */
@@ -649,6 +924,14 @@
     return Grading.gradeAnswers(r.answers, state.exam.key, state.exam.scoring);
   }
 
+  /** Logro del estudiante en cada OA definido (lista vacía si no hay OA). */
+  function oaResults(g) {
+    const objectives = currentObjectives().objectives;
+    return objectives.length ? Grading.objectiveResults(g.items, objectives, state.exam.levels) : [];
+  }
+
+  const LEVEL_CLASS = { L: 'lvl-L', ML: 'lvl-ML', NL: 'lvl-NL' };
+
   function rosterName(code) {
     if (!code || !/^\d+$/.test(code)) return '';
     const lines = state.exam.roster.split(/\r?\n/);
@@ -740,6 +1023,7 @@
           <div class="pill"><b>${fmt(g.percent, 0)}%</b><span>Logro</span></div>
           <div class="pill grade${failed ? ' fail' : ''}"><b>${fmt(g.grade, 1)}</b><span>Nota</span></div>
         </div>
+        ${renderOaChips(g)}
         ${alerts.map((a) => `<p class="alert warn">${esc(a)}</p>`).join('')}
         <div class="detail-body" style="margin-top:14px">
           <div class="sheet-view">
@@ -774,6 +1058,19 @@
         }
       });
     }
+  }
+
+  function renderOaChips(g) {
+    const res = oaResults(g);
+    if (!res.length) return '';
+    const chips = res
+      .map(
+        (o) =>
+          `<span class="oa-chip ${LEVEL_CLASS[o.level] || ''}" title="${esc(`${o.name}: ${o.correct} de ${o.total} correctas (preguntas ${Grading.formatRanges(o.questions)})`)}">` +
+          `<b>${esc(o.name)}</b> ${o.percent === null ? '–' : fmt(o.percent, 0) + '%'} ${o.level ? `<em>${o.level}</em>` : ''}</span>`
+      )
+      .join('');
+    return `<div class="oa-chips">${chips}</div>`;
   }
 
   function loadPreviewImage(view) {
@@ -966,6 +1263,7 @@
       </tr></thead><tbody>${body}</tbody>`;
 
     renderItemAnalysis(rows);
+    renderOaResults(rows);
   }
 
   function renderItemAnalysis(rows) {
@@ -986,6 +1284,43 @@
     $('#itemTable').innerHTML = head + '<tbody>' + body + '</tbody>';
   }
 
+  function renderOaResults(rows) {
+    const card = $('#oaResultsCard');
+    const objectives = currentObjectives().objectives;
+    card.hidden = !objectives.length;
+    if (!objectives.length) return;
+    const lv = state.exam.levels;
+    const per = rows.map((x) => oaResults(x.g));
+    const summary = Grading.objectiveSummary(per, objectives);
+    const bar = (pct) => {
+      if (pct === null) return '–';
+      const cls = Grading.levelFor(pct, lv) === 'NL' ? 'low' : Grading.levelFor(pct, lv) === 'ML' ? 'mid' : '';
+      return `<span class="bar ${cls}"><i style="width:${pct}%"></i></span>${fmt(pct, 0)}%`;
+    };
+    $('#oaTable').innerHTML =
+      `<thead><tr><th>Objetivo</th><th>Preguntas</th><th>Logro promedio</th>` +
+      `<th class="num" title="${lv.achieved}% o más">L (≥${lv.achieved}%)</th><th class="num">ML (${lv.partial}–&lt;${lv.achieved}%)</th><th class="num">NL (&lt;${lv.partial}%)</th></tr></thead><tbody>` +
+      summary
+        .map(
+          (o) =>
+            `<tr><td><strong>${esc(o.name)}</strong></td><td>${esc(Grading.formatRanges(o.questions))}</td><td>${bar(o.average)}</td>` +
+            `<td class="num">${o.counts.L}</td><td class="num">${o.counts.ML}</td><td class="num">${o.counts.NL}</td></tr>`
+        )
+        .join('') +
+      '</tbody>';
+    $('#oaMatrix').innerHTML =
+      `<thead><tr><th>Código</th><th>Nombre</th>${objectives.map((o) => `<th class="num">${esc(o.name)}</th>`).join('')}</tr></thead><tbody>` +
+      rows
+        .map(
+          (x, i) =>
+            `<tr><td>${esc(x.r.code || '–')}</td><td>${esc(displayName(x.r))}</td>` +
+            per[i].map((o) => `<td class="num ${LEVEL_CLASS[o.level] || ''}">${o.percent === null ? '–' : fmt(o.percent, 0) + '%'}</td>`).join('') +
+            '</tr>'
+        )
+        .join('') +
+      '</tbody>';
+  }
+
   function exportCsv() {
     const sep = ';';
     const n = state.exam.numQuestions;
@@ -999,12 +1334,14 @@
     const lines = [];
     lines.push(
       ['N°', 'Código', 'Nombre', 'Archivo', 'Correctas', 'Incorrectas', 'Omitidas', 'Dobles marcas', 'Puntaje', 'Puntaje máximo', '% logro', 'Nota']
+        .concat(currentObjectives().objectives.map((o) => `% ${o.name}`))
         .concat(qCols)
         .map(cell)
         .join(sep)
     );
     lines.push(
       ['', '', 'CLAVE', '', '', '', '', '', '', '', '', '']
+        .concat(currentObjectives().objectives.map(() => ''))
         .concat(state.exam.key.map((k) => (k === null ? '' : CHOICE_LABELS[k])))
         .map(cell)
         .join(sep)
@@ -1012,6 +1349,7 @@
     sortedResults().forEach(({ r, g }, i) => {
       lines.push(
         [i + 1, r.code || '', displayName(r), r.fileName, g.correct, g.wrong, g.blank, g.multiple, dec(g.score, 2), dec(g.maxScore, 2), dec(g.percent, 1), dec(g.grade, 1)]
+          .concat(oaResults(g).map((o) => dec(o.percent, 1)))
           .concat(r.answers.map((a) => letters(a.marked)))
           .map(cell)
           .join(sep)
@@ -1119,6 +1457,12 @@
       color: '#5d6877',
       gapBefore: 6,
     });
+    const oaRes = oaResults(g);
+    if (oaRes.length) {
+      measure.font = font(19);
+      const txt = 'Logro por objetivo: ' + oaRes.map((o) => `${o.name} ${o.percent === null ? '–' : fmt(o.percent, 0) + '%'}${o.level ? ` (${o.level})` : ''}`).join('   ');
+      for (const l of wrapText(measure, txt, W - 2 * pad)) lines.push({ text: l, font: font(19), color: '#1c2430' });
+    }
     const edits = manualEdits(r);
     if (edits.length) {
       measure.font = font(19, 700);
@@ -1232,8 +1576,11 @@
     const L = (k) => (k === null || k === undefined ? '' : CHOICE_LABELS[k]);
     const head = [
       'N°', 'Código', 'Nombre', 'Correctas', 'Incorrectas', 'Omitidas', 'Dobles marcas', 'Puntaje',
-      'Puntaje máximo', '% logro', 'Nota', 'Estado', 'Hoja corregida', 'Foto original', 'Archivo',
+      'Puntaje máximo', '% logro', 'Nota',
     ];
+    const objectives = currentObjectives().objectives;
+    for (const o of objectives) head.push(`% ${o.name}`);
+    head.push('Estado', 'Hoja corregida', 'Foto original', 'Archivo');
     const firstQ = head.length;
     for (let q = 1; q <= n; q++) head.push('P' + q);
 
@@ -1270,6 +1617,7 @@
         g.maxScore,
         { v: g.percent, s: 'dec1' },
         g.grade === null ? '' : { v: g.grade, s: g.grade >= sc.gradePass ? 'ok' : 'bad' },
+        ...oaResults(g).map((o) => (o.percent === null ? '' : { v: o.percent, s: 'lvl' + o.level })),
         status,
         link.sheet ? { v: 'Ver hoja corregida', link: link.sheet, tooltip: link.sheet } : { v: 'sin imagen', s: 'muted' },
         link.photo ? { v: 'Ver foto original', link: link.photo, tooltip: link.photo } : { v: 'sin imagen', s: 'muted' },
@@ -1284,21 +1632,70 @@
 
     const headerRow = 4;
     const lastCol = Xlsx.colName(head.length - 1);
-    const cols = [5, 10, 28, 10, 11, 10, 9, 9, 10, 9, 7, 16, 20, 18, 22].concat(new Array(n).fill(5));
+    const cols = [5, 10, 28, 10, 11, 10, 9, 9, 10, 9, 7]
+      .concat(objectives.map((o) => Math.max(9, Math.min(24, o.name.length + 4))))
+      .concat([16, 20, 18, 22])
+      .concat(new Array(n).fill(5));
 
     // Hoja de análisis por pregunta.
     const c = exam.numChoices;
     const stats = Grading.itemAnalysis(rows.map((x) => x.r.answers), exam.key, c);
+    const oaOf = (q) => objectives.filter((o) => o.questions.indexOf(q) >= 0).map((o) => o.name).join(', ');
     const aRows = [[{ v: 'Análisis por pregunta', s: 'title' }], []];
-    aRows.push(['N°', 'Clave', '% de acierto'].concat(CHOICE_LABELS.slice(0, c), ['Omitidas', 'Dobles marcas']).map((h) => ({ v: h, s: 'header' })));
+    aRows.push(['N°', 'OA', 'Clave', '% de acierto'].concat(CHOICE_LABELS.slice(0, c), ['Omitidas', 'Dobles marcas']).map((h) => ({ v: h, s: 'header' })));
     for (const st of stats) {
-      aRows.push([st.question, L(st.key) || '–', st.correctPct === null ? '' : { v: st.correctPct, s: 'dec1' }].concat(st.counts, [st.blank, st.multiple]));
+      aRows.push(
+        [st.question, oaOf(st.question - 1), L(st.key) || '–', st.correctPct === null ? '' : { v: st.correctPct, s: 'dec1' }].concat(st.counts, [st.blank, st.multiple])
+      );
+    }
+
+    // Hoja de logro por objetivo de aprendizaje.
+    const sheets = [];
+    if (objectives.length) {
+      const lv = exam.levels;
+      const per = rows.map((x) => oaResults(x.g));
+      const summary = Grading.objectiveSummary(per, objectives);
+      const oRows = [[{ v: 'Logro por objetivo de aprendizaje', s: 'title' }]];
+      oRows.push([{ v: `Niveles: L = Logrado (≥ ${lv.achieved}%) · ML = Medianamente logrado (≥ ${lv.partial}% y < ${lv.achieved}%) · NL = No logrado (< ${lv.partial}%)`, s: 'muted' }]);
+      oRows.push([]);
+      oRows.push(['Objetivo', 'Preguntas', 'N° preguntas', '% logro promedio', 'Nivel del curso', 'Estudiantes L', 'Estudiantes ML', 'Estudiantes NL'].map((h) => ({ v: h, s: 'header' })));
+      for (const o of summary) {
+        const level = Grading.levelFor(o.average, lv);
+        oRows.push([
+          { v: o.name, s: 'bold' },
+          Grading.formatRanges(o.questions),
+          o.questions.length,
+          o.average === null ? '' : { v: o.average, s: level ? 'lvl' + level : 'dec1' },
+          level ? Grading.LEVEL_LABELS[level] : '',
+          o.counts.L,
+          o.counts.ML,
+          o.counts.NL,
+        ]);
+      }
+      oRows.push([]);
+      oRows.push([{ v: 'Logro de cada estudiante (%)', s: 'bold' }]);
+      const matrixHeader = oRows.length + 1;
+      oRows.push(['N°', 'Código', 'Nombre'].concat(objectives.map((o) => o.name), ['Nota']).map((h) => ({ v: h, s: 'header' })));
+      rows.forEach((x, i) => {
+        oRows.push(
+          [i + 1, x.r.code || '', displayName(x.r)]
+            .concat(per[i].map((o) => (o.percent === null ? '' : { v: o.percent, s: 'lvl' + o.level })))
+            .concat([x.g.grade === null ? '' : { v: x.g.grade, s: x.g.grade >= sc.gradePass ? 'ok' : 'bad' }])
+        );
+      });
+      sheets.push({
+        name: 'Logro por OA',
+        rows: oRows,
+        cols: [Math.max(12, Math.min(40, Math.max(...objectives.map((o) => o.name.length)) + 2)), 16, 12, 15, 22, 13, 14, 14],
+        autoFilter: `A${matrixHeader}:${Xlsx.colName(3 + objectives.length)}${matrixHeader + rows.length}`,
+      });
     }
 
     return Xlsx.build(
       [
         { name: 'Resultados', rows: sheetRows, cols, freeze: { row: headerRow + 1, col: 3 }, autoFilter: `A${headerRow}:${lastCol}${headerRow + 1 + rows.length}` },
-        { name: 'Análisis por pregunta', rows: aRows, cols: [6, 8, 13].concat(new Array(c).fill(7), [10, 13]), freeze: { row: 3 } },
+        ...sheets,
+        { name: 'Análisis por pregunta', rows: aRows, cols: [6, 14, 8, 13].concat(new Array(c).fill(7), [10, 13]), freeze: { row: 3 } },
       ],
       { title: exam.title }
     );
@@ -1446,6 +1843,9 @@
   function bind() {
     const paperSel = $('#exPaper');
     paperSel.innerHTML = PAPER_IDS.map((id) => `<option value="${id}">${esc(PAPERS[id].label)}</option>`).join('');
+    $('#docPaper').innerHTML = paperSel.innerHTML;
+    $('#exFormat').innerHTML = FORMAT_IDS.map((id) => `<option value="${id}">${esc(FORMATS[id].label)}</option>`).join('');
+    $('#docFont').innerHTML = Object.keys(TestDoc.FONTS).map((f) => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
     $('#exQuestions').max = LIMITS.maxQuestions;
     $('#exIdDigits').max = LIMITS.maxIdDigits;
 
@@ -1466,7 +1866,57 @@
       state.exam.subtitle = e.target.value;
       save();
     });
-    for (const id of ['#exQuestions', '#exChoices', '#exIdDigits', '#exPaper']) $(id).addEventListener('change', onStructureInput);
+    for (const id of ['#exQuestions', '#exChoices', '#exIdDigits', '#exPaper', '#exFormat']) $(id).addEventListener('change', onStructureInput);
+
+    // Hoja de respuestas: campos del encabezado y nombre del establecimiento.
+    for (const cb of $$('[data-sheetfield]')) {
+      cb.addEventListener('change', () => {
+        state.exam.sheetFields[cb.dataset.sheetfield] = cb.checked;
+        save();
+        renderSheetPreview();
+      });
+    }
+    $('#sheetSchool').addEventListener('input', (e) => {
+      state.exam.doc.format.school = e.target.value;
+      $('#docSchool').value = e.target.value;
+      save();
+      renderSheetPreview();
+    });
+
+    // Objetivos de aprendizaje.
+    $('#oaText').addEventListener('input', (e) => {
+      state.exam.oaText = e.target.value;
+      save();
+      renderObjectives();
+    });
+    for (const id of ['#lvlAchieved', '#lvlPartial']) {
+      $(id).addEventListener('change', () => {
+        const a = Math.min(100, Math.max(1, parseFloat($('#lvlAchieved').value) || Grading.DEFAULT_LEVELS.achieved));
+        const pl = Math.min(a - 1, Math.max(0, parseFloat($('#lvlPartial').value) || 0));
+        state.exam.levels = { achieved: a, partial: pl };
+        $('#lvlAchieved').value = a;
+        $('#lvlPartial').value = pl;
+        save();
+      });
+    }
+
+    // Evaluación.
+    for (const el of $$('#tab-evaluacion input:not([type=file]), #tab-evaluacion select, #tab-evaluacion textarea')) {
+      el.addEventListener(el.matches('input[type=checkbox], select') ? 'change' : 'input', readDocForm);
+    }
+    $('#docLogoInput').addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      e.target.value = '';
+      if (f) loadLogo(f);
+    });
+    $('#docLogoRemove').addEventListener('click', () => {
+      state.exam.doc.format.logo = '';
+      save();
+      fillDocForm();
+      renderDoc();
+    });
+    $('#docApply').addEventListener('click', applyDocToSheet);
+    $('#docPrint').addEventListener('click', printDoc);
     for (const id of ['#scPoints', '#scPenalty', '#scExigencia', '#scMin', '#scPass', '#scMax']) $(id).addEventListener('change', onScoringInput);
     $('#roster').addEventListener('input', (e) => {
       state.exam.roster = e.target.value;
@@ -1502,9 +1952,9 @@
 
     $('#btnPrint').addEventListener('click', printSheet);
     $('#btnDownloadSvg').addEventListener('click', () => {
-      const svg = sheetSvg();
-      if (!svg) return toast(layoutError);
-      download(`${slug(state.exam.title)}.svg`, new Blob([svg], { type: 'image/svg+xml' }));
+      const page = sheetPage();
+      if (!page) return toast(layoutError);
+      download(`${slug(state.exam.title)}.svg`, new Blob([page.svg], { type: 'image/svg+xml' }));
     });
     $('#btnDownloadSample').addEventListener('click', () => downloadSample().catch((e) => toast('No se pudo generar el ejemplo: ' + e.message)));
 
@@ -1597,7 +2047,9 @@
   bind();
   fillExamForm();
   renderKey();
+  renderObjectives();
   updateLayoutError();
   renderResultsBadge();
+  injectDocStyles();
   showTab(location.hash.slice(1) || 'prueba');
 })();

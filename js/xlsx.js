@@ -6,7 +6,8 @@
  *   - string o número
  *   - null / undefined (vacía)
  *   - { v: valor, s: estilo, link: 'ruta/relativa.jpg' }
- * Estilos disponibles: 'bold', 'header', 'title', 'link', 'dec1', 'dec2', 'ok', 'bad', 'muted'.
+ * Estilos disponibles: 'bold', 'header', 'title', 'link', 'dec1', 'dec2', 'ok', 'bad', 'muted',
+ * y 'lvlL', 'lvlML', 'lvlNL' (fondo verde, amarillo o rojo, con un decimal).
  */
 (function (root, factory) {
   const zip = root && root.ZipWriter ? root.ZipWriter : typeof require === 'function' ? require('./zip.js') : null;
@@ -16,7 +17,7 @@
 })(typeof self !== 'undefined' ? self : this, function (ZipWriter) {
   'use strict';
 
-  const STYLE_IDS = { normal: 0, bold: 1, header: 2, title: 3, link: 4, dec1: 5, dec2: 6, ok: 7, bad: 8, muted: 9 };
+  const STYLE_IDS = { normal: 0, bold: 1, header: 2, title: 3, link: 4, dec1: 5, dec2: 6, ok: 7, bad: 8, muted: 9, lvlL: 10, lvlML: 11, lvlNL: 12 };
 
   const STYLES_XML =
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
@@ -31,11 +32,14 @@
     '<font><b/><sz val="11"/><color rgb="FF1E8E3E"/><name val="Calibri"/><family val="2"/></font>' +
     '<font><b/><sz val="11"/><color rgb="FFC62828"/><name val="Calibri"/><family val="2"/></font>' +
     '</fonts>' +
-    '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>' +
-    '<fill><patternFill patternType="solid"><fgColor rgb="FF1F4E79"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+    '<fills count="6"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>' +
+    '<fill><patternFill patternType="solid"><fgColor rgb="FF1F4E79"/><bgColor indexed="64"/></patternFill></fill>' +
+    '<fill><patternFill patternType="solid"><fgColor rgb="FFC8E6C9"/><bgColor indexed="64"/></patternFill></fill>' +
+    '<fill><patternFill patternType="solid"><fgColor rgb="FFFFF0B3"/><bgColor indexed="64"/></patternFill></fill>' +
+    '<fill><patternFill patternType="solid"><fgColor rgb="FFF8C9C9"/><bgColor indexed="64"/></patternFill></fill></fills>' +
     '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
     '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-    '<cellXfs count="10">' +
+    '<cellXfs count="13">' +
     '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
     '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
     '<xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>' +
@@ -46,6 +50,9 @@
     '<xf numFmtId="164" fontId="5" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>' +
     '<xf numFmtId="164" fontId="6" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>' +
     '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+    '<xf numFmtId="164" fontId="0" fillId="3" borderId="0" xfId="0" applyNumberFormat="1" applyFill="1" applyAlignment="1"><alignment horizontal="center"/></xf>' +
+    '<xf numFmtId="164" fontId="0" fillId="4" borderId="0" xfId="0" applyNumberFormat="1" applyFill="1" applyAlignment="1"><alignment horizontal="center"/></xf>' +
+    '<xf numFmtId="164" fontId="0" fillId="5" borderId="0" xfId="0" applyNumberFormat="1" applyFill="1" applyAlignment="1"><alignment horizontal="center"/></xf>' +
     '</cellXfs>' +
     '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
     '</styleSheet>';

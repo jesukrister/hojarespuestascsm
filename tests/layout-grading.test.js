@@ -12,7 +12,10 @@ test('el código de configuración se codifica y decodifica', () => {
       for (const numChoices of [2, 5, 6])
         for (const idDigits of [0, 4, 10]) {
           const cfg = { paper, numQuestions, numChoices, idDigits };
-          assert.deepEqual(SheetLayout.decodeConfig(SheetLayout.encodeConfig(cfg)), cfg);
+          for (const format of SheetLayout.FORMAT_IDS) {
+            const full = { ...cfg, format };
+            assert.deepEqual(SheetLayout.decodeConfig(SheetLayout.encodeConfig(full)), full);
+          }
         }
   assert.equal(SheetLayout.decodeConfig(new Array(20).fill(0)), null);
   assert.equal(SheetLayout.decodeConfig(new Array(20).fill(1)), null);
@@ -25,13 +28,18 @@ test('las burbujas quedan dentro del papel y sin superponerse', () => {
     { paper: 'a4', numQuestions: 80, numChoices: 6, idDigits: 10 },
     { paper: 'oficio', numQuestions: 120, numChoices: 6, idDigits: 10 },
     { paper: 'carta', numQuestions: 1, numChoices: 2, idDigits: 0 },
+    { paper: 'carta', format: 'half', numQuestions: 90, numChoices: 5, idDigits: 3 },
+    { paper: 'a4', format: 'quarter', numQuestions: 38, numChoices: 5, idDigits: 2 },
+    { paper: 'oficio', format: 'quarter', numQuestions: 20, numChoices: 6, idDigits: 10 },
   ];
   for (const cfg of configs) {
     const L = SheetLayout.computeLayout(cfg);
     const all = [].concat(...L.questions.map((q) => q.bubbles), ...L.idRows.map((r) => r.bubbles));
     for (const b of all) {
-      assert.ok(b.x - b.r > 10 && b.x + b.r < L.width - 10, `x fuera de rango en ${JSON.stringify(cfg)}`);
-      assert.ok(b.y - b.r > 22 && b.y + b.r < L.height - 22, `y fuera de rango en ${JSON.stringify(cfg)}`);
+      assert.ok(b.x - b.r > 10 * L.scale && b.x + b.r < L.width - 10 * L.scale, `x fuera de rango en ${JSON.stringify(cfg)}`);
+      const k = L.scale;
+      assert.ok(b.y - b.r > 22 * k && b.y + b.r < L.height - 16 * k, `y fuera de rango en ${JSON.stringify(cfg)}`);
+      assert.ok(b.x - b.r > L.sideMarks[0].x + L.sideMarks[0].size, `burbuja sobre marca lateral en ${JSON.stringify(cfg)}`);
     }
     for (let i = 0; i < all.length; i++)
       for (let j = i + 1; j < all.length; j++) {
@@ -50,6 +58,19 @@ test('la configuración más densa permitida cabe con burbujas legibles', () => 
       idDigits: SheetLayout.LIMITS.maxIdDigits,
     });
     assert.ok(L.grid.r >= 1.6, `burbujas muy pequeñas en ${paper}`);
+  }
+});
+
+test('la página impresa reúne 1, 2 o 4 hojas con líneas de corte', () => {
+  for (const [format, pieces] of [['full', 1], ['half', 2], ['quarter', 4]]) {
+    const L = SheetLayout.computeLayout({ paper: 'carta', format, numQuestions: 20, numChoices: 4, idDigits: 2 });
+    const page = SheetRenderer.renderPageSVG(L, { title: 'Prueba' });
+    assert.equal((page.svg.match(/<g transform=/g) || []).length, pieces);
+    assert.equal(page.landscape, format === 'half');
+    const t = SheetLayout.pageTiling('carta', format);
+    for (const p of t.pieces) {
+      assert.ok(p.x + L.width <= t.width + 1e-6 && p.y + L.height <= t.height + 1e-6, `${format}: hoja fuera de la página`);
+    }
   }
 });
 
@@ -98,4 +119,43 @@ test('análisis por pregunta', () => {
   assert.equal(stats[1].blank, 1);
   assert.equal(stats[1].multiple, 1);
   assert.equal(stats[1].correctPct, 50);
+});
+
+test('objetivos de aprendizaje: rangos, nombres y preguntas sin asignar', () => {
+  const text = [
+    'OA12: 1-4',
+    'OA 13 Comprensión lectora: 5 a 6, 9',
+    'OA12 = 10',
+    'OA14 7-8',
+    'OA15: 30',
+  ].join('\n');
+  const r = Grading.parseObjectives(text, 12);
+  assert.deepEqual(
+    r.objectives.map((o) => [o.name, o.questions]),
+    [
+      ['OA12', [0, 1, 2, 3, 9]],
+      ['OA 13 Comprensión lectora', [4, 5, 8]],
+      ['OA14', [6, 7]],
+    ]
+  );
+  assert.deepEqual(r.unassigned, [10, 11]);
+  assert.equal(r.errors.length, 1); // la pregunta 30 no existe
+  assert.equal(Grading.formatRanges([0, 1, 2, 3, 9]), '1-4, 10');
+});
+
+test('logro por objetivo con niveles L / ML / NL', () => {
+  const answers = [[0], [1], [2], [0], [1], [], [2]].map((m) => ({ marked: m }));
+  const key = [0, 1, 2, 3, 1, 0, null];
+  const g = Grading.gradeAnswers(answers, key);
+  const objectives = [
+    { name: 'OA1', questions: [0, 1, 2, 3] }, // 3 de 4 = 75 %
+    { name: 'OA2', questions: [4, 5, 6] }, // 1 de 2 (la 7 no tiene clave) = 50 %
+  ];
+  const res = Grading.objectiveResults(g.items, objectives);
+  assert.deepEqual(res.map((x) => [x.percent, x.level]), [[75, 'L'], [50, 'ML']]);
+  const res2 = Grading.objectiveResults(g.items, objectives, { achieved: 80, partial: 60 });
+  assert.deepEqual(res2.map((x) => x.level), ['ML', 'NL']);
+  const summary = Grading.objectiveSummary([res, res2], objectives);
+  assert.equal(summary[0].average, 75);
+  assert.deepEqual(summary[1].counts, { L: 0, ML: 1, NL: 1 });
 });

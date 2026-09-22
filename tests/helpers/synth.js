@@ -67,7 +67,9 @@ function rasterizeSheet(layout, ppm, marks, seed) {
   for (const c of layout.codeCells)
     if (c.bit) fillRect(img, ppm, c.x - c.size / 2, c.y - c.size / 2, c.x + c.size / 2, c.y + c.size / 2, 20);
   // Texto del encabezado simulado como barras finas.
-  fillRect(img, ppm, layout.header.titleX, 12, layout.header.titleX + 90, 17, 30);
+  const k = layout.scale || 1;
+  const titleEnd = Math.min(layout.header.titleX + 90 * k, layout.markers[1].x - layout.markerSize / 2 - 4 * k);
+  fillRect(img, ppm, layout.header.titleX, layout.header.titleY - 4 * k, titleEnd, layout.header.titleY + 1 * k, 30);
   for (const f of layout.header.fields) fillRect(img, ppm, f.x, f.y + 0.4, f.x2, f.y + 0.7, 30);
   const bubbles = (b) => {
     strokeCircle(img, ppm, b.x, b.y, b.r, 0.25, 70);

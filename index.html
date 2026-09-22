@@ -23,9 +23,10 @@
 
     <nav class="tabs" role="tablist" aria-label="Secciones">
       <button role="tab" data-tab="prueba" aria-selected="true"><span class="step">1</span>Prueba</button>
-      <button role="tab" data-tab="hoja" aria-selected="false"><span class="step">2</span>Hoja</button>
-      <button role="tab" data-tab="escanear" aria-selected="false"><span class="step">3</span>Escanear</button>
-      <button role="tab" data-tab="resultados" aria-selected="false"><span class="step">4</span>Resultados <span id="resultsBadge" class="badge" hidden>0</span></button>
+      <button role="tab" data-tab="evaluacion" aria-selected="false"><span class="step">2</span>Evaluación</button>
+      <button role="tab" data-tab="hoja" aria-selected="false"><span class="step">3</span>Hoja</button>
+      <button role="tab" data-tab="escanear" aria-selected="false"><span class="step">4</span>Escanear</button>
+      <button role="tab" data-tab="resultados" aria-selected="false"><span class="step">5</span>Resultados <span id="resultsBadge" class="badge" hidden>0</span></button>
     </nav>
 
     <main>
@@ -83,6 +84,25 @@
         </div>
 
         <div class="card">
+          <div class="card-head">
+            <h2>Objetivos de aprendizaje (opcional)</h2>
+            <span id="oaStatus" class="muted"></span>
+          </div>
+          <p class="muted small">Agrupa las preguntas por objetivo para ver el logro de cada OA en los resultados y en el Excel. Un objetivo por línea, con el nombre, dos puntos y las preguntas: <code>OA12: 1-4</code> · <code>OA13 Comprensión lectora: 5, 6, 9 a 11</code>.</p>
+          <textarea id="oaText" rows="4" spellcheck="false" placeholder="OA12: 1-4&#10;OA13: 5-6&#10;OA14: 7-10"></textarea>
+          <div id="oaSummary" class="oa-summary"></div>
+          <div class="form-grid" style="margin-top:12px">
+            <label>Logrado (L) desde
+              <span class="with-unit"><input id="lvlAchieved" type="number" min="1" max="100" step="1"><span>%</span></span>
+            </label>
+            <label>Medianamente logrado (ML) desde
+              <span class="with-unit"><input id="lvlPartial" type="number" min="0" max="99" step="1"><span>%</span></span>
+              <small>Bajo este porcentaje: No logrado (NL).</small>
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
           <h2>Puntaje y nota</h2>
           <div class="form-grid">
             <label>Puntos por respuesta correcta
@@ -115,11 +135,121 @@
           <button id="btnExportExam" class="btn ghost" type="button">Exportar configuración</button>
           <label class="btn ghost" for="importExamInput">Importar configuración</label>
           <input id="importExamInput" type="file" accept="application/json,.json" hidden>
-          <button class="btn primary" type="button" data-goto="hoja">Siguiente: generar hoja →</button>
+          <button class="btn ghost" type="button" data-goto="evaluacion">Crear la evaluación (opcional)</button>
+          <button class="btn primary" type="button" data-goto="hoja">Siguiente: hoja de respuestas →</button>
         </div>
       </section>
 
-      <!-- 2. HOJA ---------------------------------------------------------->
+      <!-- 2. EVALUACIÓN --------------------------------------------------->
+      <section id="tab-evaluacion" class="tab-panel" role="tabpanel" hidden>
+        <div class="card">
+          <div class="card-head">
+            <h2>1. Pega las preguntas</h2>
+            <span id="docSummary" class="muted"></span>
+          </div>
+          <p class="muted small">Copia las preguntas y alternativas desde Word, PDF o cualquier documento, aunque vengan desordenadas o con formatos distintos: se ordenan automáticamente.</p>
+          <details class="tips-box">
+            <summary>¿Qué formatos se reconocen?</summary>
+            <ul class="tips">
+              <li>Preguntas numeradas como <code>1.</code> <code>1)</code> <code>1.-</code> <code>Pregunta 1:</code>, o sin número.</li>
+              <li>Alternativas <code>a)</code> <code>A)</code> <code>a.</code> <code>(a)</code>, una por línea o varias en la misma línea.</li>
+              <li>Marca la alternativa correcta con <code>*</code> (<code>*b) Santiago</code>) o agrega al final una línea <code>Clave: 1A 2C 3B…</code> para cargar la clave automáticamente.</li>
+              <li>Escribe <code>OA12</code> en una línea sola para asignar las preguntas siguientes a ese objetivo.</li>
+              <li>Un texto separado por una línea en blanco antes de una pregunta (por ejemplo, una lectura) se imprime junto a esa pregunta.</li>
+            </ul>
+          </details>
+          <textarea id="docText" rows="14" spellcheck="false" placeholder="1. ¿Cuál es la capital de Chile?&#10;a) Santiago  b) Lima  c) Quito  d) Bogotá&#10;&#10;2) ¿Qué océano baña las costas de Chile?&#10;A. Atlántico&#10;*B. Pacífico&#10;C. Índico"></textarea>
+          <label class="check" style="margin-top:8px"><input id="docSort" type="checkbox" checked> Ordenar según la numeración del texto (si las preguntas están desordenadas)</label>
+          <ul id="docWarnings" class="warn-list" hidden></ul>
+          <div class="actions">
+            <button id="docApply" class="btn secondary" type="button">↪ Usar estas preguntas en la hoja de respuestas</button>
+          </div>
+          <p class="muted small">Ajusta la cantidad de preguntas y alternativas de la hoja, y carga la clave y los objetivos (OA) si vienen en el texto.</p>
+        </div>
+
+        <div class="card">
+          <h2>2. Membrete y formato</h2>
+          <div class="form-grid">
+            <label class="span-2">Establecimiento
+              <input id="docSchool" type="text" maxlength="120" placeholder="Colegio …">
+            </label>
+            <label>Logo
+              <span class="logo-row">
+                <label class="btn ghost small" for="docLogoInput">Elegir imagen…</label>
+                <input id="docLogoInput" type="file" accept="image/*" hidden>
+                <img id="docLogoPreview" alt="" hidden>
+                <button id="docLogoRemove" class="btn ghost small" type="button" hidden>Quitar</button>
+              </span>
+            </label>
+            <label>Título de la evaluación
+              <input id="docTitle" type="text" maxlength="120" placeholder="(usa el título de la prueba)">
+            </label>
+            <label>Asignatura
+              <input id="docSubject" type="text" maxlength="80">
+            </label>
+            <label>Profesor(a)
+              <input id="docTeacher" type="text" maxlength="80">
+            </label>
+            <label>Curso / nivel
+              <input id="docCourse" type="text" maxlength="60">
+            </label>
+            <label>Papel
+              <select id="docPaper"></select>
+            </label>
+          </div>
+          <fieldset class="checks">
+            <legend>Datos que completa el estudiante</legend>
+            <label class="check"><input type="checkbox" data-docfield="nombre"> Nombre</label>
+            <label class="check"><input type="checkbox" data-docfield="curso"> Curso</label>
+            <label class="check"><input type="checkbox" data-docfield="fecha"> Fecha</label>
+            <label class="check"><input type="checkbox" data-docfield="rut"> RUT</label>
+            <label class="check"><input type="checkbox" data-docfield="puntaje"> Puntaje</label>
+            <label class="check"><input type="checkbox" data-docfield="nota"> Nota</label>
+          </fieldset>
+          <label>Instrucciones
+            <textarea id="docInstructions" rows="3"></textarea>
+          </label>
+          <div class="form-grid" style="margin-top:12px">
+            <label>Tipo de letra
+              <select id="docFont"></select>
+            </label>
+            <label>Tamaño de letra
+              <select id="docFontSize">
+                <option value="10">10 pt</option><option value="11">11 pt</option><option value="12">12 pt</option>
+                <option value="13">13 pt</option><option value="14">14 pt</option><option value="16">16 pt</option>
+              </select>
+            </label>
+            <label>Columnas
+              <select id="docColumns"><option value="1">Una columna</option><option value="2">Dos columnas</option></select>
+            </label>
+            <label>Letras de las alternativas
+              <select id="docLetters"><option value="a)">a) b) c)</option><option value="A)">A) B) C)</option><option value="A.">A. B. C.</option><option value="(a)">(a) (b) (c)</option></select>
+            </label>
+            <label>Disposición de las alternativas
+              <select id="docOptLayout">
+                <option value="auto">Automática (según su largo)</option>
+                <option value="list">Una debajo de otra</option>
+                <option value="grid">En dos columnas</option>
+                <option value="row">En una fila</option>
+              </select>
+            </label>
+          </div>
+          <label class="check" style="margin-top:10px"><input id="docShowOA" type="checkbox"> Mostrar el OA junto a cada pregunta</label>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>3. Vista previa</h2>
+            <div class="actions">
+              <button id="docPrint" class="btn primary" type="button">🖨️ Imprimir evaluación</button>
+            </div>
+          </div>
+          <p class="muted small">Al imprimir puedes elegir “Guardar como PDF”. La división en páginas se ve en la vista de impresión; las preguntas no se cortan entre páginas.</p>
+          <div class="doc-preview-wrap"><div id="docPreview" class="doc-preview"></div></div>
+        </div>
+      </section>
+
+      <!-- 3. HOJA ---------------------------------------------------------->
       <section id="tab-hoja" class="tab-panel" role="tabpanel" hidden>
         <div class="card">
           <div class="card-head">
@@ -130,8 +260,25 @@
               <button id="btnDownloadSample" class="btn ghost" type="button" title="Genera una imagen de la hoja rellenada con la clave, útil para probar el lector">Descargar ejemplo rellenado</button>
             </div>
           </div>
+          <div class="form-grid sheet-options">
+            <label>Hojas de respuesta por página
+              <select id="exFormat"></select>
+              <small>Con 2 o 4 por página se ahorra papel: recorta por la línea punteada antes de escanear.</small>
+            </label>
+            <label>Establecimiento (opcional)
+              <input id="sheetSchool" type="text" maxlength="120" placeholder="Se muestra bajo el título">
+            </label>
+            <fieldset class="checks">
+              <legend>Campos del encabezado</legend>
+              <label class="check"><input type="checkbox" data-sheetfield="curso"> Curso</label>
+              <label class="check"><input type="checkbox" data-sheetfield="fecha"> Fecha</label>
+              <label class="check"><input type="checkbox" data-sheetfield="rut"> RUT</label>
+            </fieldset>
+          </div>
+          <p id="formatError" class="alert error" hidden></p>
           <ul class="tips">
             <li>Imprime en el tamaño de papel elegido, <strong>a escala 100 %</strong> (“Tamaño real”), sin encabezados del navegador.</li>
+            <li id="cutTip" hidden>Recorta cada hoja por la línea punteada (✂) y fotografía cada una por separado.</li>
             <li>Las cuatro marcas negras de las esquinas y el cuadrado pequeño junto a la marca superior izquierda son necesarios para leer la hoja: no los recortes ni los cubras.</li>
             <li>Las fotocopias funcionan bien siempre que las marcas se vean negras y nítidas.</li>
           </ul>
@@ -204,6 +351,12 @@
             </div>
           </div>
           <div id="resultDetail"></div>
+          <details id="oaResultsCard" class="card" open hidden>
+            <summary><h2>Logro por objetivo de aprendizaje</h2></summary>
+            <div class="table-wrap"><table id="oaTable" class="item-table"></table></div>
+            <h3 class="sub-h">Logro de cada estudiante por objetivo</h3>
+            <div class="table-wrap"><table id="oaMatrix" class="results-table oa-matrix"></table></div>
+          </details>
           <details class="card" open>
             <summary><h2>Análisis por pregunta</h2></summary>
             <div class="table-wrap">
@@ -226,6 +379,7 @@
   <script src="js/omr.js"></script>
   <script src="js/grading.js"></script>
   <script src="js/sheet.js"></script>
+  <script src="js/testdoc.js"></script>
   <script src="js/zip.js"></script>
   <script src="js/xlsx.js"></script>
   <script src="js/app.js"></script>

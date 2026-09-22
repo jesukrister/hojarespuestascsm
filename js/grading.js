@@ -110,5 +110,150 @@
     return stats;
   }
 
-  return { DEFAULT_SCORING, computeGrade, gradeAnswers, itemAnalysis };
+  /* ------------------------------------------------------------------ */
+  /* Objetivos de aprendizaje (OA)                                        */
+  /* ------------------------------------------------------------------ */
+
+  const DEFAULT_LEVELS = { achieved: 75, partial: 50 };
+  const LEVEL_LABELS = { L: 'Logrado', ML: 'Medianamente logrado', NL: 'No logrado' };
+
+  /** Interpreta "1-4, 7, 9 a 11" como índices de pregunta (base 0). */
+  function parseRanges(text, n) {
+    const out = [];
+    const bad = [];
+    const cleaned = String(text)
+      .replace(/\bdel?\b/gi, ' ')
+      .replace(/\b(preguntas?|p)\b\.?/gi, ' ')
+      .replace(/\s+(a|al|hasta)\s+/gi, '-')
+      .replace(/[–—]/g, '-');
+    for (const part of cleaned.split(/[,;y\s]+/)) {
+      const t = part.trim();
+      if (!t) continue;
+      const m = t.match(/^(\d+)(?:-(\d+))?$/);
+      if (!m) {
+        bad.push(t);
+        continue;
+      }
+      let a = parseInt(m[1], 10);
+      let b = m[2] ? parseInt(m[2], 10) : a;
+      if (b < a) [a, b] = [b, a];
+      for (let q = a; q <= b; q++) {
+        if (q >= 1 && q <= n) out.push(q - 1);
+        else bad.push(String(q));
+      }
+    }
+    return { questions: Array.from(new Set(out)).sort((x, y) => x - y), bad };
+  }
+
+  /**
+   * Una línea por objetivo:  "OA12: 1-4"  ·  "OA 13 Comprensión lectora: 5, 6, 9"
+   * El nombre es lo que está antes de ":" (o "=", tabulación, "->").
+   * @returns { objectives: [{ name, questions }], errors: [texto], unassigned: [índices], repeated: [índices] }
+   */
+  function parseObjectives(text, n) {
+    const objectives = [];
+    const errors = [];
+    const byName = new Map();
+    String(text || '')
+      .split(/\r?\n/)
+      .forEach((raw, i) => {
+        const line = raw.trim();
+        if (!line) return;
+        let m = line.match(/^(.+?)\s*(?::|=|->|→|\t)\s*(.+)$/);
+        if (!m) m = line.match(/^(\S+(?:\s+\S+)*?)\s+((?:p\.?\s*)?\d[\d\s,;\-–—ay]*)$/i);
+        if (!m) {
+          errors.push(`Línea ${i + 1}: escriba el objetivo y sus preguntas, por ejemplo "OA12: 1-4".`);
+          return;
+        }
+        const name = m[1].trim();
+        const { questions, bad } = parseRanges(m[2], n);
+        if (bad.length) errors.push(`Línea ${i + 1} (${name}): no se entiende o está fuera de rango: ${bad.join(', ')}.`);
+        if (!questions.length) return;
+        const key = name.toLowerCase();
+        if (byName.has(key)) {
+          const o = byName.get(key);
+          o.questions = Array.from(new Set(o.questions.concat(questions))).sort((x, y) => x - y);
+        } else {
+          const o = { name, questions };
+          byName.set(key, o);
+          objectives.push(o);
+        }
+      });
+    const count = new Array(n).fill(0);
+    for (const o of objectives) for (const q of o.questions) count[q]++;
+    const unassigned = [];
+    const repeated = [];
+    count.forEach((c, q) => {
+      if (c === 0) unassigned.push(q);
+      if (c > 1) repeated.push(q);
+    });
+    return { objectives, errors, unassigned, repeated };
+  }
+
+  function levelFor(percent, levels) {
+    const l = Object.assign({}, DEFAULT_LEVELS, levels || {});
+    if (percent === null || percent === undefined) return null;
+    if (percent >= l.achieved) return 'L';
+    if (percent >= l.partial) return 'ML';
+    return 'NL';
+  }
+
+  /**
+   * Logro de un estudiante en cada objetivo: % de preguntas correctas del OA
+   * (las preguntas sin clave no se consideran).
+   * @param items resultado de gradeAnswers(...).items
+   */
+  function objectiveResults(items, objectives, levels) {
+    return objectives.map((o) => {
+      let correct = 0;
+      let total = 0;
+      for (const q of o.questions) {
+        const it = items[q];
+        if (!it || it.status === 'excluded') continue;
+        total++;
+        if (it.status === 'correct') correct++;
+      }
+      const percent = total ? Math.round((correct / total) * 1000) / 10 : null;
+      return { name: o.name, questions: o.questions, correct, total, percent, level: levelFor(percent, levels) };
+    });
+  }
+
+  /** Resumen del curso por objetivo: promedio de logro y cantidad de estudiantes por nivel. */
+  function objectiveSummary(perStudent, objectives) {
+    return objectives.map((o, i) => {
+      const vals = perStudent.map((r) => r[i]).filter((x) => x && x.percent !== null);
+      const counts = { L: 0, ML: 0, NL: 0 };
+      for (const v of vals) counts[v.level]++;
+      const avg = vals.length ? Math.round((vals.reduce((s, v) => s + v.percent, 0) / vals.length) * 10) / 10 : null;
+      return { name: o.name, questions: o.questions, average: avg, counts, students: vals.length };
+    });
+  }
+
+  /** "1-4, 7" a partir de índices base 0. */
+  function formatRanges(qs) {
+    const s = qs.slice().sort((a, b) => a - b);
+    const parts = [];
+    for (let i = 0; i < s.length; i++) {
+      let j = i;
+      while (j + 1 < s.length && s[j + 1] === s[j] + 1) j++;
+      parts.push(j > i ? `${s[i] + 1}-${s[j] + 1}` : `${s[i] + 1}`);
+      i = j;
+    }
+    return parts.join(', ');
+  }
+
+  return {
+    DEFAULT_SCORING,
+    DEFAULT_LEVELS,
+    LEVEL_LABELS,
+    computeGrade,
+    gradeAnswers,
+    itemAnalysis,
+    parseRanges,
+    parseObjectives,
+    levelFor,
+    objectiveResults,
+    objectiveSummary,
+    formatRanges,
+  };
 });

@@ -97,17 +97,52 @@ test('corrige una hoja curvada usando las marcas laterales', () => {
   assert.equal(r.id.value, '31');
 });
 
-test('rechaza (en vez de leer mal) una hoja muy curvada sin marcas laterales', () => {
+test('sin marcas laterales: lee una curvatura moderada y rechaza (en vez de leer mal) una extrema', () => {
   const cfg = { paper: 'carta', numQuestions: 60, numChoices: 5, idDigits: 0 };
-  const { marks } = randomAnswers(60, 5, 7);
-  const r = scan(cfg, { answers: marks, hideSideMarks: true }, {
-    width: 1500,
-    height: 2000,
-    corners: [{ x: 120, y: 90 }, { x: 1390, y: 110 }, { x: 1420, y: 1920 }, { x: 90, y: 1900 }],
-    bend: 9,
+  const { marks, expected } = randomAnswers(60, 5, 7);
+  const corners = [{ x: 120, y: 90 }, { x: 1390, y: 110 }, { x: 1420, y: 1920 }, { x: 90, y: 1900 }];
+  const moderate = scan(cfg, { answers: marks, hideSideMarks: true }, { width: 1500, height: 2000, corners, bend: 9 });
+  assert.equal(moderate.ok, true, moderate.error);
+  assert.deepEqual(markedList(moderate), expected);
+  const extreme = scan(cfg, { answers: marks, hideSideMarks: true }, { width: 1500, height: 2000, corners, bend: 15 });
+  assert.equal(extreme.ok, false);
+  assert.match(extreme.error, /alineadas/);
+});
+
+test('lee hojas de media página y de cuarto de página', () => {
+  const cases = [
+    { cfg: { paper: 'carta', format: 'half', numQuestions: 60, numChoices: 5, idDigits: 2 }, id: [2, 5], w: 1300, h: 1900 },
+    { cfg: { paper: 'a4', format: 'quarter', numQuestions: 30, numChoices: 4, idDigits: 2 }, id: [0, 8], w: 1300, h: 1750 },
+    { cfg: { paper: 'oficio', format: 'quarter', numQuestions: 40, numChoices: 5, idDigits: 0 }, id: [], w: 1200, h: 1800 },
+  ];
+  for (const c of cases) {
+    const { marks, expected } = randomAnswers(c.cfg.numQuestions, c.cfg.numChoices, 21);
+    const r = scan(c.cfg, { answers: marks, id: c.id }, {
+      width: c.w,
+      height: c.h,
+      seed: 3,
+      corners: [{ x: 90, y: 120 }, { x: c.w - 110, y: 90 }, { x: c.w - 70, y: c.h - 100 }, { x: 120, y: c.h - 80 }],
+      light: (x, y) => 0.75 + 0.25 * x - 0.1 * y,
+      blur: true,
+    });
+    assert.equal(r.ok, true, `${JSON.stringify(c.cfg)}: ${r.error}`);
+    assert.deepEqual(markedList(r), expected, JSON.stringify(c.cfg));
+    if (c.id.length) assert.equal(r.id.value, c.id.join(''));
+  }
+});
+
+test('distingue una hoja completa de una media hoja con la misma cantidad de preguntas', () => {
+  const printed = { paper: 'carta', format: 'half', numQuestions: 20, numChoices: 5, idDigits: 0 };
+  const layout = SheetLayout.computeLayout(printed);
+  const sheet = rasterizeSheet(layout, SHEET_PPM, { answers: [] }, 4);
+  const photo = photograph(sheet, SHEET_PPM, layout, {
+    width: 1200,
+    height: 1700,
+    corners: [{ x: 100, y: 100 }, { x: 1100, y: 100 }, { x: 1100, y: 1600 }, { x: 100, y: 1600 }],
   });
+  const r = OMR.scanSheet(photo, SheetLayout.computeLayout({ ...printed, format: 'full' }));
   assert.equal(r.ok, false);
-  assert.match(r.error, /alineadas/);
+  assert.match(r.error, /media hoja/);
 });
 
 test('reconoce marcas tenues y descarta borrones claros', () => {
