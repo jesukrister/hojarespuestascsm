@@ -22,6 +22,12 @@ cualquier hosting de archivos estáticos.
   puntaje, nota), instrucciones, tipo y tamaño de letra, una o dos columnas.
   Con un clic se traspasan a la hoja de respuestas la cantidad de preguntas,
   la clave y los objetivos de aprendizaje.
+- **Imágenes, tablas, gráficos y textos en las preguntas**: cada pregunta de
+  la vista previa tiene un botón **＋ Añadir elemento** para insertar una
+  imagen (subida, arrastrada o pegada con Ctrl+V), una tabla (pegada desde
+  Excel o Word), un gráfico de columnas, barras, líneas o circular (a partir
+  de datos, en color o en blanco y negro para fotocopiar) o un texto con
+  recuadro opcional, antes o después del enunciado.
 - **Objetivos de aprendizaje (OA)**: las preguntas se agrupan por objetivo
   (`OA12: 1-4`, `OA13: 5-6`…) para ver el logro de cada OA por estudiante y
   del curso, con niveles Logrado / Medianamente logrado / No logrado.
@@ -84,6 +90,30 @@ cualquier hosting de archivos estáticos.
 - Si los números vienen desordenados, las preguntas se ordenan según su
   número (se puede desactivar). Se avisa si faltan preguntas, hay números
   repetidos o alguna tiene menos alternativas que las demás.
+
+### Elementos en las preguntas
+
+En **Evaluación → Vista previa**, el botón **＋ Añadir elemento** de cada
+pregunta abre un editor con vista previa:
+
+- **Imagen**: elegir un archivo, arrastrarlo o pegarlo con Ctrl+V (desde
+  Word, una página web o un recorte de pantalla). Se ajusta a un ancho de
+  30 %, 50 %, 70 % o 100 % y puede llevar un texto al pie.
+- **Tabla**: pegar una tabla copiada desde Excel o Word, o escribir una fila
+  por línea separando columnas con `|` o `;`. La primera fila puede ser el
+  encabezado.
+- **Gráfico**: columnas, barras horizontales, líneas o circular. Los datos
+  van una fila por categoría (`Enero; 12`); para varias series, una primera
+  fila con sus nombres (`; 2022; 2023`). Acepta decimales con coma. El modo
+  blanco y negro distingue las series con grises y texturas, ideal para
+  fotocopiar.
+- **Texto**: una lectura, cita o fuente, con recuadro opcional.
+
+Cada elemento se ubica antes o después del enunciado y se edita o elimina
+haciendo clic sobre él. Los elementos siguen a su pregunta aunque se
+reordenen las preguntas; si se cambia el enunciado, la plataforma avisa y
+permite reasignarlos. Las imágenes se guardan en el navegador y se incluyen
+al exportar la configuración.
 
 ### Análisis por objetivo de aprendizaje
 
@@ -172,7 +202,8 @@ entregar una corrección equivocada sin avisar.
 | `js/sheet.js` | Generación de la hoja en SVG |
 | `js/omr.js` | Motor de reconocimiento de marcas |
 | `js/grading.js` | Corrección, puntaje, nota, análisis por pregunta y por OA |
-| `js/testdoc.js` | Lectura del texto pegado y evaluación imprimible |
+| `js/testdoc.js` | Lectura del texto pegado, evaluación imprimible y elementos (imagen, tabla, texto) |
+| `js/charts.js` | Gráficos SVG para las preguntas (columnas, barras, líneas, circular) |
 | `js/xlsx.js`, `js/zip.js` | Generación de la planilla Excel y del ZIP de evidencias |
 | `tests/` | Pruebas automáticas |
 

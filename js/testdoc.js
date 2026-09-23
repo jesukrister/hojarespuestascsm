@@ -16,10 +16,11 @@
  * (por ejemplo, una lectura).
  */
 (function (root, factory) {
-  const api = factory();
+  const charts = root && root.Charts ? root.Charts : typeof require === 'function' ? require('./charts.js') : null;
+  const api = factory(charts);
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.TestDoc = api;
-})(typeof self !== 'undefined' ? self : this, function () {
+})(typeof self !== 'undefined' ? self : this, function (Charts) {
   'use strict';
 
   const LETTERS = 'abcdef';
@@ -348,10 +349,73 @@
     }
   }
 
+  /* ------------------------------------------------------------------ */
+  /* Elementos agregados a una pregunta (imagen, tabla, gráfico, texto)   */
+  /* ------------------------------------------------------------------ */
+
+  const ELEMENT_TYPES = { image: 'Imagen', table: 'Tabla', chart: 'Gráfico', text: 'Texto' };
+
+  /** Filas de una tabla pegada desde Excel/Word (tabulaciones) o escrita con "|" o ";". */
+  function parseTable(text) {
+    const lines = String(text || '')
+      .replace(/\r\n?/g, '\n')
+      .split('\n')
+      .filter((l) => l.trim());
+    const sep = lines.some((l) => l.indexOf('\t') >= 0) ? '\t' : lines.some((l) => l.indexOf('|') >= 0) ? '|' : ';';
+    const rows = lines.map((l) => {
+      let t = l;
+      if (sep === '|') t = t.replace(/^\s*\|/, '').replace(/\|\s*$/, '');
+      return t.split(sep).map((c) => c.trim());
+    });
+    // Filas separadoras estilo Markdown (|---|---|).
+    const clean = rows.filter((r) => !r.every((c) => /^:?-{2,}:?$/.test(c)));
+    const cols = Math.max(0, ...clean.map((r) => r.length));
+    return clean.map((r) => r.concat(new Array(cols - r.length).fill('')));
+  }
+
+  function isNumeric(c) {
+    return /^[-+]?[\d.,]+\s*%?$/.test(String(c).trim());
+  }
+
+  /**
+   * HTML de un elemento.
+   * @param el { id, type, width, caption, data, src }
+   *   image: src (data URL) · table: data.text, data.header · chart: data (spec de Charts) · text: data.text, data.boxed
+   */
+  function renderElement(el) {
+    const width = Math.min(100, Math.max(15, Number(el.width) || (el.type === 'text' ? 100 : 70)));
+    const idAttr = el.id ? ` data-el="${esc(el.id)}"` : '';
+    const cap = el.caption ? `<figcaption>${esc(el.caption)}</figcaption>` : '';
+    const d = el.data || {};
+    if (el.type === 'image') {
+      const img = el.src ? `<img src="${esc(el.src)}" alt="${esc(el.caption || 'Imagen')}">` : '<div class="td-missing">Imagen no disponible</div>';
+      return `<figure class="td-el td-image" style="width:${width}%"${idAttr}>${img}${cap}</figure>`;
+    }
+    if (el.type === 'table') {
+      const rows = parseTable(d.text);
+      if (!rows.length) return `<figure class="td-el"${idAttr}><div class="td-missing">Tabla vacía</div></figure>`;
+      const header = d.header !== false && rows.length > 1;
+      let html = `<table class="td-table">`;
+      rows.forEach((r, i) => {
+        const tag = header && i === 0 ? 'th' : 'td';
+        html += '<tr>' + r.map((c) => `<${tag}${tag === 'td' && isNumeric(c) ? ' class="num"' : ''}>${esc(c)}</${tag}>`).join('') + '</tr>';
+      });
+      html += '</table>';
+      return `<figure class="td-el td-tablefig" style="max-width:${width}%"${idAttr}>${html}${cap}</figure>`;
+    }
+    if (el.type === 'chart') {
+      const svg = Charts ? Charts.renderChartSVG(d, el.id || 'x') : '';
+      return `<figure class="td-el td-chart" style="width:${width}%"${idAttr}>${svg}${cap}</figure>`;
+    }
+    // Texto.
+    return `<div class="td-el td-text${d.boxed ? ' boxed' : ''}"${idAttr}><p>${paragraphs(d.text || '')}</p></div>`;
+  }
+
   /**
    * @param questions resultado de parseQuestions(...).questions
    * @param fmt ver DEFAULT_FORMAT
-   * @param info { maxScore, intro } — puntaje máximo y texto introductorio
+   * @param info { maxScore, intro, elements } — puntaje máximo, texto introductorio y,
+   *             por pregunta (índice), una lista de elementos { position: 'before'|'after', ... }
    */
   function renderTestHTML(questions, fmt, info) {
     const f = Object.assign({}, DEFAULT_FORMAT, fmt || {});
@@ -394,11 +458,17 @@
 
     // Preguntas.
     out.push(`<div class="td-questions${Number(f.columns) === 2 ? ' two-cols' : ''}">`);
+    const elements = info.elements || [];
     questions.forEach((q, i) => {
-      out.push('<section class="td-q">');
+      out.push(`<section class="td-q" data-q="${i}">`);
       if (q.preamble) out.push(`<div class="td-pre"><p>${paragraphs(q.preamble)}</p></div>`);
+      const els = elements[i] || [];
+      const before = els.filter((e) => e.position === 'before').map(renderElement).join('');
+      const after = els.filter((e) => e.position !== 'before').map(renderElement).join('');
+      if (before) out.push(`<div class="td-els">${before}</div>`);
       const oa = f.showOA && q.oa ? ` <span class="td-oa">(${esc(q.oa)})</span>` : '';
       out.push(`<div class="td-stem"><span class="td-num">${i + 1}.</span><div><p>${paragraphs(q.stem)}${oa}</p></div></div>`);
+      if (after) out.push(`<div class="td-els after">${after}</div>`);
       const maxLen = Math.max(0, ...q.options.map((o) => o.length));
       let layout = f.optionsLayout;
       if (layout === 'auto') layout = maxLen <= 18 && q.options.length >= 3 ? 'row' : maxLen <= 40 ? 'grid' : 'list';
@@ -438,8 +508,21 @@
 .td-opts li { display: flex; gap: 2mm; margin: 0.6mm 0; break-inside: avoid; }
 .td-letter { min-width: 6mm; }
 .td-opts.row { display: flex; flex-wrap: wrap; gap: 0 8mm; }
+.td-els { margin: 1.5mm 0 2mm 8mm; }
+.td-el { margin: 0 auto 2mm; break-inside: avoid; }
+.td-el figcaption { font-size: 0.85em; text-align: center; color: #333; margin-top: 1mm; }
+.td-image img { display: block; width: 100%; height: auto; }
+.td-chart svg { display: block; width: 100%; height: auto; }
+.td-tablefig { display: table; }
+.td-table { border-collapse: collapse; font-size: 0.95em; }
+.td-table th, .td-table td { border: 0.25mm solid #000; padding: 1mm 2.5mm; text-align: left; white-space: normal; font-size: inherit; color: #000; position: static; }
+.td-table th { background: #e8e8e8; font-weight: bold; text-transform: none; letter-spacing: normal; }
+.td-table td.num { text-align: right; }
+.td-text { margin-left: 0; }
+.td-text.boxed { border: 0.3mm solid #000; padding: 2mm 3mm; }
+.td-missing { border: 0.3mm dashed #999; padding: 6mm; text-align: center; color: #777; }
 .td-opts.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 6mm; }
 `;
 
-  return { parseQuestions, renderTestHTML, DEFAULT_FORMAT, FONTS, TEST_CSS, splitInlineOptions };
+  return { parseQuestions, renderTestHTML, renderElement, parseTable, ELEMENT_TYPES, DEFAULT_FORMAT, FONTS, TEST_CSS, splitInlineOptions };
 });

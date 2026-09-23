@@ -8,6 +8,7 @@
   const { computeLayout, PAPERS, PAPER_IDS, FORMATS, FORMAT_IDS, sameStructure, normalizeConfig, CHOICE_LABELS, LIMITS } =
     window.SheetLayout;
   const TestDoc = window.TestDoc;
+  const Charts = window.Charts;
   const SheetLayout = window.SheetLayout;
   const OMR = window.OMR;
   const Grading = window.Grading;
@@ -51,7 +52,7 @@
   function defaultDoc() {
     const f = JSON.parse(JSON.stringify(TestDoc.DEFAULT_FORMAT));
     f.title = '';
-    return { text: '', sortByNumber: true, format: f };
+    return { text: '', sortByNumber: true, format: f, elements: [] };
   }
 
   function sanitizeDoc(raw) {
@@ -59,6 +60,9 @@
     if (!raw || typeof raw !== 'object') return d;
     if (typeof raw.text === 'string') d.text = raw.text;
     d.sortByNumber = raw.sortByNumber !== false;
+    d.elements = Array.isArray(raw.elements)
+      ? raw.elements.filter((e) => e && typeof e.id === 'string' && TestDoc.ELEMENT_TYPES[e.type])
+      : [];
     const f = raw.format || {};
     for (const k of Object.keys(d.format)) {
       if (k === 'fields') continue;
@@ -122,27 +126,32 @@
    * Imágenes de cada resultado (hoja enderezada y foto original) guardadas en
    * IndexedDB, para que sigan disponibles al recargar la página.
    */
-  const imageStore = (() => {
-    let dbPromise = null;
-    function open() {
-      if (!dbPromise) {
-        dbPromise = new Promise((resolve, reject) => {
-          if (typeof indexedDB === 'undefined') return reject(new Error('IndexedDB no disponible'));
-          const req = indexedDB.open('lectorHojas', 1);
-          req.onupgradeneeded = () => req.result.createObjectStore('images');
-          req.onsuccess = () => resolve(req.result);
-          req.onerror = () => reject(req.error);
-        });
-        dbPromise.catch(() => (dbPromise = null));
-      }
-      return dbPromise;
+  let dbPromise = null;
+  function openDb() {
+    if (!dbPromise) {
+      dbPromise = new Promise((resolve, reject) => {
+        if (typeof indexedDB === 'undefined') return reject(new Error('IndexedDB no disponible'));
+        const req = indexedDB.open('lectorHojas', 2);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains('images')) db.createObjectStore('images');
+          if (!db.objectStoreNames.contains('assets')) db.createObjectStore('assets');
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      dbPromise.catch(() => (dbPromise = null));
     }
+    return dbPromise;
+  }
+
+  function makeStore(name) {
     function run(mode, fn) {
-      return open().then(
+      return openDb().then(
         (db) =>
           new Promise((resolve, reject) => {
-            const tx = db.transaction('images', mode);
-            const req = fn(tx.objectStore('images'));
+            const tx = db.transaction(name, mode);
+            const req = fn(tx.objectStore(name));
             tx.oncomplete = () => resolve(req ? req.result : undefined);
             tx.onerror = () => reject(tx.error);
             tx.onabort = () => reject(tx.error);
@@ -155,7 +164,13 @@
       remove: (id) => run('readwrite', (st) => st.delete(id)).catch(() => {}),
       clear: () => run('readwrite', (st) => st.clear()).catch(() => {}),
     };
-  })();
+  }
+
+  // Imágenes de las hojas escaneadas (hoja enderezada y foto original).
+  const imageStore = makeStore('images');
+  // Imágenes agregadas a las preguntas de la evaluación (data URL por id de elemento).
+  const assetStore = makeStore('assets');
+  const assetCache = new Map();
 
   function forgetImage(id) {
     const v = images.get(id);
@@ -606,9 +621,232 @@
     const preview = $('#docPreview');
     const paper = PAPERS[d.format.paper] || PAPERS.carta;
     preview.style.width = paper.width + 'mm';
+    const { byQuestion, orphans } = matchElements(qs);
     preview.innerHTML = qs.length
-      ? TestDoc.renderTestHTML(qs, docFormat(), { maxScore: docMaxScore(), intro: docParsed.intro })
+      ? TestDoc.renderTestHTML(qs, docFormat(), { maxScore: docMaxScore(), intro: docParsed.intro, elements: byQuestion })
       : '<p class="muted doc-empty">Pega las preguntas arriba para ver la evaluación.</p>';
+    // Botón "Añadir elemento" en cada pregunta (sólo en pantalla, no se imprime).
+    for (const sec of $$('.td-q', preview)) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'td-add';
+      btn.dataset.add = sec.dataset.q;
+      btn.textContent = '＋ Añadir elemento';
+      sec.prepend(btn);
+    }
+    renderOrphans(orphans, qs);
+  }
+
+  /* ---------- Elementos (imagen, tabla, gráfico, texto) por pregunta ---------- */
+
+  /** Clave estable de una pregunta: su enunciado normalizado (sobrevive a reordenar o renumerar). */
+  function stemKey(q) {
+    return String((q && q.stem) || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '')
+      .slice(0, 80);
+  }
+
+  function withSrc(el) {
+    return el.type === 'image' ? Object.assign({}, el, { src: assetCache.get(el.id) || '' }) : el;
+  }
+
+  /** Asigna cada elemento a su pregunta actual; los que no calzan quedan "huérfanos". */
+  function matchElements(qs) {
+    const keys = qs.map(stemKey);
+    const byQuestion = qs.map(() => []);
+    const orphans = [];
+    for (const el of state.exam.doc.elements) {
+      let idx = keys[el.qIndex] === el.qKey ? el.qIndex : keys.indexOf(el.qKey);
+      if (idx < 0 || !el.qKey) {
+        orphans.push(el);
+        continue;
+      }
+      el.qIndex = idx;
+      byQuestion[idx].push(withSrc(el));
+    }
+    return { byQuestion, orphans };
+  }
+
+  function renderOrphans(orphans, qs) {
+    const box = $('#docOrphans');
+    if (!orphans.length) {
+      box.hidden = true;
+      box.innerHTML = '';
+      return;
+    }
+    const opts = qs.map((q, i) => `<option value="${i}">Pregunta ${i + 1}: ${esc(q.stem.slice(0, 50))}</option>`).join('');
+    box.hidden = false;
+    box.innerHTML =
+      `<strong>Hay ${orphans.length} elemento(s) cuya pregunta ya no se encuentra</strong> (el enunciado cambió o se borró). Asígnalos a una pregunta o elimínalos:` +
+      '<ul>' +
+      orphans
+        .map(
+          (el) =>
+            `<li>${esc(TestDoc.ELEMENT_TYPES[el.type])}${el.caption ? ` “${esc(el.caption)}”` : el.data && el.data.title ? ` “${esc(el.data.title)}”` : ''} ` +
+            `<select data-reassign="${esc(el.id)}"><option value="">Asignar a…</option>${opts}</select> ` +
+            `<button type="button" class="btn ghost small" data-remove-el="${esc(el.id)}">Eliminar</button></li>`
+        )
+        .join('') +
+      '</ul>';
+  }
+
+  const EDITOR = { qIndex: 0, id: null, type: 'image', image: '' };
+
+  function openElementEditor(qIndex, id) {
+    const q = docParsed.questions[qIndex];
+    const el = id ? state.exam.doc.elements.find((e) => e.id === id) : null;
+    EDITOR.qIndex = qIndex;
+    EDITOR.id = el ? el.id : null;
+    EDITOR.type = el ? el.type : EDITOR.type || 'image';
+    EDITOR.image = el && el.type === 'image' ? assetCache.get(el.id) || '' : '';
+    const d = (el && el.data) || {};
+    $('#elDialogTitle').textContent = `${el ? 'Editar' : 'Añadir'} elemento · pregunta ${qIndex + 1}${q ? `: ${q.stem.slice(0, 60)}${q.stem.length > 60 ? '…' : ''}` : ''}`;
+    $('#elTableText').value = el && el.type === 'table' ? d.text || '' : '';
+    $('#elTableHeader').checked = !(el && el.type === 'table' && d.header === false);
+    $('#elChartType').value = el && el.type === 'chart' ? d.type : 'column';
+    $('#elChartTitle').value = el && el.type === 'chart' ? d.title || '' : '';
+    $('#elChartX').value = el && el.type === 'chart' ? d.xLabel || '' : '';
+    $('#elChartY').value = el && el.type === 'chart' ? d.yLabel || '' : '';
+    $('#elChartData').value = el && el.type === 'chart' ? d.dataText || '' : '';
+    $('#elChartValues').checked = !(el && el.type === 'chart' && d.showValues === false);
+    $('#elChartBW').checked = !(el && el.type === 'chart' && d.bw === false);
+    $('#elText').value = el && el.type === 'text' ? d.text || '' : '';
+    $('#elTextBoxed').checked = !!(el && el.type === 'text' && d.boxed);
+    $('#elPosition').value = el ? el.position || 'after' : 'after';
+    $('#elWidth').value = String(el ? el.width || 70 : 70);
+    $('#elCaption').value = el ? el.caption || '' : '';
+    $('#elDelete').hidden = !el;
+    setEditorType(EDITOR.type);
+    const dlg = $('#elDialog');
+    if (!dlg.open) dlg.showModal();
+  }
+
+  function setEditorType(type) {
+    EDITOR.type = type;
+    for (const b of $$('[data-eltype]')) b.setAttribute('aria-selected', String(b.dataset.eltype === type));
+    for (const p of $$('[data-elpanel]')) p.hidden = p.dataset.elpanel !== type;
+    for (const l of $$('[data-elnottext]')) l.hidden = type === 'text';
+    renderEditorPreview();
+  }
+
+  /** Elemento según lo que hay en el editor (sin guardar). */
+  function readEditor() {
+    const type = EDITOR.type;
+    const el = {
+      id: EDITOR.id || 'el' + uid(),
+      type,
+      position: $('#elPosition').value,
+      width: Number($('#elWidth').value) || 70,
+      caption: type === 'text' ? '' : $('#elCaption').value.trim(),
+      data: {},
+    };
+    if (type === 'table') el.data = { text: $('#elTableText').value, header: $('#elTableHeader').checked };
+    if (type === 'text') el.data = { text: $('#elText').value, boxed: $('#elTextBoxed').checked };
+    if (type === 'chart') {
+      const dataText = $('#elChartData').value;
+      el.data = {
+        type: $('#elChartType').value,
+        title: $('#elChartTitle').value.trim(),
+        xLabel: $('#elChartX').value.trim(),
+        yLabel: $('#elChartY').value.trim(),
+        dataText,
+        data: Charts.parseChartData(dataText),
+        showValues: $('#elChartValues').checked,
+        bw: $('#elChartBW').checked,
+      };
+    }
+    return el;
+  }
+
+  function renderEditorPreview() {
+    const el = readEditor();
+    const errs = $('#elChartErrors');
+    if (el.type === 'chart') {
+      const e = el.data.data.errors;
+      errs.innerHTML = e.slice(0, 5).map((x) => `<li>${esc(x)}</li>`).join('');
+      errs.hidden = !e.length;
+    }
+    const prev = Object.assign({}, el, { id: '', src: EDITOR.image });
+    $('#elPreview').innerHTML = TestDoc.renderElement(prev);
+  }
+
+  function editorIsEmpty(el) {
+    if (el.type === 'image') return !EDITOR.image;
+    if (el.type === 'table') return !TestDoc.parseTable(el.data.text).length;
+    if (el.type === 'chart') return !el.data.data.labels.length;
+    return !el.data.text.trim();
+  }
+
+  function saveElement() {
+    const el = readEditor();
+    if (editorIsEmpty(el)) {
+      toast(el.type === 'image' ? 'Primero elige o pega una imagen.' : 'El elemento está vacío.');
+      return;
+    }
+    const q = docParsed.questions[EDITOR.qIndex];
+    el.qIndex = EDITOR.qIndex;
+    el.qKey = stemKey(q);
+    const list = state.exam.doc.elements;
+    const i = list.findIndex((e) => e.id === el.id);
+    if (i >= 0) list[i] = el;
+    else list.push(el);
+    if (el.type === 'image') {
+      assetCache.set(el.id, EDITOR.image);
+      assetStore.put(el.id, EDITOR.image).catch(() => toast('No se pudo guardar la imagen en este navegador; se mantendrá sólo mientras la página esté abierta.'));
+    } else if (assetCache.has(el.id)) {
+      assetCache.delete(el.id);
+      assetStore.remove(el.id);
+    }
+    save();
+    $('#elDialog').close();
+    renderDoc();
+  }
+
+  function removeElement(id) {
+    state.exam.doc.elements = state.exam.doc.elements.filter((e) => e.id !== id);
+    assetCache.delete(id);
+    assetStore.remove(id);
+    save();
+    renderDoc();
+  }
+
+  /** Reduce la imagen (máx. 1600 px) y la guarda como data URL; PNG para diagramas, JPG para fotos. */
+  async function loadElementImage(file) {
+    try {
+      const bmp = await loadBitmap(file);
+      const w0 = bmp.naturalWidth || bmp.width;
+      const h0 = bmp.naturalHeight || bmp.height;
+      const sc = Math.min(1, 1600 / Math.max(w0, h0));
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(w0 * sc));
+      cv.height = Math.max(1, Math.round(h0 * sc));
+      const ctx = cv.getContext('2d');
+      const png = /png|gif|svg|bmp/.test(file.type || '');
+      if (!png) {
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, cv.width, cv.height);
+      }
+      ctx.drawImage(bmp, 0, 0, cv.width, cv.height);
+      if (bmp.close) bmp.close();
+      EDITOR.image = png ? cv.toDataURL('image/png') : cv.toDataURL('image/jpeg', 0.9);
+      if (EDITOR.type !== 'image') setEditorType('image');
+      else renderEditorPreview();
+    } catch (e) {
+      toast('No se pudo leer la imagen.');
+    }
+  }
+
+  /** Carga en memoria las imágenes guardadas de los elementos. */
+  async function loadAssets() {
+    const imgs = state.exam.doc.elements.filter((e) => e.type === 'image' && !assetCache.has(e.id));
+    for (const el of imgs) {
+      const v = await assetStore.get(el.id);
+      if (v) assetCache.set(el.id, v);
+    }
+    if (imgs.length && !$('#tab-evaluacion').hidden) renderDoc();
   }
 
   let docTimer = null;
@@ -669,7 +907,11 @@
         `@bottom-right { content: "Página " counter(page) " de " counter(pages); font: 9pt Arial, sans-serif; color: #555; } }`
     );
     $('#printArea').className = 'print-area print-doc';
-    $('#printArea').innerHTML = TestDoc.renderTestHTML(docParsed.questions, docFormat(), { maxScore: docMaxScore(), intro: docParsed.intro });
+    $('#printArea').innerHTML = TestDoc.renderTestHTML(docParsed.questions, docFormat(), {
+      maxScore: docMaxScore(),
+      intro: docParsed.intro,
+      elements: matchElements(docParsed.questions).byQuestion,
+    });
     window.print();
   }
 
@@ -1812,8 +2054,15 @@
     }).catch((e) => toast('No se pudieron guardar las evidencias: ' + e.message));
   }
 
-  function exportExam() {
-    const data = { app: 'lector-hojas-respuesta', version: 1, exam: state.exam };
+  async function exportExam() {
+    // Incluye las imágenes de los elementos para llevar la evaluación completa a otro equipo.
+    const assets = {};
+    for (const el of state.exam.doc.elements) {
+      if (el.type !== 'image') continue;
+      const v = assetCache.get(el.id) || (await assetStore.get(el.id));
+      if (v) assets[el.id] = v;
+    }
+    const data = { app: 'lector-hojas-respuesta', version: 2, exam: state.exam, assets };
     download(`${slug(state.exam.title)}-configuracion.json`, new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
   }
 
@@ -1825,16 +2074,25 @@
       const results = state.results;
       state.exam = exam;
       state.results = results;
+      const assets = (data && data.assets) || {};
+      for (const [id, v] of Object.entries(assets)) {
+        if (typeof v !== 'string' || !v.startsWith('data:image/')) continue;
+        assetCache.set(id, v);
+        assetStore.put(id, v).catch(() => {});
+      }
       save();
       fillExamForm();
       renderKey();
+      renderObjectives();
       updateLayoutError();
       renderResultsBadge();
+      renderDoc();
       toast('Configuración importada.');
     } catch (e) {
       toast('El archivo no es una configuración válida.');
     }
   }
+
 
   /* ------------------------------------------------------------------ */
   /* Eventos                                                             */
@@ -1916,6 +2174,71 @@
       renderDoc();
     });
     $('#docApply').addEventListener('click', applyDocToSheet);
+
+    // Elementos de las preguntas.
+    $('#elChartType').innerHTML = Object.entries(Charts.CHART_TYPES).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');
+    $('#docPreview').addEventListener('click', (e) => {
+      const add = e.target.closest('[data-add]');
+      if (add) return openElementEditor(Number(add.dataset.add));
+      const elNode = e.target.closest('[data-el]');
+      if (elNode) {
+        const el = state.exam.doc.elements.find((x) => x.id === elNode.dataset.el);
+        if (el) openElementEditor(el.qIndex, el.id);
+      }
+    });
+    $('#docOrphans').addEventListener('change', (e) => {
+      const sel = e.target.closest('[data-reassign]');
+      if (!sel || sel.value === '') return;
+      const el = state.exam.doc.elements.find((x) => x.id === sel.dataset.reassign);
+      const q = docParsed.questions[Number(sel.value)];
+      if (el && q) {
+        el.qIndex = Number(sel.value);
+        el.qKey = stemKey(q);
+        save();
+        renderDoc();
+      }
+    });
+    $('#docOrphans').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-remove-el]');
+      if (b && confirm('¿Eliminar este elemento?')) removeElement(b.dataset.removeEl);
+    });
+    for (const b of $$('[data-eltype]')) b.addEventListener('click', () => setEditorType(b.dataset.eltype));
+    for (const el of $$('#elDialog input:not([type=file]), #elDialog select, #elDialog textarea')) {
+      el.addEventListener(el.matches('input[type=checkbox], select') ? 'change' : 'input', renderEditorPreview);
+    }
+    for (const b of $$('[data-el-close]')) b.addEventListener('click', () => $('#elDialog').close());
+    $('#elSave').addEventListener('click', saveElement);
+    $('#elDelete').addEventListener('click', () => {
+      if (!EDITOR.id || !confirm('¿Eliminar este elemento?')) return;
+      $('#elDialog').close();
+      removeElement(EDITOR.id);
+    });
+    $('#elImageInput').addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      e.target.value = '';
+      if (f) loadElementImage(f);
+    });
+    const zone = $('#elImageZone');
+    zone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      zone.classList.add('over');
+    });
+    zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+    zone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      zone.classList.remove('over');
+      const f = Array.from(e.dataTransfer.files).find((x) => x.type.startsWith('image/'));
+      if (f) loadElementImage(f);
+    });
+    // Pegar una imagen copiada (Word, navegador, recorte de pantalla) con Ctrl+V.
+    document.addEventListener('paste', (e) => {
+      if (!$('#elDialog').open || !e.clipboardData) return;
+      const item = Array.from(e.clipboardData.items || []).find((it) => it.kind === 'file' && it.type.startsWith('image/'));
+      if (!item) return;
+      e.preventDefault();
+      loadElementImage(item.getAsFile());
+    });
     $('#docPrint').addEventListener('click', printDoc);
     for (const id of ['#scPoints', '#scPenalty', '#scExigencia', '#scMin', '#scPass', '#scMax']) $(id).addEventListener('change', onScoringInput);
     $('#roster').addEventListener('input', (e) => {
@@ -1984,6 +2307,7 @@
     let dragDepth = 0;
     const hint = $('#dropHint');
     document.addEventListener('dragenter', (e) => {
+      if ($('#elDialog').open) return;
       if (!e.dataTransfer || Array.from(e.dataTransfer.types).indexOf('Files') < 0) return;
       dragDepth++;
       hint.hidden = false;
@@ -1995,6 +2319,7 @@
     document.addEventListener('dragover', (e) => e.preventDefault());
     document.addEventListener('drop', (e) => {
       e.preventDefault();
+      if ($('#elDialog').open) return;
       dragDepth = 0;
       hint.hidden = true;
       if (e.dataTransfer && e.dataTransfer.files.length) {
@@ -2052,4 +2377,5 @@
   renderResultsBadge();
   injectDocStyles();
   showTab(location.hash.slice(1) || 'prueba');
+  loadAssets();
 })();

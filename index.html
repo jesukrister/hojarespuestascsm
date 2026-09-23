@@ -165,6 +165,7 @@
             <button id="docApply" class="btn secondary" type="button">↪ Usar estas preguntas en la hoja de respuestas</button>
           </div>
           <p class="muted small">Ajusta la cantidad de preguntas y alternativas de la hoja, y carga la clave y los objetivos (OA) si vienen en el texto.</p>
+          <p class="alert">💡 Para agregar una <strong>imagen, tabla, gráfico o texto</strong> a una pregunta, usa el botón <strong>＋ Añadir elemento</strong> de esa pregunta en la vista previa (más abajo). Para editar o quitar un elemento, haz clic sobre él.</p>
         </div>
 
         <div class="card">
@@ -245,6 +246,7 @@
             </div>
           </div>
           <p class="muted small">Al imprimir puedes elegir “Guardar como PDF”. La división en páginas se ve en la vista de impresión; las preguntas no se cortan entre páginas.</p>
+          <div id="docOrphans" class="alert warn" hidden></div>
           <div class="doc-preview-wrap"><div id="docPreview" class="doc-preview"></div></div>
         </div>
       </section>
@@ -372,6 +374,95 @@
     </footer>
   </div>
 
+  <dialog id="elDialog" class="el-dialog" aria-labelledby="elDialogTitle">
+    <form method="dialog" class="el-form">
+      <div class="el-head">
+        <h2 id="elDialogTitle">Añadir elemento</h2>
+        <button type="button" class="btn ghost small" data-el-close aria-label="Cerrar">✕</button>
+      </div>
+      <div class="el-types" role="tablist">
+        <button type="button" data-eltype="image">🖼️ Imagen</button>
+        <button type="button" data-eltype="table">▦ Tabla</button>
+        <button type="button" data-eltype="chart">📊 Gráfico</button>
+        <button type="button" data-eltype="text">¶ Texto</button>
+      </div>
+      <div class="el-body">
+        <div class="el-fields">
+          <div data-elpanel="image">
+            <div id="elImageZone" class="el-drop" tabindex="0">
+              <label class="btn secondary" for="elImageInput">Elegir imagen…</label>
+              <input id="elImageInput" type="file" accept="image/*" hidden>
+              <p class="muted small">o arrástrala aquí, o <strong>pégala con Ctrl+V</strong> (copiada desde Word, una página web o un recorte de pantalla).</p>
+            </div>
+          </div>
+          <div data-elpanel="table">
+            <label>Contenido de la tabla
+              <textarea id="elTableText" rows="7" spellcheck="false" placeholder="Pega aquí una tabla copiada desde Excel o Word,&#10;o escribe una fila por línea separando columnas con | o ;&#10;&#10;País | Capital | Población (millones)&#10;Chile | Santiago | 19,5&#10;Perú | Lima | 33,7"></textarea>
+            </label>
+            <label class="check"><input id="elTableHeader" type="checkbox" checked> La primera fila es el encabezado</label>
+          </div>
+          <div data-elpanel="chart">
+            <div class="form-grid tight">
+              <label>Tipo de gráfico
+                <select id="elChartType"></select>
+              </label>
+              <label>Título
+                <input id="elChartTitle" type="text" maxlength="120">
+              </label>
+              <label>Nombre del eje de categorías
+                <input id="elChartX" type="text" maxlength="60" placeholder="Ej.: Mes">
+              </label>
+              <label>Nombre del eje de valores
+                <input id="elChartY" type="text" maxlength="60" placeholder="Ej.: Toneladas">
+              </label>
+            </div>
+            <label>Datos (una fila por categoría)
+              <textarea id="elChartData" rows="6" spellcheck="false" placeholder="Enero; 12&#10;Febrero; 8,5&#10;Marzo; 14&#10;&#10;Para varias series, agrega una primera fila con sus nombres:&#10;; 2022; 2023&#10;Enero; 12; 15"></textarea>
+            </label>
+            <ul id="elChartErrors" class="warn-list" hidden></ul>
+            <label class="check"><input id="elChartValues" type="checkbox" checked> Mostrar los valores sobre el gráfico</label>
+            <label class="check"><input id="elChartBW" type="checkbox" checked> Blanco y negro (grises y texturas, ideal para fotocopiar)</label>
+          </div>
+          <div data-elpanel="text">
+            <label>Texto
+              <textarea id="elText" rows="7" placeholder="Por ejemplo, una lectura, una cita o una fuente."></textarea>
+            </label>
+            <label class="check"><input id="elTextBoxed" type="checkbox"> Con recuadro</label>
+          </div>
+          <div class="form-grid tight el-common">
+            <label>Ubicación
+              <select id="elPosition">
+                <option value="after">Después del enunciado</option>
+                <option value="before">Antes del enunciado</option>
+              </select>
+            </label>
+            <label data-elnottext>Ancho
+              <select id="elWidth">
+                <option value="30">Pequeño (30 %)</option>
+                <option value="50">Mediano (50 %)</option>
+                <option value="70">Grande (70 %)</option>
+                <option value="100">Todo el ancho</option>
+              </select>
+            </label>
+            <label data-elnottext class="span-2">Texto al pie (opcional)
+              <input id="elCaption" type="text" maxlength="160" placeholder="Ej.: Fuente: INE, 2023">
+            </label>
+          </div>
+        </div>
+        <div class="el-preview-col">
+          <p class="muted small">Vista previa</p>
+          <div id="elPreview" class="el-preview testdoc"></div>
+        </div>
+      </div>
+      <div class="el-foot">
+        <button type="button" id="elDelete" class="btn ghost danger">Eliminar elemento</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn ghost" data-el-close>Cancelar</button>
+        <button type="button" id="elSave" class="btn primary">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
   <div id="printArea" class="print-area" aria-hidden="true"></div>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
@@ -379,6 +470,7 @@
   <script src="js/omr.js"></script>
   <script src="js/grading.js"></script>
   <script src="js/sheet.js"></script>
+  <script src="js/charts.js"></script>
   <script src="js/testdoc.js"></script>
   <script src="js/zip.js"></script>
   <script src="js/xlsx.js"></script>
