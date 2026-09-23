@@ -155,6 +155,9 @@
               <li>Alternativas <code>a)</code> <code>A)</code> <code>a.</code> <code>(a)</code>, una por línea o varias en la misma línea.</li>
               <li>Marca la alternativa correcta con <code>*</code> (<code>*b) Santiago</code>) o agrega al final una línea <code>Clave: 1A 2C 3B…</code> para cargar la clave automáticamente.</li>
               <li>Escribe <code>OA12</code> en una línea sola para asignar las preguntas siguientes a ese objetivo.</li>
+              <li><strong>Tipos de pregunta:</strong> separa la prueba en ítems con encabezados como <code>I. Selección múltiple</code>, <code>II. Verdadero o falso: Justifica las falsas.</code> o <code>III. Desarrollo (10 puntos)</code>. Sin encabezados: una pregunta sin alternativas es de desarrollo, y una afirmación que empieza con <code>____</code> o <code>( )</code> es de verdadero o falso.</li>
+              <li>Verdadero o falso: la respuesta puede ir al final como <code>(V)</code> o <code>(F)</code>, o en la clave (<code>Clave: 1A 2C 1V 2F</code>).</li>
+              <li>Desarrollo: indica el espacio con <code>[8 líneas]</code>, <code>[recuadro 10]</code> o <code>[en blanco 6]</code> al final de la pregunta (también se ajusta en la vista previa).</li>
               <li>Un texto separado por una línea en blanco antes de una pregunta (por ejemplo, una lectura) se imprime junto a esa pregunta.</li>
             </ul>
           </details>
@@ -207,6 +210,11 @@
             <label class="check"><input type="checkbox" data-docfield="puntaje"> Puntaje</label>
             <label class="check"><input type="checkbox" data-docfield="nota"> Nota</label>
           </fieldset>
+          <label>Objetivos de Aprendizaje
+            <textarea id="docObjectives" rows="3" placeholder="Uno por línea, por ejemplo:&#10;OA 5: Explicar el proceso de independencia de Chile.&#10;OA 6: Analizar fuentes históricas."></textarea>
+            <small>Se imprimen en un recuadro antes de las instrucciones. Déjalo vacío para no mostrarlo.
+              <button id="docObjectivesFromExam" class="btn ghost small" type="button">Usar los OA definidos en la prueba</button></small>
+          </label>
           <label>Instrucciones
             <textarea id="docInstructions" rows="3"></textarea>
           </label>
@@ -233,6 +241,35 @@
                 <option value="grid">En dos columnas</option>
                 <option value="row">En una fila</option>
               </select>
+            </label>
+            <label>Numeración de las preguntas
+              <select id="docNumbering">
+                <option value="section">Reiniciar en cada ítem</option>
+                <option value="continuous">Continua en toda la prueba</option>
+              </select>
+            </label>
+            <label>Desarrollo: espacio por pregunta
+              <select id="docOpenLines"></select>
+              <small>Se puede cambiar en cada pregunta desde la vista previa.</small>
+            </label>
+            <label>Desarrollo: tipo de espacio
+              <select id="docOpenStyle">
+                <option value="lines">Con líneas</option>
+                <option value="box">Recuadro</option>
+                <option value="blank">En blanco</option>
+              </select>
+            </label>
+            <label>Verdadero o falso: líneas para justificar
+              <select id="docTfJustify">
+                <option value="0">Sin justificación</option>
+                <option value="1">1 línea</option>
+                <option value="2">2 líneas</option>
+                <option value="3">3 líneas</option>
+              </select>
+            </label>
+            <label>Puntaje total (opcional)
+              <input id="docTotalPoints" type="text" maxlength="12" placeholder="Ej.: 42">
+              <small>Se muestra junto a “Puntaje”. Si la prueba es sólo de alternativas, se calcula solo.</small>
             </label>
           </div>
           <label class="check" style="margin-top:10px"><input id="docShowOA" type="checkbox"> Mostrar el OA junto a cada pregunta</label>

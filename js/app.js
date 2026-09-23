@@ -52,7 +52,7 @@
   function defaultDoc() {
     const f = JSON.parse(JSON.stringify(TestDoc.DEFAULT_FORMAT));
     f.title = '';
-    return { text: '', sortByNumber: true, format: f, elements: [] };
+    return { text: '', sortByNumber: true, format: f, elements: [], qsettings: {} };
   }
 
   function sanitizeDoc(raw) {
@@ -60,6 +60,12 @@
     if (!raw || typeof raw !== 'object') return d;
     if (typeof raw.text === 'string') d.text = raw.text;
     d.sortByNumber = raw.sortByNumber !== false;
+    // Ajustes por pregunta (tipo y espacio), por clave de enunciado.
+    if (raw.qsettings && typeof raw.qsettings === 'object') {
+      for (const [k, v] of Object.entries(raw.qsettings)) {
+        if (v && typeof v === 'object' && (!v.type || TestDoc.TYPE_LABELS[v.type])) d.qsettings[k] = v;
+      }
+    }
     d.elements = Array.isArray(raw.elements)
       ? raw.elements.filter((e) => e && typeof e.id === 'string' && TestDoc.ELEMENT_TYPES[e.type])
       : [];
@@ -577,6 +583,12 @@
     $('#docCourse').value = f.course;
     $('#docPaper').value = f.paper;
     $('#docInstructions').value = f.instructions;
+    $('#docObjectives').value = f.objectives;
+    $('#docNumbering').value = f.numbering;
+    $('#docOpenLines').value = String(f.openLines);
+    $('#docOpenStyle').value = f.openStyle;
+    $('#docTfJustify').value = String(f.tfJustifyLines);
+    $('#docTotalPoints').value = f.totalPoints;
     $('#docFont').value = f.fontFamily;
     $('#docFontSize').value = String(f.fontSize);
     $('#docColumns').value = String(f.columns);
@@ -597,19 +609,47 @@
   }
 
   function docMaxScore() {
-    const n = docParsed.questions.length;
-    return n ? Math.round(n * state.exam.scoring.pointsCorrect * 100) / 100 : '';
+    const total = String(state.exam.doc.format.totalPoints || '').trim();
+    if (total) return total;
+    const qs = docQuestions;
+    // Sólo se calcula solo si todas las preguntas son de alternativas.
+    if (!qs.length || qs.some((q) => q.type !== 'mc')) return '';
+    return Math.round(qs.length * state.exam.scoring.pointsCorrect * 100) / 100;
+  }
+
+  let docQuestions = [];
+
+  /** Preguntas con los ajustes hechos en la vista previa (tipo y espacio). */
+  function effectiveQuestions(parsed) {
+    const qset = state.exam.doc.qsettings;
+    return parsed.map((q) => {
+      const o = qset[stemKey(q)];
+      if (!o) return q;
+      const c = Object.assign({}, q);
+      if (o.type) c.type = o.type;
+      if (o.space) c.space = o.space;
+      if (o.spaceStyle) c.spaceStyle = o.spaceStyle;
+      return c;
+    });
   }
 
   function renderDoc() {
     const d = state.exam.doc;
     docParsed = TestDoc.parseQuestions(d.text, { sortByNumber: d.sortByNumber });
-    const qs = docParsed.questions;
-    const maxOpts = qs.reduce((m, q) => Math.max(m, q.options.length), 0);
-    const withKey = qs.filter((q) => q.correct !== null).length;
+    docQuestions = effectiveQuestions(docParsed.questions);
+    const qs = docQuestions;
+    const mc = qs.filter((q) => q.type === 'mc');
+    const tf = qs.filter((q) => q.type === 'tf').length;
+    const open = qs.filter((q) => q.type === 'open').length;
+    const maxOpts = mc.reduce((m, q) => Math.max(m, q.options.length), 0);
+    const withKey = mc.filter((q) => q.correct !== null).length;
     const oas = Array.from(new Set(qs.map((q) => q.oa).filter(Boolean)));
+    const parts = [];
+    if (mc.length) parts.push(`${mc.length} de selección múltiple (hasta ${maxOpts} alternativas)`);
+    if (tf) parts.push(`${tf} de verdadero o falso`);
+    if (open) parts.push(`${open} de desarrollo`);
     $('#docSummary').textContent = qs.length
-      ? `${qs.length} pregunta(s) · hasta ${maxOpts} alternativas` +
+      ? `${qs.length} pregunta(s): ${parts.join(', ')}` +
         (withKey ? ` · ${withKey} con respuesta correcta` : '') +
         (oas.length ? ` · ${oas.length} OA` : '')
       : '';
@@ -623,18 +663,53 @@
     preview.style.width = paper.width + 'mm';
     const { byQuestion, orphans } = matchElements(qs);
     preview.innerHTML = qs.length
-      ? TestDoc.renderTestHTML(qs, docFormat(), { maxScore: docMaxScore(), intro: docParsed.intro, elements: byQuestion })
+      ? TestDoc.renderTestHTML(qs, docFormat(), { maxScore: docMaxScore(), intro: docParsed.intro, elements: byQuestion, sections: docParsed.sections })
       : '<p class="muted doc-empty">Pega las preguntas arriba para ver la evaluación.</p>';
-    // Botón "Añadir elemento" en cada pregunta (sólo en pantalla, no se imprime).
+    // Herramientas de cada pregunta (sólo en pantalla, no se imprimen):
+    // tipo de pregunta, espacio para responder y "Añadir elemento".
+    const f = d.format;
     for (const sec of $$('.td-q', preview)) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'td-add';
-      btn.dataset.add = sec.dataset.q;
-      btn.textContent = '＋ Añadir elemento';
-      sec.prepend(btn);
+      const i = Number(sec.dataset.q);
+      const q = qs[i];
+      const typeOpts = Object.entries(TestDoc.TYPE_LABELS)
+        .map(([k, v]) => `<option value="${k}"${q.type === k ? ' selected' : ''}>${esc(v)}</option>`)
+        .join('');
+      let spaceCtl = '';
+      if (q.type === 'open') {
+        const lines = q.space || Number(f.openLines) || 6;
+        const style = q.spaceStyle || f.openStyle;
+        spaceCtl =
+          `<select data-qspace="${i}" title="Espacio para responder">${SPACE_CHOICES.map((n) => `<option value="${n}"${n === lines ? ' selected' : ''}>${n} líneas</option>`).join('')}</select>` +
+          `<select data-qstyle="${i}" title="Tipo de espacio">${Object.entries(SPACE_STYLES)
+            .map(([k, v]) => `<option value="${k}"${k === style ? ' selected' : ''}>${v}</option>`)
+            .join('')}</select>`;
+      }
+      const tools = document.createElement('div');
+      tools.className = 'td-tools';
+      tools.innerHTML =
+        `<select data-qtype="${i}" title="Tipo de pregunta">${typeOpts}</select>${spaceCtl}` +
+        `<button type="button" class="td-add" data-add="${i}">＋ Añadir elemento</button>`;
+      sec.prepend(tools);
     }
     renderOrphans(orphans, qs);
+  }
+
+  const SPACE_CHOICES = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30];
+  const SPACE_STYLES = { lines: 'Con líneas', box: 'Recuadro', blank: 'En blanco' };
+
+  /** Guarda el ajuste de una pregunta hecho en la vista previa. */
+  function setQuestionSetting(i, key, value) {
+    const q = docParsed.questions[i];
+    if (!q) return;
+    const k = stemKey(q);
+    const cur = Object.assign({}, state.exam.doc.qsettings[k] || {});
+    cur[key] = value;
+    // Si coincide con lo detectado en el texto, no hace falta guardarlo.
+    if (key === 'type' && value === q.type) delete cur.type;
+    if (Object.keys(cur).length) state.exam.doc.qsettings[k] = cur;
+    else delete state.exam.doc.qsettings[k];
+    save();
+    renderDoc();
   }
 
   /* ---------- Elementos (imagen, tabla, gráfico, texto) por pregunta ---------- */
@@ -864,6 +939,12 @@
     f.course = $('#docCourse').value;
     f.paper = $('#docPaper').value;
     f.instructions = $('#docInstructions').value;
+    f.objectives = $('#docObjectives').value;
+    f.numbering = $('#docNumbering').value;
+    f.openLines = Number($('#docOpenLines').value) || 6;
+    f.openStyle = $('#docOpenStyle').value;
+    f.tfJustifyLines = Number($('#docTfJustify').value) || 0;
+    f.totalPoints = $('#docTotalPoints').value.trim();
     f.fontFamily = $('#docFont').value;
     f.fontSize = Number($('#docFontSize').value) || 12;
     f.columns = Number($('#docColumns').value) || 1;
@@ -900,17 +981,18 @@
 
   function printDoc() {
     renderDoc();
-    if (!docParsed.questions.length) return;
+    if (!docQuestions.length) return;
     const paper = PAPERS[state.exam.doc.format.paper] || PAPERS.carta;
     setPageStyle(
       `@page { size: ${paper.width}mm ${paper.height}mm; margin: 15mm 15mm 18mm; ` +
         `@bottom-right { content: "Página " counter(page) " de " counter(pages); font: 9pt Arial, sans-serif; color: #555; } }`
     );
     $('#printArea').className = 'print-area print-doc';
-    $('#printArea').innerHTML = TestDoc.renderTestHTML(docParsed.questions, docFormat(), {
+    $('#printArea').innerHTML = TestDoc.renderTestHTML(docQuestions, docFormat(), {
       maxScore: docMaxScore(),
       intro: docParsed.intro,
-      elements: matchElements(docParsed.questions).byQuestion,
+      elements: matchElements(docQuestions).byQuestion,
+      sections: docParsed.sections,
     });
     window.print();
   }
@@ -924,8 +1006,16 @@
   /** Traspasa las preguntas de la evaluación a la hoja de respuestas: cantidad, alternativas, clave y OA. */
   function applyDocToSheet() {
     renderDoc();
-    const qs = docParsed.questions;
-    if (!qs.length) return;
+    const all = docQuestions;
+    if (!all.length) return;
+    // Sólo las preguntas de selección múltiple van a la hoja de respuestas;
+    // verdadero o falso y desarrollo se responden en la misma prueba.
+    const mcIdx = all.map((q, i) => (q.type === 'mc' ? i : -1)).filter((i) => i >= 0);
+    if (!mcIdx.length) {
+      toast('La evaluación no tiene preguntas de selección múltiple para la hoja de respuestas.');
+      return;
+    }
+    const qs = mcIdx.map((i) => all[i]);
     const n = Math.min(qs.length, LIMITS.maxQuestions);
     const c = Math.min(LIMITS.maxChoices, Math.max(LIMITS.minChoices, qs.reduce((m, q) => Math.max(m, q.options.length), 0)));
     const withKey = qs.filter((q) => q.correct !== null).length;
@@ -935,11 +1025,25 @@
       if (!oaMap.has(q.oa)) oaMap.set(q.oa, []);
       oaMap.get(q.oa).push(i);
     });
-    const changes = [`${n} preguntas con ${c} alternativas (${CHOICE_LABELS[0]}–${CHOICE_LABELS[c - 1]})`];
+    const changes = [`${n} pregunta${n === 1 ? '' : 's'} con ${c} alternativas (${CHOICE_LABELS[0]}–${CHOICE_LABELS[c - 1]})`];
     if (withKey) changes.push(`la clave de ${withKey} pregunta(s)`);
     if (oaMap.size) changes.push(`${oaMap.size} objetivo(s) de aprendizaje`);
     if (qs.length > LIMITS.maxQuestions) changes.push(`(sólo se usan las primeras ${LIMITS.maxQuestions} preguntas)`);
-    if (!confirm(`Se configurará la hoja de respuestas con: ${changes.join(', ')}. ¿Continuar?`)) return;
+    const notes = [];
+    const others = all.length - qs.length;
+    if (others) notes.push(`Las ${others} pregunta(s) de verdadero o falso y de desarrollo se responden en la misma prueba y no van a la hoja.`);
+    // ¿Coincide la numeración impresa con la de la hoja (1, 2, 3…)?
+    const plan = TestDoc.planSections(all, docParsed.sections, state.exam.doc.format);
+    const printed = mcIdx.slice(0, n).map((i) => plan.numbers[i]);
+    if (printed.some((num, k) => num !== k + 1)) {
+      notes.push(
+        (n === 1
+          ? `Atención: en la prueba esta pregunta lleva el número ${printed[0]}, pero en la hoja de respuestas será la 1. `
+          : `Atención: en la prueba estas preguntas llevan los números ${printed[0]}–${printed[printed.length - 1]}, pero en la hoja de respuestas serán 1–${n}. `) +
+          'Para que coincidan, pon el ítem de selección múltiple primero o usa “Reiniciar en cada ítem”.'
+      );
+    }
+    if (!confirm(`Se configurará la hoja de respuestas con: ${changes.join(', ')}.${notes.length ? '\n\n' + notes.join('\n\n') : ''}\n\n¿Continuar?`)) return;
     if (!applyStructure(Object.assign({}, state.exam, { numQuestions: n, numChoices: c }))) return;
     if (withKey) state.exam.key = fitKey(qs.slice(0, n).map((q) => q.correct), n, c);
     if (oaMap.size) {
@@ -954,8 +1058,9 @@
     renderObjectives();
     updateLayoutError();
     renderResultsBadge();
-    toast('Hoja de respuestas configurada con las preguntas de la evaluación.');
+    toast('Hoja de respuestas configurada con las preguntas de selección múltiple de la evaluación.');
   }
+
 
   /* ------------------------------------------------------------------ */
   /* 3. Escaneo                                                          */
@@ -2174,6 +2279,22 @@
       renderDoc();
     });
     $('#docApply').addEventListener('click', applyDocToSheet);
+    $('#docOpenLines').innerHTML = SPACE_CHOICES.map((n) => `<option value="${n}">${n} líneas</option>`).join('');
+    $('#docOpenLines').value = String(state.exam.doc.format.openLines);
+    $('#docPreview').addEventListener('change', (e) => {
+      const t = e.target;
+      if (t.dataset.qtype !== undefined) setQuestionSetting(Number(t.dataset.qtype), 'type', t.value);
+      else if (t.dataset.qspace !== undefined) setQuestionSetting(Number(t.dataset.qspace), 'space', Number(t.value));
+      else if (t.dataset.qstyle !== undefined) setQuestionSetting(Number(t.dataset.qstyle), 'spaceStyle', t.value);
+    });
+    $('#docObjectivesFromExam').addEventListener('click', () => {
+      const objs = currentObjectives().objectives;
+      if (!objs.length) return toast('No hay objetivos definidos en la pestaña Prueba (sección “Objetivos de aprendizaje”).');
+      const cur = $('#docObjectives').value.trim();
+      if (cur && !confirm('¿Reemplazar los objetivos escritos por los definidos en la prueba?')) return;
+      $('#docObjectives').value = objs.map((o) => o.name).join('\n');
+      readDocForm();
+    });
 
     // Elementos de las preguntas.
     $('#elChartType').innerHTML = Object.entries(Charts.CHART_TYPES).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');

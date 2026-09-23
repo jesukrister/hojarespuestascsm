@@ -19,8 +19,11 @@ cualquier hosting de archivos estáticos.
   vengan (de Word, PDF, correo…, incluso desordenadas) y la plataforma las
   ordena y arma la evaluación imprimible con membrete (establecimiento, logo,
   asignatura, profesor, curso), campos a elección (nombre, curso, fecha, RUT,
-  puntaje, nota), instrucciones, tipo y tamaño de letra, una o dos columnas.
-  Con un clic se traspasan a la hoja de respuestas la cantidad de preguntas,
+  puntaje, nota), recuadro de **Objetivos de Aprendizaje**, instrucciones,
+  tipo y tamaño de letra, una o dos columnas. Admite preguntas de **selección
+  múltiple, verdadero o falso y desarrollo** (con el espacio para responder
+  a elección: líneas, recuadro o en blanco), organizadas en ítems. Con un clic
+  se traspasan a la hoja de respuestas las preguntas de selección múltiple,
   la clave y los objetivos de aprendizaje.
 - **Imágenes, tablas, gráficos y textos en las preguntas**: cada pregunta de
   la vista previa tiene un botón **＋ Añadir elemento** para insertar una
@@ -90,6 +93,42 @@ cualquier hosting de archivos estáticos.
 - Si los números vienen desordenados, las preguntas se ordenan según su
   número (se puede desactivar). Se avisa si faltan preguntas, hay números
   repetidos o alguna tiene menos alternativas que las demás.
+
+### Tipos de pregunta: selección múltiple, verdadero o falso y desarrollo
+
+La forma más simple es separar la prueba en ítems con encabezados:
+
+```
+I. Selección múltiple
+1. ¿Quién fue el primer presidente de Chile?
+a) Manuel Blanco Encalada  b) Bernardo O'Higgins  c) José Miguel Carrera
+
+II. Verdadero o falso: Escribe V o F. Justifica las falsas.
+1. ____ La Primera Junta de Gobierno se formó en 1810. (V)
+2. ____ La batalla de Rancagua fue una victoria patriota. (F)
+
+III. Desarrollo (10 puntos)
+1. Explica dos causas de la independencia de Chile. [8 líneas]
+2. Elabora una línea de tiempo con cuatro hitos. [recuadro 10]
+```
+
+- Las líneas bajo un encabezado son las instrucciones del ítem (si no hay, se
+  usan unas por defecto).
+- Sin encabezados, una pregunta **sin alternativas** es de desarrollo, y una
+  afirmación que empieza con `____` o `( )` (o cuyas alternativas son
+  “Verdadero / Falso”) es de verdadero o falso; si se mezclan tipos, los
+  ítems se arman solos.
+- En la vista previa, cada pregunta tiene un selector para **cambiar su
+  tipo** y, en las de desarrollo, la **cantidad de espacio** (2 a 30 líneas)
+  y si va **con líneas, en recuadro o en blanco**. En el formato se elige el
+  espacio por defecto, cuántas líneas dejar para **justificar** en verdadero o
+  falso, la numeración (reiniciada en cada ítem o continua) y el puntaje total.
+- A la hoja de respuestas sólo van las preguntas de **selección múltiple**; las
+  de verdadero o falso y desarrollo se responden en la misma prueba. Si la
+  numeración impresa no coincide con la de la hoja, la plataforma lo advierte.
+- El campo **Objetivos de Aprendizaje** del formato (uno por línea) se imprime
+  en un recuadro antes de las instrucciones; el botón “Usar los OA definidos en
+  la prueba” lo completa con los objetivos de la pestaña Prueba.
 
 ### Elementos en las preguntas
 

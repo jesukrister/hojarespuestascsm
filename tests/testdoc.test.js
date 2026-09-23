@@ -180,3 +180,99 @@ test('texto con líneas en blanco entre cada párrafo (copiado de Google Docs)',
     ['Tercera pregunta con\n\nenunciado largo', 2, 'OA13'],
   ]);
 });
+
+const MIXED = `I. Selección múltiple
+Marca la alternativa correcta.
+2. ¿Capital de Chile?
+a) Lima b) Santiago c) Quito
+1. ¿Océano de Chile?
+a) Pacífico b) Atlántico c) Índico
+
+II. Verdadero o falso: Escribe V o F. Justifica las falsas.
+1. ____ El sol es una estrella. (V)
+2. ____ La Luna tiene luz propia.
+3. ( ) Chile limita con Brasil.
+
+III. Desarrollo (10 puntos)
+1. Explica las causas de la independencia de Chile. [8 líneas]
+2. Dibuja un mapa de tu región. [recuadro 12]
+3. Responde:
+a) ¿Qué es un cabildo?
+b) ¿Quién fue O'Higgins?
+
+Clave: 1A 2B 2F 3F`;
+
+test('reconoce ítems de selección múltiple, verdadero o falso y desarrollo', () => {
+  const r = TestDoc.parseQuestions(MIXED);
+  assert.deepEqual(
+    r.sections.map((s) => [s.title, s.type, s.instructions]),
+    [
+      ['I. Selección múltiple', 'mc', 'Marca la alternativa correcta.'],
+      ['II. Verdadero o falso', 'tf', 'Escribe V o F. Justifica las falsas.'],
+      ['III. Desarrollo (10 puntos)', 'open', ''],
+    ]
+  );
+  assert.deepEqual(
+    r.questions.map((q) => [q.section, q.type, q.stem]),
+    [
+      [0, 'mc', '¿Océano de Chile?'],
+      [0, 'mc', '¿Capital de Chile?'],
+      [1, 'tf', 'El sol es una estrella.'],
+      [1, 'tf', 'La Luna tiene luz propia.'],
+      [1, 'tf', 'Chile limita con Brasil.'],
+      [2, 'open', 'Explica las causas de la independencia de Chile.'],
+      [2, 'open', 'Dibuja un mapa de tu región.'],
+      [2, 'open', 'Responde:'],
+    ]
+  );
+  // Clave: la 1 y 2 de selección múltiple, la 2 y 3 de verdadero o falso; la 1 de V/F viene marcada con (V).
+  assert.deepEqual(r.questions.slice(0, 2).map((q) => q.correct), [0, 1]);
+  assert.deepEqual(r.questions.slice(2, 5).map((q) => q.tfAnswer), ['V', 'F', 'F']);
+  assert.deepEqual(r.questions.slice(5).map((q) => [q.space, q.spaceStyle]), [[8, 'lines'], [12, 'box'], [null, null]]);
+  assert.deepEqual(r.questions[7].options, ["¿Qué es un cabildo?", "¿Quién fue O'Higgins?"]);
+  assert.deepEqual(r.warnings, []);
+});
+
+test('sin encabezados: pregunta sin alternativas es de desarrollo y "Verdadero/Falso" como alternativas es V/F', () => {
+  const r = TestDoc.parseQuestions(`1. ¿Capital de Chile?
+a) Lima
+b) Santiago
+2. El agua hierve a 100 °C a nivel del mar.
+a) Verdadero
+b) Falso
+3. Explica el ciclo del agua.`);
+  assert.deepEqual(r.questions.map((q) => q.type), ['mc', 'tf', 'open']);
+  assert.deepEqual(r.questions[1].options, []);
+  assert.ok(r.warnings.some((w) => /Pregunta 3: no tiene alternativas, se tratará como pregunta de desarrollo/.test(w)));
+});
+
+test('la prueba impresa arma ítems, numeración por ítem o continua, espacios y objetivos', () => {
+  const r = TestDoc.parseQuestions(MIXED);
+  const html = TestDoc.renderTestHTML(r.questions, { objectives: 'OA 5: Explicar la independencia\nOA 6: Analizar fuentes', tfJustifyLines: 2 }, { sections: r.sections });
+  assert.match(html, /<div class="td-oabox"><strong>Objetivos de Aprendizaje:<\/strong><ul><li>OA 5: Explicar la independencia<\/li><li>OA 6: Analizar fuentes<\/li><\/ul><\/div>/);
+  assert.ok(html.indexOf('td-oabox') < html.indexOf('td-instr'), 'los objetivos van antes de las instrucciones');
+  assert.equal((html.match(/<div class="td-section"><h2>/g) || []).length, 3);
+  assert.equal((html.match(/class="td-tfblank"/g) || []).length, 3);
+  assert.match(html, /<div class="td-space td-box" style="height:96mm"><\/div>/); // recuadro de 12 líneas
+  // 8 líneas (pregunta 1) + 3 por subpregunta × 2 (la mitad de las 6 por defecto) + 2 para justificar × 3 afirmaciones.
+  assert.equal((html.match(/class="td-line"/g) || []).length, 8 + 3 * 2 + 2 * 3);
+  const nums = (h) => [...h.matchAll(/<span class="td-num">(\d+)\.<\/span>/g)].map((m) => Number(m[1]));
+  assert.deepEqual(nums(html), [1, 2, 1, 2, 3, 1, 2, 3]);
+  const cont = TestDoc.renderTestHTML(r.questions, { numbering: 'continuous' }, { sections: r.sections });
+  assert.deepEqual(nums(cont), [1, 2, 3, 4, 5, 6, 7, 8]);
+  // Un solo objetivo: en singular.
+  assert.match(TestDoc.renderTestHTML([], { objectives: 'OA 3' }), /Objetivo de Aprendizaje:<\/strong> OA 3/);
+});
+
+test('sin encabezados pero con tipos mezclados se forman ítems automáticamente', () => {
+  const r = TestDoc.parseQuestions('1. ¿A?\na) x\nb) y\n2. ¿B?\na) x\nb) y\n3. Explica C.');
+  const plan = TestDoc.planSections(r.questions, r.sections, {});
+  assert.deepEqual(plan.blocks.map((b) => [b.title, b.items]), [['Ítem I. Selección múltiple', [0, 1]], ['Ítem II. Desarrollo', [2]]]);
+  assert.deepEqual(plan.numbers, [1, 2, 1]);
+});
+
+test('avisa si hay texto después de la clave', () => {
+  const r = TestDoc.parseQuestions('1. ¿A?\na) x\nb) y\nClave: 1A\n2. ¿B?\na) x\nb) y');
+  assert.equal(r.questions.length, 1);
+  assert.ok(r.warnings.some((w) => /después de la clave/.test(w)));
+});

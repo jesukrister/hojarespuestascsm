@@ -10,7 +10,10 @@
  *   a) / A) / a. / A. / (a) / a- / [a]            → alternativa (varias en una línea también)
  *   *b) texto  ·  b) texto *  ·  b) texto (correcta) → alternativa correcta
  *   OA12 / [OA 12] / OA12: (en una línea sola)       → objetivo de las preguntas siguientes
- *   Clave: 1A 2C 3-b …  (al final)                   → respuestas correctas
+ *   Clave: 1A 2C 3-b 4V …  (al final)               → respuestas correctas
+ *   I. Selección múltiple / II. Verdadero o falso / III. Desarrollo → ítems (tipo de pregunta)
+ *   ____ 1. Afirmación (F)  ·  ( ) Afirmación           → verdadero o falso (con su respuesta)
+ *   Pregunta sin alternativas [8 líneas] / [recuadro 10] → desarrollo (con su espacio)
  * Las líneas cortadas por el PDF se vuelven a unir, y un texto separado por
  * una línea en blanco antes de una pregunta queda como texto de esa pregunta
  * (por ejemplo, una lectura).
@@ -30,6 +33,30 @@
   const OA_LINE = /^\s*[[(]?\s*(OA\s*-?\s*\d+[a-zA-Z]?)\s*[\])]?\s*:?\s*$/i;
   const KEY_LINE = /^\s*(clave|claves|respuestas?|solucionario|pauta|hoja de respuestas correctas)\s*:?\s*(.*)$/i;
   const CORRECT_MARK = /^\s*\*\s*|\s*\*\s*$|\s*\((?:correcta|correct[oa]?|x)\)\s*$|\s*[✓✔]\s*$/i;
+  // Encabezado de ítem: "II. Verdadero o falso: Justifica las falsas." · "Ítem 3 - Desarrollo (12 pts)"
+  const SECTION_LINE = new RegExp(
+    '^\\s*((?:(?:[íi]tem|parte|secci[óo]n)\\s*(?:[IVX]{1,4}|\\d{1,2})?|[IVX]{1,4})?\\s*[.):\\-–]?\\s*' +
+      '(selecci[óo]n\\s+m[úu]ltiple|alternativas|verdadero\\s*(?:o|y|/)\\s*falso|v\\s*(?:o|/)\\s*f|desarrollo|' +
+      'preguntas?\\s+(?:abiertas?|de\\s+desarrollo)|respuestas?\\s+(?:abiertas?|breves?|cortas?)))' +
+      '\\s*(?:([.:\\-–])\\s*(.*)|(\\(.*\\)))?\\s*$',
+    'i'
+  );
+  // Marca de verdadero o falso al inicio: "____", "( )", "[ ]".
+  const TF_LEAD = /^\s*(?:_{2,}|\(\s*_*\s*\)|\[\s*\])\s*/;
+  // Respuesta indicada al final: "(V)", "(F)", "(verdadero)".
+  const TF_ANSWER = /\s*\(\s*(v|f|verdadero|falso)\s*\)\s*$/i;
+  const TF_SUFFIX = /\s*\(?\s*V\s*[\/–-]\s*F\s*\)?\s*$/;
+  // Espacio para responder: "[8 líneas]", "[recuadro 10]", "[espacio 6]".
+  const SPACE_MARK = /\s*\[\s*(?:(\d{1,2})\s*l[íi]neas?|(recuadro|cuadro|en blanco|blanco)\s*(\d{1,2})?|espacio\s*(\d{1,2}))\s*\]\s*/i;
+
+  const TYPE_LABELS = { mc: 'Selección múltiple', tf: 'Verdadero o falso', open: 'Desarrollo' };
+
+  function sectionType(keyword) {
+    const k = keyword.toLowerCase();
+    if (/selecci|alternativ/.test(k)) return 'mc';
+    if (/verdadero|^v\s*(o|\/)\s*f$/.test(k)) return 'tf';
+    return 'open';
+  }
 
   function clean(text) {
     return String(text || '')
@@ -93,12 +120,13 @@
     return out.trim();
   }
 
-  function parseKeyLine(text, key) {
-    const re = /(\d{1,3})\s*[.)\-:=]?\s*([a-fA-F])\b/g;
+  /** Pares (número, letra) de una línea de clave: "1A 2-c 3V". */
+  function parseKeyLine(text, pairs) {
+    const re = /(\d{1,3})\s*[.)\-:=]?\s*([a-fA-FvV])\b/g;
     let m;
     let n = 0;
     while ((m = re.exec(text))) {
-      key[parseInt(m[1], 10)] = LETTERS.indexOf(m[2].toLowerCase());
+      pairs.push({ number: parseInt(m[1], 10), letter: m[2].toLowerCase() });
       n++;
     }
     return n;
@@ -114,14 +142,15 @@
     const rawLines = clean(text).split('\n');
     const lines = [];
     let keyMode = false;
-    const keyByNumber = {};
+    const keyPairs = [];
+    const ignoredAfterKey = [];
     for (const raw of rawLines) {
       if (keyMode) {
-        parseKeyLine(raw, keyByNumber);
+        if (!parseKeyLine(raw, keyPairs) && raw.trim()) ignoredAfterKey.push(raw.trim());
         continue;
       }
       const km = raw.match(KEY_LINE);
-      if (km && (parseKeyLine(km[2], keyByNumber) > 0 || !km[2].trim())) {
+      if (km && (parseKeyLine(km[2], keyPairs) > 0 || !km[2].trim())) {
         keyMode = true;
         continue;
       }
@@ -129,10 +158,15 @@
     }
 
     const questions = [];
+    const sections = [];
+    let currentSection = null; // índice en `sections`
+    let collectingSectionText = false;
     let cur = null;
     let pending = [];
     let blankSinceLast = false;
     let currentOA = null;
+    const sectionOf = () => (currentSection === null ? null : currentSection);
+    const sectionTypeOf = () => (currentSection === null ? null : sections[currentSection].type);
 
     const finish = () => {
       if (!cur) return;
@@ -147,6 +181,40 @@
         }
         return t;
       });
+      // Espacio para responder indicado en el texto.
+      const sm = cur.stem.match(SPACE_MARK);
+      if (sm) {
+        const style = sm[2] ? (/blanco/i.test(sm[2]) ? 'blank' : 'box') : 'lines';
+        cur.space = parseInt(sm[1] || sm[3] || sm[4], 10) || null;
+        cur.spaceStyle = style;
+        cur.stem = cur.stem.replace(SPACE_MARK, ' ').trim();
+      }
+      // Tipo de pregunta.
+      let type = cur.tfHint ? 'tf' : cur.section !== null ? sections[cur.section].type : null;
+      const opts = cur.options.map((o) => o.toLowerCase().replace(/[.\s]/g, ''));
+      if (!type) {
+        if (opts.length === 2 && /^(v|verdadero)$/.test(opts[0]) && /^(f|falso)$/.test(opts[1])) type = 'tf';
+        else if (TF_LEAD.test(cur.stem) || TF_SUFFIX.test(cur.stem)) type = 'tf';
+        else if (!cur.options.length) {
+          type = 'open';
+          cur.autoOpen = true;
+        } else type = 'mc';
+      }
+      cur.type = type;
+      if (type === 'tf') {
+        if (opts.length === 2 && /^(v|verdadero)$/.test(opts[0])) {
+          if (cur.correct !== null) cur.tfAnswer = cur.correct === 0 ? 'V' : 'F';
+          cur.options = [];
+          cur.correct = null;
+        }
+        cur.stem = cur.stem.replace(TF_LEAD, '').replace(TF_SUFFIX, '').trim();
+        const am = cur.stem.match(TF_ANSWER);
+        if (am) {
+          cur.tfAnswer = am[1][0].toUpperCase();
+          cur.stem = cur.stem.replace(TF_ANSWER, '').trim();
+        }
+      }
+      delete cur.tfHint;
       delete cur.stemLines;
       delete cur.preambleLines;
       questions.push(cur);
@@ -162,16 +230,26 @@
         introLines = pending;
         pending = [];
       }
-      cur = {
+      collectingSectionText = false;
+      cur = newCur(number, firstLine ? [firstLine] : [], pending);
+      pending = [];
+    };
+
+    function newCur(number, stemLines, preambleLines) {
+      return {
         number,
-        stemLines: firstLine ? [firstLine] : [],
-        preambleLines: pending,
+        stemLines,
+        preambleLines,
         options: [],
         correct: null,
         oa: currentOA,
+        section: sectionOf(),
+        type: null,
+        tfAnswer: null,
+        space: null,
+        spaceStyle: null,
       };
-      pending = [];
-    };
+    }
 
     for (const line of lines) {
       const t = line.trim();
@@ -187,6 +265,45 @@
         if (cur && cur.options.length) finish();
         blankSinceLast = false;
         continue;
+      }
+
+      // Encabezado de ítem (tipo de pregunta de las siguientes).
+      const sec = t.match(SECTION_LINE);
+      if (sec && !(cur && cur.options.length === 0 && cur.stemLines.length === 0)) {
+        finish();
+        const title = (sec[1] + (sec[5] ? ' ' + sec[5] : '')).replace(/\s+/g, ' ').trim();
+        const instr = [];
+        if (pending.some((x) => x.trim())) {
+          if (!questions.length && !sections.length) introLines = introLines.concat(pending);
+          else instr.push(joinLines(pending));
+        }
+        pending = [];
+        if (sec[4]) instr.push(sec[4].trim());
+        sections.push({ title, type: sectionType(sec[2]), instructions: instr.join(' ').trim() });
+        currentSection = sections.length - 1;
+        collectingSectionText = true;
+        blankSinceLast = false;
+        continue;
+      }
+
+      // "____ 1. Afirmación" o "( ) Afirmación": verdadero o falso.
+      if (TF_LEAD.test(t)) {
+        const rest = t.replace(TF_LEAD, '');
+        const qn = rest.match(Q_START);
+        newQuestion(qn ? parseInt(qn[1], 10) : null, (qn ? qn[2] : rest).trim());
+        cur.tfHint = true;
+        blankSinceLast = false;
+        continue;
+      }
+
+      // En un ítem de verdadero o falso, "a) Afirmación" es una afirmación más.
+      if (sectionTypeOf() === 'tf') {
+        const om2 = t.match(OPT_START);
+        if (om2 && !t.match(Q_START)) {
+          newQuestion(null, om2[2].trim());
+          blankSinceLast = false;
+          continue;
+        }
       }
 
       let qm = t.match(Q_WORD) || t.match(Q_START);
@@ -208,7 +325,9 @@
           const stem = pending;
           pending = [];
           finish();
-          cur = { number: null, stemLines: stem, preambleLines: [], options: [{ letter, lines: [om[2]], marked }], correct: null, oa: currentOA };
+          collectingSectionText = false;
+          cur = newCur(null, stem, []);
+          cur.options.push({ letter, lines: [om[2]], marked });
           blankSinceLast = false;
           continue;
         }
@@ -232,6 +351,12 @@
         continue;
       }
       // Texto normal.
+      if (collectingSectionText && !cur) {
+        const secObj = sections[currentSection];
+        secObj.instructions = (secObj.instructions ? secObj.instructions + ' ' : '') + t;
+        blankSinceLast = false;
+        continue;
+      }
       if (cur && cur.options.length > 0) {
         // Tras una línea en blanco, el texto es para la pregunta siguiente
         // (una lectura o un enunciado sin número) y sigue acumulándose ahí.
@@ -249,42 +374,78 @@
     // Preguntas sin número cuyo enunciado quedó en "pending" de la anterior:
     // ya se resolvió al crearlas. Texto sobrante al final:
     const warnings = [];
+    if (ignoredAfterKey.length) {
+      warnings.push(
+        `Se ignoró el texto que está después de la clave (“${ignoredAfterKey[0].slice(0, 60)}${ignoredAfterKey[0].length > 60 ? '…' : ''}”): ` +
+          'la línea “Clave:” debe ir al final.'
+      );
+    }
     const trailing = joinLines(pending);
     if (trailing) warnings.push(`Texto al final que no pertenece a ninguna pregunta: “${trailing.slice(0, 80)}${trailing.length > 80 ? '…' : ''}”.`);
 
     const numbered = questions.some((q) => q.number !== null);
     let ordered = questions;
-    if (opts.sortByNumber && numbered && questions.every((q) => q.number !== null)) {
-      ordered = questions.map((q, i) => ({ q, i })).sort((a, b) => a.q.number - b.q.number || a.i - b.i).map((x) => x.q);
-      const nums = ordered.map((q) => q.number);
-      const dups = nums.filter((n, i) => i > 0 && n === nums[i - 1]);
-      if (dups.length) warnings.push(`Números de pregunta repetidos: ${Array.from(new Set(dups)).join(', ')}.`);
-      const missing = [];
-      for (let n = nums[0]; n <= nums[nums.length - 1]; n++) if (nums.indexOf(n) < 0) missing.push(n);
-      if (missing.length && missing.length <= 20) warnings.push(`Faltan las preguntas número ${missing.join(', ')} en el texto pegado.`);
+    // Se ordena según la numeración dentro de cada ítem (la numeración puede
+    // reiniciarse en cada ítem).
+    const groups = [];
+    for (const q of questions) {
+      const g = groups.find((x) => x.section === q.section);
+      if (g) g.items.push(q);
+      else groups.push({ section: q.section, items: [q] });
     }
-
-    // Clave al final del texto (por número original).
-    for (const q of ordered) {
-      if (q.correct === null && q.number !== null && keyByNumber[q.number] !== undefined) {
-        const k = keyByNumber[q.number];
-        if (k < q.options.length) q.correct = k;
+    if (opts.sortByNumber && numbered) {
+      ordered = [];
+      for (const g of groups) {
+        if (!g.items.every((q) => q.number !== null)) {
+          ordered.push(...g.items);
+          continue;
+        }
+        const sorted = g.items.map((q, i) => ({ q, i })).sort((a, b) => a.q.number - b.q.number || a.i - b.i).map((x) => x.q);
+        ordered.push(...sorted);
+        const nums = sorted.map((q) => q.number);
+        const where = g.section !== null && sections.length > 1 ? ` en “${sections[g.section].title}”` : '';
+        const dups = nums.filter((n, i) => i > 0 && n === nums[i - 1]);
+        if (dups.length) warnings.push(`Números de pregunta repetidos${where}: ${Array.from(new Set(dups)).join(', ')}.`);
+        const missing = [];
+        for (let n = nums[0]; n <= nums[nums.length - 1]; n++) if (nums.indexOf(n) < 0) missing.push(n);
+        if (missing.length && missing.length <= 20) warnings.push(`Faltan las preguntas número ${missing.join(', ')}${where} en el texto pegado.`);
       }
     }
 
+    // Clave al final del texto: cada par (número, letra) se asigna a la primera
+    // pregunta con ese número y de tipo compatible (V/F o alternativa).
+    const keyed = new Set();
+    for (const pr of keyPairs) {
+      const q = ordered.find((x) => {
+        if (x.number !== pr.number || keyed.has(x)) return false;
+        if (x.type === 'tf') return pr.letter === 'v' || pr.letter === 'f';
+        if (x.type === 'mc') return pr.letter !== 'v' && LETTERS.indexOf(pr.letter) < x.options.length;
+        return false;
+      });
+      if (!q) continue;
+      keyed.add(q);
+      if (q.type === 'tf') {
+        if (!q.tfAnswer) q.tfAnswer = pr.letter.toUpperCase();
+      } else if (q.correct === null) q.correct = LETTERS.indexOf(pr.letter);
+    }
+
+    const mcs = ordered.filter((q) => q.type === 'mc');
     const counts = {};
-    for (const q of ordered) counts[q.options.length] = (counts[q.options.length] || 0) + 1;
+    for (const q of mcs) counts[q.options.length] = (counts[q.options.length] || 0) + 1;
     const usual = Number(Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0] || 0);
     ordered.forEach((q, i) => {
       const label = `Pregunta ${i + 1}${q.number !== null && q.number !== i + 1 ? ` (n° ${q.number} en el texto)` : ''}`;
       if (!q.stem) warnings.push(`${label}: no tiene enunciado.`);
+      if (q.type === 'open' && q.autoOpen && mcs.length) warnings.push(`${label}: no tiene alternativas, se tratará como pregunta de desarrollo.`);
+      delete q.autoOpen;
+      if (q.type !== 'mc') return;
       if (q.options.length < 2) warnings.push(`${label}: tiene ${q.options.length} alternativa(s).`);
       else if (q.options.length !== usual) warnings.push(`${label}: tiene ${q.options.length} alternativas y la mayoría tiene ${usual}.`);
       q.options.forEach((o, j) => {
         if (!o) warnings.push(`${label}: la alternativa ${LETTERS[j]} está vacía.`);
       });
     });
-    return { questions: ordered, warnings, numbered, intro: joinLines(introLines) };
+    return { questions: ordered, warnings, numbered, intro: joinLines(introLines), sections };
   }
 
   /* ------------------------------------------------------------------ */
@@ -308,7 +469,76 @@
     optionsLayout: 'auto',
     showOA: false,
     paper: 'carta',
+    objectives: '', // Objetivos de Aprendizaje que se imprimen en el encabezado
+    numbering: 'section', // 'section' (se reinicia en cada ítem) o 'continuous'
+    openLines: 6, // espacio por defecto en preguntas de desarrollo (en líneas de 8 mm)
+    openStyle: 'lines', // 'lines' | 'box' | 'blank'
+    tfJustifyLines: 0, // líneas para justificar en verdadero o falso
+    totalPoints: '', // puntaje total que se muestra junto a "Puntaje" (opcional)
   };
+
+  const SECTION_DEFAULT_INSTRUCTIONS = {
+    mc: 'Marca la alternativa correcta.',
+    tf: 'Escribe V si la afirmación es verdadera o F si es falsa.',
+    open: 'Responde en el espacio asignado.',
+  };
+  const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+
+  /**
+   * Agrupa las preguntas en ítems y calcula su numeración impresa.
+   * Si el texto trae encabezados de ítem se usan; si no, y hay tipos
+   * distintos, se forma un ítem por cada grupo seguido del mismo tipo.
+   * @returns { blocks: [{ title, type, instructions, items: [índices] }], numbers: [n por pregunta] }
+   */
+  function planSections(questions, sections, fmt) {
+    const f = Object.assign({}, DEFAULT_FORMAT, fmt || {});
+    sections = sections || [];
+    const blocks = [];
+    const explicit = questions.some((q) => q.section !== null && q.section !== undefined);
+    const mixed = new Set(questions.map((q) => q.type || 'mc')).size > 1;
+    questions.forEach((q, i) => {
+      const key = explicit ? (q.section === undefined ? null : q.section) : mixed ? q.type || 'mc' : 'all';
+      const last = blocks[blocks.length - 1];
+      if (last && last.key === key) last.items.push(i);
+      else blocks.push({ key, items: [i] });
+    });
+    let roman = 0;
+    for (const b of blocks) {
+      const firstType = questions[b.items[0]].type || 'mc';
+      if (explicit && b.key !== null) {
+        const sec = sections[b.key] || {};
+        b.type = sec.type || firstType;
+        b.title = sec.title || '';
+        b.instructions = sec.instructions || '';
+      } else if (!explicit && mixed) {
+        b.type = firstType;
+        b.title = `Ítem ${ROMAN[roman++] || roman}. ${TYPE_LABELS[firstType]}`;
+        b.instructions = '';
+      } else {
+        b.type = firstType;
+        b.title = '';
+        b.instructions = '';
+      }
+      if (b.title && !b.instructions) {
+        b.instructions = SECTION_DEFAULT_INSTRUCTIONS[b.type] || '';
+        if (b.type === 'tf' && Number(f.tfJustifyLines) > 0) b.instructions += ' Justifica las falsas.';
+      }
+    }
+    const numbers = new Array(questions.length);
+    let n = 0;
+    for (const b of blocks) {
+      if (f.numbering === 'section' && b.title) n = 0;
+      for (const i of b.items) numbers[i] = ++n;
+    }
+    return { blocks, numbers };
+  }
+
+  function answerSpace(lines, style) {
+    const nLines = Math.min(40, Math.max(1, Number(lines) || 6));
+    if (style === 'box') return `<div class="td-space td-box" style="height:${nLines * 8}mm"></div>`;
+    if (style === 'blank') return `<div class="td-space" style="height:${nLines * 8}mm"></div>`;
+    return `<div class="td-space td-lines">${'<div class="td-line"></div>'.repeat(nLines)}</div>`;
+  }
 
   const FONTS = {
     Arial: 'Arial, Helvetica, sans-serif',
@@ -453,32 +683,81 @@
       }
       out.push('</div>');
     }
+    // Objetivos de Aprendizaje (uno por línea).
+    const oas = String(f.objectives || '')
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (oas.length === 1) out.push(`<div class="td-oabox"><strong>Objetivo de Aprendizaje:</strong> ${esc(oas[0])}</div>`);
+    else if (oas.length > 1) {
+      out.push(`<div class="td-oabox"><strong>Objetivos de Aprendizaje:</strong><ul>${oas.map((o) => `<li>${esc(o)}</li>`).join('')}</ul></div>`);
+    }
     if (f.instructions) out.push(`<div class="td-instr"><strong>Instrucciones:</strong> ${esc(f.instructions)}</div>`);
     if (info.intro) out.push(`<div class="td-intro"><p>${paragraphs(info.intro)}</p></div>`);
 
-    // Preguntas.
-    out.push(`<div class="td-questions${Number(f.columns) === 2 ? ' two-cols' : ''}">`);
+    // Preguntas, agrupadas en ítems.
+    const plan = planSections(questions, info.sections, f);
     const elements = info.elements || [];
-    questions.forEach((q, i) => {
-      out.push(`<section class="td-q" data-q="${i}">`);
-      if (q.preamble) out.push(`<div class="td-pre"><p>${paragraphs(q.preamble)}</p></div>`);
-      const els = elements[i] || [];
-      const before = els.filter((e) => e.position === 'before').map(renderElement).join('');
-      const after = els.filter((e) => e.position !== 'before').map(renderElement).join('');
-      if (before) out.push(`<div class="td-els">${before}</div>`);
-      const oa = f.showOA && q.oa ? ` <span class="td-oa">(${esc(q.oa)})</span>` : '';
-      out.push(`<div class="td-stem"><span class="td-num">${i + 1}.</span><div><p>${paragraphs(q.stem)}${oa}</p></div></div>`);
-      if (after) out.push(`<div class="td-els after">${after}</div>`);
-      const maxLen = Math.max(0, ...q.options.map((o) => o.length));
-      let layout = f.optionsLayout;
-      if (layout === 'auto') layout = maxLen <= 18 && q.options.length >= 3 ? 'row' : maxLen <= 40 ? 'grid' : 'list';
-      out.push(`<ol class="td-opts ${layout}">`);
-      q.options.forEach((o, j) => {
-        out.push(`<li><span class="td-letter">${esc(letterLabel(j, f.letterStyle))}</span><span>${esc(o)}</span></li>`);
-      });
-      out.push('</ol></section>');
-    });
-    out.push('</div></article>');
+    const openLines = Number(f.openLines) || 6;
+    const tfJustify = Number(f.tfJustifyLines) || 0;
+    for (const block of plan.blocks) {
+      if (block.title) {
+        out.push(`<div class="td-section"><h2>${esc(block.title)}</h2>${block.instructions ? `<p>${esc(block.instructions)}</p>` : ''}</div>`);
+      }
+      out.push(`<div class="td-questions${Number(f.columns) === 2 ? ' two-cols' : ''}">`);
+      for (const i of block.items) {
+        const q = questions[i];
+        const type = q.type || 'mc';
+        const num = plan.numbers[i];
+        out.push(`<section class="td-q td-${type}" data-q="${i}">`);
+        if (q.preamble) out.push(`<div class="td-pre"><p>${paragraphs(q.preamble)}</p></div>`);
+        const els = elements[i] || [];
+        const before = els.filter((e) => e.position === 'before').map(renderElement).join('');
+        const after = els.filter((e) => e.position !== 'before').map(renderElement).join('');
+        if (before) out.push(`<div class="td-els">${before}</div>`);
+        const oa = f.showOA && q.oa ? ` <span class="td-oa">(${esc(q.oa)})</span>` : '';
+        if (type === 'tf') {
+          out.push(
+            `<div class="td-stem"><span class="td-num">${num}.</span><span class="td-tfblank" aria-label="Verdadero o falso"></span>` +
+              `<div><p>${paragraphs(q.stem)}${oa}</p></div></div>`
+          );
+        } else {
+          out.push(`<div class="td-stem"><span class="td-num">${num}.</span><div><p>${paragraphs(q.stem)}${oa}</p></div></div>`);
+        }
+        if (after) out.push(`<div class="td-els after">${after}</div>`);
+        if (type === 'mc') {
+          const maxLen = Math.max(0, ...q.options.map((o) => o.length));
+          let layout = f.optionsLayout;
+          if (layout === 'auto') layout = maxLen <= 18 && q.options.length >= 3 ? 'row' : maxLen <= 40 ? 'grid' : 'list';
+          out.push(`<ol class="td-opts ${layout}">`);
+          q.options.forEach((o, j) => {
+            out.push(`<li><span class="td-letter">${esc(letterLabel(j, f.letterStyle))}</span><span>${esc(o)}</span></li>`);
+          });
+          out.push('</ol>');
+        } else if (type === 'tf') {
+          if (tfJustify > 0) out.push(`<div class="td-answer">${answerSpace(tfJustify, 'lines')}</div>`);
+        } else {
+          const lines = q.space || openLines;
+          const style = q.spaceStyle || f.openStyle;
+          if (q.options.length) {
+            // Sub-preguntas a), b)… cada una con su espacio.
+            out.push('<ol class="td-subq">');
+            q.options.forEach((o, j) => {
+              out.push(
+                `<li><div class="td-subq-text"><span class="td-letter">${esc(letterLabel(j, f.letterStyle))}</span><span>${esc(o)}</span></div>` +
+                  `${answerSpace(Math.max(2, Math.round(lines / 2)), style)}</li>`
+              );
+            });
+            out.push('</ol>');
+          } else {
+            out.push(`<div class="td-answer">${answerSpace(lines, style)}</div>`);
+          }
+        }
+        out.push('</section>');
+      }
+      out.push('</div>');
+    }
+    out.push('</article>');
     return out.join('');
   }
 
@@ -497,6 +776,20 @@
 .td-field i { flex: 1; border-bottom: 0.25mm solid #000; height: 1em; }
 .td-suffix { white-space: nowrap; }
 .td-intro { margin-bottom: 4mm; }
+.td-oabox { border: 0.3mm solid #000; padding: 2mm 3mm; margin-bottom: 2.5mm; font-size: 0.92em; }
+.td-oabox ul { margin: 1mm 0 0; padding-left: 5mm; }
+.td-oabox li { margin: 0.5mm 0; }
+.td-section { margin: 5mm 0 3mm; break-after: avoid; page-break-after: avoid; }
+.td-section h2 { font-size: 1.08em; margin: 0 0 1mm; }
+.td-section p { margin: 0; font-style: italic; }
+.td-tfblank { display: inline-block; flex: none; width: 12mm; border-bottom: 0.3mm solid #000; height: 1.1em; margin-right: 1mm; }
+.td-answer { margin: 1.5mm 0 0 8mm; }
+.td-space { width: 100%; }
+.td-lines .td-line { height: 8mm; border-bottom: 0.25mm solid #888; }
+.td-box { border: 0.3mm solid #000; border-radius: 1mm; }
+.td-subq { list-style: none; margin: 1.5mm 0 0 8mm; padding: 0; }
+.td-subq li { margin-bottom: 2mm; break-inside: avoid; }
+.td-subq-text { display: flex; gap: 2mm; }
 .td-instr { border: 0.3mm solid #000; padding: 2mm 3mm; margin-bottom: 4mm; font-size: 0.92em; }
 .td-questions.two-cols { column-count: 2; column-gap: 8mm; column-rule: 0.2mm solid #bbb; }
 .td-q { break-inside: avoid; page-break-inside: avoid; margin-bottom: 4mm; }
@@ -524,5 +817,17 @@
 .td-opts.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 6mm; }
 `;
 
-  return { parseQuestions, renderTestHTML, renderElement, parseTable, ELEMENT_TYPES, DEFAULT_FORMAT, FONTS, TEST_CSS, splitInlineOptions };
+  return {
+    parseQuestions,
+    renderTestHTML,
+    renderElement,
+    planSections,
+    parseTable,
+    ELEMENT_TYPES,
+    TYPE_LABELS,
+    DEFAULT_FORMAT,
+    FONTS,
+    TEST_CSS,
+    splitInlineOptions,
+  };
 });

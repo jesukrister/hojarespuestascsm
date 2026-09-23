@@ -415,13 +415,20 @@ fieldset.checks legend { font-weight: 600; font-size: 0.92rem; padding: 0 4px; }
 /* ---------- Elementos de las preguntas ---------- */
 .doc-preview .td-q { position: relative; }
 .doc-preview .td-q:hover { outline: 1px dashed #b8c4d2; outline-offset: 2mm; }
-.td-add {
-  position: absolute; top: -1mm; right: 0; z-index: 2;
-  padding: 3px 10px; border-radius: 999px; border: 1px solid var(--primary);
-  background: #fff; color: var(--primary); font: 600 12px/1.4 system-ui, sans-serif; cursor: pointer;
+.td-tools {
+  display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; margin-bottom: 1mm;
   opacity: 0.55;
 }
-.doc-preview .td-q:hover .td-add, .td-add:focus-visible { opacity: 1; }
+.doc-preview .td-q:hover .td-tools, .td-tools:focus-within { opacity: 1; }
+.td-tools select {
+  width: auto; padding: 2px 6px; border-radius: 999px; border: 1px solid #b8c4d2;
+  background: #fff; color: var(--text); font: 500 12px/1.4 system-ui, sans-serif; cursor: pointer;
+}
+.td-add {
+  padding: 3px 10px; border-radius: 999px; border: 1px solid var(--primary);
+  background: #fff; color: var(--primary); font: 600 12px/1.4 system-ui, sans-serif; cursor: pointer;
+}
+
 .doc-preview [data-el] { cursor: pointer; border-radius: 4px; }
 .doc-preview [data-el]:hover { outline: 2px solid var(--primary); outline-offset: 1mm; }
 #docOrphans ul { margin: 6px 0 0; padding-left: 18px; }
