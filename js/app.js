@@ -46,6 +46,7 @@
       oaText: '',
       levels: Object.assign({}, Grading.DEFAULT_LEVELS),
       doc: defaultDoc(),
+      forms: null, // filas B–D: { maps: [{ order, perms }] } (ver sanitizeForms)
     };
   }
 
@@ -101,7 +102,28 @@
       if (typeof lv[k] === 'number' && Number.isFinite(lv[k])) exam.levels[k] = lv[k];
     }
     exam.doc = sanitizeDoc(raw.doc);
+    exam.forms = sanitizeForms(raw.forms, exam.numQuestions, exam.numChoices);
     return exam;
+  }
+
+  /**
+   * Filas de la prueba para corregir: por cada fila, order[j] = pregunta
+   * original (fila A) que ocupa la fila j de la hoja, y perms[j][c] =
+   * alternativa original que corresponde a la alternativa c de la hoja.
+   * Se descarta si no calza con la estructura de la hoja.
+   */
+  function sanitizeForms(raw, n, c) {
+    if (!raw || !Array.isArray(raw.maps) || raw.maps.length < 2 || raw.maps.length > 4) return null;
+    const isPerm = (p, len) =>
+      Array.isArray(p) && p.length === len && p.every((v) => Number.isInteger(v) && v >= 0 && v < len) && new Set(p).size === len;
+    for (const m of raw.maps) {
+      if (!m || !isPerm(m.order, n) || !Array.isArray(m.perms) || m.perms.length !== n || !m.perms.every((p) => isPerm(p, c))) return null;
+    }
+    return { maps: raw.maps.map((m) => ({ order: m.order.slice(), perms: m.perms.map((p) => p.slice()) })) };
+  }
+
+  function sameForms(a, b) {
+    return JSON.stringify(a || null) === JSON.stringify(b || null);
   }
 
   function fitKey(key, n, c) {
@@ -365,6 +387,7 @@
     }
     Object.assign(cur, normalizeConfig(next));
     cur.key = fitKey(cur.key, cur.numQuestions, cur.numChoices);
+    cur.forms = sanitizeForms(cur.forms, cur.numQuestions, cur.numChoices);
     return true;
   }
 
@@ -438,6 +461,29 @@
     if (!skipText) $('#keyText').value = keyToText(key);
     const set = key.filter((k) => k !== null).length;
     $('#keyStatus').textContent = set === n ? `✓ ${n} preguntas con clave` : `${set} de ${n} preguntas con clave`;
+    renderFormKeys();
+  }
+
+  /** Claves de las filas B–D (se derivan de la clave de la fila A). */
+  function renderFormKeys() {
+    const box = $('#formKeys');
+    const forms = state.exam.forms;
+    if (!forms) {
+      box.hidden = true;
+      box.innerHTML = '';
+      return;
+    }
+    const n = state.exam.numQuestions;
+    const head = ['<th></th>'];
+    for (let q = 1; q <= n; q++) head.push(`<th>${q}</th>`);
+    const rows = forms.maps.map((m, i) => {
+      const k = keyForForm(i === 0 ? null : m);
+      return `<tr><td class="fk-label">Fila ${formLetter(i)}</td>${k.map((v) => `<td>${v === null ? '–' : CHOICE_LABELS[v]}</td>`).join('')}</tr>`;
+    });
+    box.hidden = false;
+    box.innerHTML =
+      `<p class="muted small">La clave de arriba corresponde a la <strong>fila A</strong>. Las demás filas se corrigen con su propia clave (según el orden de sus preguntas y alternativas):</p>` +
+      `<table><thead><tr>${head.join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
 
   /* ------------------------------------------------------------------ */
@@ -453,25 +499,69 @@
     };
   }
 
-  /** Una hoja de respuestas (del tamaño del formato elegido). */
-  function sheetSvg(fill) {
+  /** Hoja de una fila (con la fila impresa si la prueba tiene filas). */
+  function layoutForForm(form) {
     const layout = getLayout();
-    if (!layout) return null;
-    return SheetRenderer.renderSVG(layout, sheetOptions(fill));
+    if (!layout || !state.exam.forms || form === null) return layout;
+    return computeLayout(Object.assign({}, state.exam, { fields: state.exam.sheetFields, form }));
   }
 
-  /** Página para imprimir, con 1, 2 o 4 hojas de respuestas. */
-  function sheetPage() {
+  /** Filas elegidas para imprimir: 'all' (una página por fila), 'mixed' (filas alternadas en la página) o un índice. */
+  function sheetFormChoice() {
+    if (!state.exam.forms) return null;
+    const v = $('#sheetForm').value;
+    return v === 'all' || v === 'mixed' ? v : Number(v) || 0;
+  }
+
+  /** Páginas para imprimir, con 1, 2 o 4 hojas de respuestas cada una. */
+  function sheetPages() {
     const layout = getLayout();
     if (!layout) return null;
-    return SheetRenderer.renderPageSVG(layout, sheetOptions());
+    const choice = sheetFormChoice();
+    const opts = sheetOptions();
+    if (choice === null) return [SheetRenderer.renderPageSVG(layout, opts)];
+    const count = state.exam.forms.maps.length;
+    if (choice === 'mixed') {
+      const pieces = [];
+      for (let i = 0; i < count; i++) pieces.push(layoutForForm(i));
+      return [SheetRenderer.renderPageSVG(pieces[0], opts, pieces)];
+    }
+    if (choice === 'all') {
+      const pages = [];
+      for (let i = 0; i < count; i++) pages.push(SheetRenderer.renderPageSVG(layoutForForm(i), opts));
+      return pages;
+    }
+    return [SheetRenderer.renderPageSVG(layoutForForm(choice), opts)];
+  }
+
+  /** Primera página (vista previa y descarga en SVG). */
+  function sheetPage() {
+    const pages = sheetPages();
+    return pages ? pages[0] : null;
+  }
+
+  function renderSheetFormSelect() {
+    const wrap = $('#sheetFormWrap');
+    const forms = state.exam.forms;
+    wrap.hidden = !forms;
+    if (!forms) return;
+    const sel = $('#sheetForm');
+    const prev = sel.value;
+    const letters = forms.maps.map((_, i) => formLetter(i));
+    const perPage = FORMATS[state.exam.format].perPage;
+    sel.innerHTML =
+      `<option value="all">Todas: una página por fila (${letters.join(', ')})</option>` +
+      (perPage > 1 ? `<option value="mixed">Filas alternadas en la misma página</option>` : '') +
+      letters.map((l, i) => `<option value="${i}">Sólo fila ${l}</option>`).join('');
+    sel.value = Array.from(sel.options).some((o) => o.value === prev) ? prev : 'all';
   }
 
   function renderSheetPreview() {
-    const page = sheetPage();
+    renderSheetFormSelect();
+    const pages = sheetPages();
     const preview = $('#sheetPreview');
-    preview.innerHTML = page ? page.svg : `<p class="alert error">${esc(layoutError)}</p>`;
-    preview.classList.toggle('landscape', !!(page && page.landscape));
+    preview.innerHTML = pages ? pages.map((p) => `<div class="sheet-page">${p.svg}</div>`).join('') : `<p class="alert error">${esc(layoutError)}</p>`;
+    preview.classList.toggle('landscape', !!(pages && pages[0].landscape));
     $('#cutTip').hidden = state.exam.format === 'full';
   }
 
@@ -486,16 +576,18 @@
   }
 
   function printSheet() {
-    const page = sheetPage();
-    if (!page) return toast(layoutError);
+    const pages = sheetPages();
+    if (!pages) return toast(layoutError);
+    const page = pages[0];
     setPageStyle(`@page { size: ${page.width}mm ${page.height}mm; margin: 0; }`);
     $('#printArea').className = 'print-area';
-    $('#printArea').innerHTML = page.svg;
+    $('#printArea').innerHTML = pages.map((p) => `<div class="print-page">${p.svg}</div>`).join('');
     window.print();
   }
 
-  function sampleFill() {
-    const { numQuestions: n, numChoices: c, key, idDigits } = state.exam;
+  function sampleFill(form) {
+    const { numQuestions: n, numChoices: c, idDigits } = state.exam;
+    const key = keyForForm(form ? state.exam.forms.maps[form] : null);
     const answers = [];
     for (let q = 0; q < n; q++) {
       const k = key[q] === null ? (q * 7 + 3) % c : key[q];
@@ -509,9 +601,11 @@
   }
 
   async function downloadSample() {
-    const layout = getLayout();
-    const svg = sheetSvg(sampleFill());
-    if (!svg) return toast(layoutError);
+    const choice = sheetFormChoice();
+    const form = typeof choice === 'number' ? choice : state.exam.forms ? 0 : null;
+    const layout = layoutForForm(form);
+    if (!layout) return toast(layoutError);
+    const svg = SheetRenderer.renderSVG(layout, sheetOptions(sampleFill(form)));
     const ppm = layout.format.id === 'full' ? 6 : 8; // ~150–200 ppp
     const img = new Image();
     img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
@@ -528,7 +622,7 @@
     ctx.translate(cv.width / 2, cv.height / 2);
     ctx.rotate((3 * Math.PI) / 180); // leve giro, como una foto real
     ctx.drawImage(img, -sw / 2, -sh / 2, sw, sh);
-    cv.toBlob((blob) => download(`${slug(state.exam.title)}-ejemplo.png`, blob), 'image/png');
+    cv.toBlob((blob) => download(`${slug(state.exam.title)}-ejemplo${form !== null ? '-fila-' + formLetter(form) : ''}.png`, blob), 'image/png');
   }
 
   /* ------------------------------------------------------------------ */
@@ -595,6 +689,10 @@
     $('#docLetters').value = f.letterStyle;
     $('#docOptLayout').value = f.optionsLayout;
     $('#docShowOA').checked = f.showOA;
+    $('#docFillBank').checked = f.fillBank;
+    $('#docForms').value = String(f.forms);
+    $('#docShuffleQ').checked = f.shuffleQuestions;
+    $('#docShuffleO').checked = f.shuffleOptions;
     for (const cb of $$('[data-docfield]')) cb.checked = !!f.fields[cb.dataset.docfield];
     $('#docLogoPreview').hidden = !f.logo;
     $('#docLogoRemove').hidden = !f.logo;
@@ -639,15 +737,17 @@
     docQuestions = effectiveQuestions(docParsed.questions);
     const qs = docQuestions;
     const mc = qs.filter((q) => q.type === 'mc');
-    const tf = qs.filter((q) => q.type === 'tf').length;
-    const open = qs.filter((q) => q.type === 'open').length;
+    const count = (t) => qs.filter((q) => q.type === t).length;
     const maxOpts = mc.reduce((m, q) => Math.max(m, q.options.length), 0);
     const withKey = mc.filter((q) => q.correct !== null).length;
     const oas = Array.from(new Set(qs.map((q) => q.oa).filter(Boolean)));
     const parts = [];
     if (mc.length) parts.push(`${mc.length} de selección múltiple (hasta ${maxOpts} alternativas)`);
-    if (tf) parts.push(`${tf} de verdadero o falso`);
-    if (open) parts.push(`${open} de desarrollo`);
+    if (count('tf')) parts.push(`${count('tf')} de verdadero o falso`);
+    if (count('fill')) parts.push(`${count('fill')} de completación`);
+    if (count('order')) parts.push(`${count('order')} de ordenar`);
+    if (count('match')) parts.push(`${count('match')} ítem(s) de términos pareados`);
+    if (count('open')) parts.push(`${count('open')} de desarrollo`);
     $('#docSummary').textContent = qs.length
       ? `${qs.length} pregunta(s): ${parts.join(', ')}` +
         (withKey ? ` · ${withKey} con respuesta correcta` : '') +
@@ -658,20 +758,28 @@
     warn.hidden = !docParsed.warnings.length;
     $('#docApply').disabled = !qs.length;
     $('#docPrint').disabled = !qs.length;
+    $('#docPrintKey').disabled = !qs.length;
     const preview = $('#docPreview');
     const paper = PAPERS[d.format.paper] || PAPERS.carta;
     preview.style.width = paper.width + 'mm';
     const { byQuestion, orphans } = matchElements(qs);
-    preview.innerHTML = qs.length
-      ? TestDoc.renderTestHTML(qs, docFormat(), { maxScore: docMaxScore(), intro: docParsed.intro, elements: byQuestion, sections: docParsed.sections })
+    docForms = qs.length ? TestDoc.buildForms(qs, docParsed.sections, docFormat()) : [];
+    renderFormsControls();
+    const shown = docForms[Math.min(previewForm, docForms.length - 1)] || null;
+    preview.innerHTML = shown
+      ? renderFormHTML(shown, byQuestion)
       : '<p class="muted doc-empty">Pega las preguntas arriba para ver la evaluación.</p>';
+    renderOrphans(orphans, qs);
     // Herramientas de cada pregunta (sólo en pantalla, no se imprimen):
-    // tipo de pregunta, espacio para responder y "Añadir elemento".
+    // tipo de pregunta, espacio para responder y "Añadir elemento". Sólo en la fila A
+    // (en las demás filas las preguntas cambian de lugar).
+    if (!shown || shown.index !== 0) return;
     const f = d.format;
     for (const sec of $$('.td-q', preview)) {
       const i = Number(sec.dataset.q);
       const q = qs[i];
       const typeOpts = Object.entries(TestDoc.TYPE_LABELS)
+        .filter(([k]) => k !== 'match' || q.type === 'match')
         .map(([k, v]) => `<option value="${k}"${q.type === k ? ' selected' : ''}>${esc(v)}</option>`)
         .join('');
       let spaceCtl = '';
@@ -687,11 +795,107 @@
       const tools = document.createElement('div');
       tools.className = 'td-tools';
       tools.innerHTML =
-        `<select data-qtype="${i}" title="Tipo de pregunta">${typeOpts}</select>${spaceCtl}` +
+        `<select data-qtype="${i}" title="Tipo de pregunta"${q.type === 'match' ? ' disabled' : ''}>${typeOpts}</select>${spaceCtl}` +
         `<button type="button" class="td-add" data-add="${i}">＋ Añadir elemento</button>`;
       sec.prepend(tools);
     }
-    renderOrphans(orphans, qs);
+  }
+
+  /* ---------- Filas (A, B, C, D) ---------- */
+
+  let docForms = [];
+  let previewForm = 0;
+
+  /** HTML de una fila, con los elementos de cada pregunta en su nueva posición. */
+  function renderFormHTML(form, byQuestion) {
+    return TestDoc.renderTestHTML(form.questions, docFormat(), {
+      maxScore: docMaxScore(),
+      intro: docParsed.intro,
+      elements: form.source.map((i) => byQuestion[i] || []),
+      sections: docParsed.sections,
+      formLabel: docForms.length > 1 ? form.letter : '',
+    });
+  }
+
+  /**
+   * Mapas de corrección de las filas para la hoja de respuestas (sólo las
+   * preguntas de selección múltiple, que son las que van en la hoja).
+   * null si hay una sola fila o si no calzan con la hoja configurada.
+   */
+  function computeFormMaps(forms, n, c) {
+    if (!forms || forms.length < 2) return null;
+    const all = docQuestions;
+    const mcIdx = all.map((q, i) => (q.type === 'mc' ? i : -1)).filter((i) => i >= 0);
+    if (mcIdx.length !== n) return null;
+    const maps = forms.map((fm) => {
+      const pos = fm.questions.map((q, i) => (q.type === 'mc' ? i : -1)).filter((i) => i >= 0);
+      const order = pos.map((p) => mcIdx.indexOf(fm.source[p]));
+      const perms = pos.map((p) => {
+        const perm = (fm.questions[p].optionPerm || []).slice();
+        for (let k = perm.length; k < c; k++) perm.push(k);
+        return perm;
+      });
+      return { order, perms };
+    });
+    return sanitizeForms({ maps }, n, c);
+  }
+
+  /** ¿La hoja de respuestas está al día con las filas de la evaluación? */
+  function formsSyncState() {
+    const count = docForms.length;
+    const mcCount = docQuestions.filter((q) => q.type === 'mc').length;
+    if (count < 2) return { ok: !state.exam.forms, maps: null, fits: true };
+    if (!mcCount) return { ok: true, maps: null, fits: true };
+    const maps = computeFormMaps(docForms, state.exam.numQuestions, state.exam.numChoices);
+    if (!maps) return { ok: false, maps: null, fits: false };
+    return { ok: sameForms(maps, state.exam.forms), maps, fits: true };
+  }
+
+  /** Actualiza las filas de la hoja si se puede hacer sin afectar resultados ya corregidos. */
+  function syncFormsQuietly() {
+    const st = formsSyncState();
+    if (st.ok) return st;
+    const noForms = docForms.length < 2;
+    if ((st.fits || noForms) && !state.results.length) {
+      state.exam.forms = noForms ? null : st.maps;
+      save();
+      renderKey();
+      return formsSyncState();
+    }
+    return st;
+  }
+
+  function renderFormsControls() {
+    const count = docForms.length;
+    const f = state.exam.doc.format;
+    $('#docShuffleQ').disabled = $('#docShuffleO').disabled = $('#docReshuffle').disabled = f.forms < 2;
+    const letters = docForms.map((fm) => fm.letter);
+    const multi = count > 1;
+    if (previewForm >= count) previewForm = 0;
+    $('#docPreviewFormWrap').hidden = !multi;
+    $('#docPrintWhichWrap').hidden = !multi;
+    if (multi) {
+      $('#docPreviewForm').innerHTML = letters.map((l, i) => `<option value="${i}"${i === previewForm ? ' selected' : ''}>Fila ${l}</option>`).join('');
+      const which = $('#docPrintWhich').value || 'all';
+      $('#docPrintWhich').innerHTML =
+        `<option value="all">Todas las filas</option>` + letters.map((l, i) => `<option value="${i}">Sólo fila ${l}</option>`).join('');
+      $('#docPrintWhich').value = which === 'all' || Number(which) < count ? which : 'all';
+    }
+    $('#docFormsInfo').textContent = multi ? `Filas ${letters.join(', ')}` : '';
+    // Estado de la hoja de respuestas.
+    const st = docQuestions.length ? syncFormsQuietly() : { ok: true };
+    const box = $('#docFormsStatus');
+    if (st.ok) {
+      box.hidden = true;
+      return;
+    }
+    box.hidden = false;
+    const noForms = count < 2;
+    box.innerHTML = noForms
+      ? `La hoja de respuestas todavía corrige con ${state.exam.forms.maps.length} filas. <button type="button" class="btn small secondary" data-forms-sync>Quitar las filas de la corrección</button>`
+      : !st.fits
+      ? 'Para que el lector reconozca cada fila, configura la hoja con estas preguntas: botón <strong>“Usar estas preguntas en la hoja de respuestas”</strong> (arriba).'
+      : `Las filas cambiaron y ya hay ${state.results.length} hoja(s) corregida(s) con las filas anteriores. Si vas a imprimir esta nueva versión, actualiza la corrección. <button type="button" class="btn small secondary" data-forms-sync>Usar estas filas para corregir</button>`;
   }
 
   const SPACE_CHOICES = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30];
@@ -951,6 +1155,10 @@
     f.letterStyle = $('#docLetters').value;
     f.optionsLayout = $('#docOptLayout').value;
     f.showOA = $('#docShowOA').checked;
+    f.fillBank = $('#docFillBank').checked;
+    f.forms = Number($('#docForms').value) || 1;
+    f.shuffleQuestions = $('#docShuffleQ').checked;
+    f.shuffleOptions = $('#docShuffleO').checked;
     for (const cb of $$('[data-docfield]')) f.fields[cb.dataset.docfield] = cb.checked;
     state.exam.doc.text = $('#docText').value;
     state.exam.doc.sortByNumber = $('#docSort').checked;
@@ -982,18 +1190,36 @@
   function printDoc() {
     renderDoc();
     if (!docQuestions.length) return;
+    const st = formsSyncState();
+    if (!st.ok && docForms.length > 1) {
+      const msg = !st.fits
+        ? 'La hoja de respuestas aún no está configurada con las preguntas de esta evaluación, así que el lector no podrá reconocer las filas. ' +
+          'Usa “Usar estas preguntas en la hoja de respuestas” antes de imprimir las hojas.\n\n¿Imprimir la evaluación de todos modos?'
+        : `Las filas cambiaron desde que se corrigieron ${state.results.length} hoja(s). ¿Imprimir igual? (Actualiza la corrección con el botón “Usar estas filas para corregir” cuando entregues esta versión).`;
+      if (!confirm(msg)) return;
+    }
+    const which = $('#docPrintWhich').value;
+    const forms = docForms.length > 1 && which !== 'all' && which !== '' ? [docForms[Number(which)]].filter(Boolean) : docForms;
     const paper = PAPERS[state.exam.doc.format.paper] || PAPERS.carta;
+    const counter = docForms.length > 1 ? '"Página " counter(page)' : '"Página " counter(page) " de " counter(pages)';
     setPageStyle(
       `@page { size: ${paper.width}mm ${paper.height}mm; margin: 15mm 15mm 18mm; ` +
-        `@bottom-right { content: "Página " counter(page) " de " counter(pages); font: 9pt Arial, sans-serif; color: #555; } }`
+        `@bottom-right { content: ${counter}; font: 9pt Arial, sans-serif; color: #555; } }`
     );
+    const byQuestion = matchElements(docQuestions).byQuestion;
     $('#printArea').className = 'print-area print-doc';
-    $('#printArea').innerHTML = TestDoc.renderTestHTML(docQuestions, docFormat(), {
-      maxScore: docMaxScore(),
-      intro: docParsed.intro,
-      elements: matchElements(docQuestions).byQuestion,
-      sections: docParsed.sections,
-    });
+    $('#printArea').innerHTML = forms.map((fm) => `<div class="print-form">${renderFormHTML(fm, byQuestion)}</div>`).join('');
+    window.print();
+  }
+
+  /** Pauta de respuestas de todas las filas. */
+  function printAnswerKey() {
+    renderDoc();
+    if (!docQuestions.length) return;
+    const paper = PAPERS[state.exam.doc.format.paper] || PAPERS.carta;
+    setPageStyle(`@page { size: ${paper.width}mm ${paper.height}mm; margin: 15mm; }`);
+    $('#printArea').className = 'print-area print-doc';
+    $('#printArea').innerHTML = TestDoc.renderAnswerKeyHTML(docForms, docFormat(), { sections: docParsed.sections });
     window.print();
   }
 
@@ -1029,9 +1255,10 @@
     if (withKey) changes.push(`la clave de ${withKey} pregunta(s)`);
     if (oaMap.size) changes.push(`${oaMap.size} objetivo(s) de aprendizaje`);
     if (qs.length > LIMITS.maxQuestions) changes.push(`(sólo se usan las primeras ${LIMITS.maxQuestions} preguntas)`);
+    if (docForms.length > 1) changes.push(`las filas ${docForms.map((fm) => fm.letter).join(', ')} (cada una se corrige con su clave)`);
     const notes = [];
     const others = all.length - qs.length;
-    if (others) notes.push(`Las ${others} pregunta(s) de verdadero o falso y de desarrollo se responden en la misma prueba y no van a la hoja.`);
+    if (others) notes.push(`Las otras ${others} pregunta(s) (verdadero o falso, desarrollo, completación, etc.) se responden en la misma prueba y no van a la hoja.`);
     // ¿Coincide la numeración impresa con la de la hoja (1, 2, 3…)?
     const plan = TestDoc.planSections(all, docParsed.sections, state.exam.doc.format);
     const printed = mcIdx.slice(0, n).map((i) => plan.numbers[i]);
@@ -1046,6 +1273,7 @@
     if (!confirm(`Se configurará la hoja de respuestas con: ${changes.join(', ')}.${notes.length ? '\n\n' + notes.join('\n\n') : ''}\n\n¿Continuar?`)) return;
     if (!applyStructure(Object.assign({}, state.exam, { numQuestions: n, numChoices: c }))) return;
     if (withKey) state.exam.key = fitKey(qs.slice(0, n).map((q) => q.correct), n, c);
+    state.exam.forms = qs.length <= LIMITS.maxQuestions ? computeFormMaps(docForms, n, c) : null;
     if (oaMap.size) {
       state.exam.oaText = Array.from(oaMap.entries())
         .map(([name, idx]) => `${name}: ${Grading.formatRanges(idx)}`)
@@ -1058,6 +1286,7 @@
     renderObjectives();
     updateLayoutError();
     renderResultsBadge();
+    renderDoc();
     toast('Hoja de respuestas configurada con las preguntas de selección múltiple de la evaluación.');
   }
 
@@ -1164,6 +1393,19 @@
       });
   }
 
+  function resultWarnings(res) {
+    const forms = state.exam.forms;
+    const out = (res.warnings || []).filter((w) => forms || !/fila/i.test(w));
+    const i = res.form ? res.form.index : 0;
+    if (i && (!forms || i >= forms.maps.length)) {
+      out.push(
+        `La hoja dice “Fila ${formLetter(i)}”, pero la prueba ${forms ? `sólo tiene ${forms.maps.length} filas` : 'no tiene filas configuradas'}. ` +
+          'Se corrigió con la clave de la fila A: revisa la configuración de las filas en la pestaña Evaluación.'
+      );
+    }
+    return out;
+  }
+
   function createResult(res, fileName) {
     return {
       id: uid(),
@@ -1176,7 +1418,8 @@
       idMarks: res.id.digits.map((d) => d.marked),
       idUncertain: res.id.digits.some((d) => d.uncertain),
       threshold: res.threshold,
-      warnings: res.warnings,
+      form: res.form ? res.form.index : 0,
+      warnings: resultWarnings(res),
     };
   }
 
@@ -1249,7 +1492,15 @@
         msg.textContent = res.error;
         return;
       }
-      state.exam.key = res.answers.map((a) => (a.marked.length === 1 ? a.marked[0] : null));
+      let key = res.answers.map((a) => (a.marked.length === 1 ? a.marked[0] : null));
+      // Hoja de otra fila: la clave se lleva al orden de la fila A.
+      const m = formMap({ form: res.form ? res.form.index : 0 });
+      if (m) {
+        const canon = new Array(key.length).fill(null);
+        m.order.forEach((orig, j) => (canon[orig] = key[j] === null ? null : m.perms[j][key[j]]));
+        key = canon;
+      }
+      state.exam.key = key;
       save();
       renderKey();
       const missing = state.exam.key.filter((k) => k === null).length;
@@ -1267,8 +1518,51 @@
   /* Corrección y detalle de un resultado                                */
   /* ------------------------------------------------------------------ */
 
+  function formLetter(i) {
+    return SheetLayout.FORM_LETTERS[i] || '?';
+  }
+
+  /** Mapa de la fila de un resultado (null = fila A u orden original). */
+  function formMap(r) {
+    const f = state.exam.forms;
+    if (!f || !r) return null;
+    const i = r.form;
+    return Number.isInteger(i) && i > 0 && i < f.maps.length ? f.maps[i] : null;
+  }
+
+  /** Clave en el orden de la hoja de una fila. */
+  function keyForForm(m) {
+    const key = state.exam.key;
+    if (!m) return key;
+    return m.order.map((orig, j) => (key[orig] === null ? null : m.perms[j].indexOf(key[orig])));
+  }
+
+  /** Respuestas llevadas al orden de la fila A (para análisis por pregunta y por OA). */
+  function canonAnswers(r) {
+    const m = formMap(r);
+    if (!m) return r.answers;
+    const out = new Array(r.answers.length);
+    m.order.forEach((orig, j) => {
+      const a = r.answers[j];
+      out[orig] = Object.assign({}, a, { marked: a.marked.map((c) => m.perms[j][c]) });
+    });
+    return out;
+  }
+
+  /** Corrección en el orden de la hoja del estudiante (su fila). */
   function grade(r) {
-    return Grading.gradeAnswers(r.answers, state.exam.key, state.exam.scoring);
+    return Grading.gradeAnswers(r.answers, keyForForm(formMap(r)), state.exam.scoring);
+  }
+
+  /** Corrección en el orden de la fila A (mismo puntaje; para OA y análisis). */
+  function gradeCanon(r) {
+    return formMap(r) ? Grading.gradeAnswers(canonAnswers(r), state.exam.key, state.exam.scoring) : grade(r);
+  }
+
+  /** Fila sin leer (las hojas guardadas antes de existir las filas cuentan como fila A). */
+  function formUnknown(r) {
+    if (!state.exam.forms || r.form === undefined) return false;
+    return !(Number.isInteger(r.form) && r.form >= 0 && r.form < state.exam.forms.maps.length);
   }
 
   /** Logro del estudiante en cada OA definido (lista vacía si no hay OA). */
@@ -1292,7 +1586,7 @@
 
   function needsReview(r) {
     const incompleteId = state.exam.idDigits > 0 && (!r.code || r.code.indexOf('?') >= 0);
-    return incompleteId || r.idUncertain || r.answers.some((a) => a.uncertain && !a.edited);
+    return incompleteId || r.idUncertain || formUnknown(r) || r.answers.some((a) => a.uncertain && !a.edited);
   }
 
   const STATUS = {
@@ -1312,6 +1606,7 @@
     const prevList = $('.answers-list', container);
     const prevScroll = prevList ? prevList.scrollTop : 0;
     const g = grade(r);
+    const fm = formMap(r);
     const sc = state.exam.scoring;
     const c = state.exam.numChoices;
     const failed = g.grade !== null && g.grade < sc.gradePass;
@@ -1329,8 +1624,9 @@
         const st = STATUS[it.status];
         const keyTxt = it.key === null ? 'sin clave' : `clave ${CHOICE_LABELS[it.key]}`;
         const unc = a.uncertain && !a.edited;
+        const origNote = fm ? ` · pregunta ${fm.order[q] + 1} de la fila A` : '';
         return (
-          `<div class="ans ${it.status}${unc ? ' uncertain' : ''}" title="${esc(st.label + (unc ? ' · marca dudosa, revisar' : ''))}">` +
+          `<div class="ans ${it.status}${unc ? ' uncertain' : ''}" title="${esc(st.label + (unc ? ' · marca dudosa, revisar' : '') + origNote)}">` +
           `<span class="qn">${q + 1}</span>` +
           `<select data-q="${q}" aria-label="Respuesta de la pregunta ${q + 1}">${opts.join('')}</select>` +
           `<span class="icon" style="color:${st.color}">${st.icon}</span><span class="k">${keyTxt}</span></div>`
@@ -1342,6 +1638,7 @@
     if (state.exam.idDigits > 0 && (!r.code || r.code.indexOf('?') >= 0)) {
       alerts.push('No se pudo leer completo el código del estudiante: complétalo manualmente.');
     }
+    if (formUnknown(r)) alerts.push('No se pudo leer la fila de la hoja (A, B, C o D): elígela arriba para corregir con la clave correcta.');
     const unc = r.answers.filter((a) => a.uncertain && !a.edited).length;
     if (unc) alerts.push(`${unc} pregunta(s) con marcas dudosas (recuadro amarillo): revísalas y corrige si es necesario.`);
     for (const w of r.warnings || []) alerts.push(w);
@@ -1360,6 +1657,13 @@
           <div class="who">
             <label class="code">Código<input type="text" data-field="code" value="${esc(r.code || '')}" inputmode="numeric" autocomplete="off"></label>
             <label>Nombre<input type="text" data-field="name" value="${esc(r.name || '')}" placeholder="${esc(rosterName(r.code) || 'Nombre del estudiante')}" autocomplete="off"></label>
+            ${
+              state.exam.forms
+                ? `<label class="form-pick">Fila<select data-field="form">${formUnknown(r) ? '<option value="" selected>?</option>' : ''}${state.exam.forms.maps
+                    .map((_, i) => `<option value="${i}"${r.form === i ? ' selected' : ''}>${formLetter(i)}</option>`)
+                    .join('')}</select></label>`
+                : ''
+            }
           </div>
         </div>
         <div class="score-row">
@@ -1370,7 +1674,7 @@
           <div class="pill"><b>${fmt(g.percent, 0)}%</b><span>Logro</span></div>
           <div class="pill grade${failed ? ' fail' : ''}"><b>${fmt(g.grade, 1)}</b><span>Nota</span></div>
         </div>
-        ${renderOaChips(g)}
+        ${renderOaChips(gradeCanon(r))}
         ${alerts.map((a) => `<p class="alert warn">${esc(a)}</p>`).join('')}
         <div class="detail-body" style="margin-top:14px">
           <div class="sheet-view">
@@ -1508,6 +1812,10 @@
       const prev = r.answers[q];
       const original = prev.edited ? prev.original : prev.marked;
       r.answers[q] = { marked: v === '' ? [] : [Number(v)], uncertain: false, edited: true, original };
+    } else if (e.type === 'change' && e.target.matches('select[data-field="form"]')) {
+      if (e.target.value === '') return;
+      r.form = Number(e.target.value);
+      r.formEdited = true;
     } else if (e.type === 'change' && e.target.matches('input[data-field]')) {
       const field = e.target.dataset.field;
       r[field] = e.target.value.trim();
@@ -1548,7 +1856,7 @@
 
   function sortedResults() {
     return state.results
-      .map((r) => ({ r, g: grade(r) }))
+      .map((r) => ({ r, g: gradeCanon(r) }))
       .sort((a, b) => {
         const ca = /^\d+$/.test(a.r.code || '') ? parseInt(a.r.code, 10) : Infinity;
         const cb = /^\d+$/.test(b.r.code || '') ? parseInt(b.r.code, 10) : Infinity;
@@ -1589,6 +1897,7 @@
         const tags = [];
         if (needsReview(r)) tags.push('<span class="tag warn">revisar</span>');
         if (r.code && codeCount[r.code] > 1) tags.push('<span class="tag bad">código repetido</span>');
+        if (state.exam.forms) tags.push(`<span class="tag form">Fila ${formUnknown(r) ? '?' : formLetter(r.form || 0)}</span>`);
         const gradeCls = g.grade === null ? '' : g.grade >= sc.gradePass ? 'grade-pass' : 'grade-fail';
         return `<tr data-id="${esc(r.id)}"${r.id === selectedResultId ? ' class="selected"' : ''}>
           <td class="num">${i + 1}</td>
@@ -1615,7 +1924,7 @@
 
   function renderItemAnalysis(rows) {
     const c = state.exam.numChoices;
-    const stats = Grading.itemAnalysis(rows.map((x) => x.r.answers), state.exam.key, c);
+    const stats = Grading.itemAnalysis(rows.map((x) => canonAnswers(x.r)), state.exam.key, c);
     const head = `<thead><tr><th class="num">N°</th><th>Clave</th><th>% de acierto</th><th>Respuestas (${CHOICE_LABELS.slice(0, c).join(' · ')})</th><th class="num">Omitidas</th><th class="num">Dobles</th></tr></thead>`;
     const body = stats
       .map((s) => {
@@ -1681,13 +1990,15 @@
     const lines = [];
     lines.push(
       ['N°', 'Código', 'Nombre', 'Archivo', 'Correctas', 'Incorrectas', 'Omitidas', 'Dobles marcas', 'Puntaje', 'Puntaje máximo', '% logro', 'Nota']
+        .concat(state.exam.forms ? ['Fila'] : [])
         .concat(currentObjectives().objectives.map((o) => `% ${o.name}`))
         .concat(qCols)
         .map(cell)
         .join(sep)
     );
     lines.push(
-      ['', '', 'CLAVE', '', '', '', '', '', '', '', '', '']
+      ['', '', state.exam.forms ? 'CLAVE (fila A)' : 'CLAVE', '', '', '', '', '', '', '', '', '']
+        .concat(state.exam.forms ? [''] : [])
         .concat(currentObjectives().objectives.map(() => ''))
         .concat(state.exam.key.map((k) => (k === null ? '' : CHOICE_LABELS[k])))
         .map(cell)
@@ -1696,8 +2007,9 @@
     sortedResults().forEach(({ r, g }, i) => {
       lines.push(
         [i + 1, r.code || '', displayName(r), r.fileName, g.correct, g.wrong, g.blank, g.multiple, dec(g.score, 2), dec(g.maxScore, 2), dec(g.percent, 1), dec(g.grade, 1)]
+          .concat(state.exam.forms ? [formUnknown(r) ? '?' : formLetter(r.form || 0)] : [])
           .concat(oaResults(g).map((o) => dec(o.percent, 1)))
-          .concat(r.answers.map((a) => letters(a.marked)))
+          .concat(canonAnswers(r).map((a) => letters(a.marked)))
           .map(cell)
           .join(sep)
       );
@@ -1783,7 +2095,7 @@
     lines.push({ text: state.exam.title || 'Prueba', font: font(34, 700), color: '#1c2430' });
     if (state.exam.subtitle) lines.push({ text: state.exam.subtitle, font: font(22), color: '#5d6877' });
     lines.push({
-      text: `Estudiante: ${displayName(r) || '—'}     Código: ${r.code || '—'}`,
+      text: `Estudiante: ${displayName(r) || '—'}     Código: ${r.code || '—'}${state.exam.forms ? `     Fila: ${formUnknown(r) ? '?' : formLetter(r.form || 0)}` : ''}`,
       font: font(24, 700),
       color: '#1c2430',
       gapBefore: 10,
@@ -1804,7 +2116,7 @@
       color: '#5d6877',
       gapBefore: 6,
     });
-    const oaRes = oaResults(g);
+    const oaRes = oaResults(gradeCanon(r));
     if (oaRes.length) {
       measure.font = font(19);
       const txt = 'Logro por objetivo: ' + oaRes.map((o) => `${o.name} ${o.percent === null ? '–' : fmt(o.percent, 0) + '%'}${o.level ? ` (${o.level})` : ''}`).join('   ');
@@ -1925,6 +2237,8 @@
       'N°', 'Código', 'Nombre', 'Correctas', 'Incorrectas', 'Omitidas', 'Dobles marcas', 'Puntaje',
       'Puntaje máximo', '% logro', 'Nota',
     ];
+    const withForms = !!exam.forms;
+    if (withForms) head.push('Fila');
     const objectives = currentObjectives().objectives;
     for (const o of objectives) head.push(`% ${o.name}`);
     head.push('Estado', 'Hoja corregida', 'Foto original', 'Archivo');
@@ -1941,7 +2255,14 @@
       sc.penaltyWrong ? `Descuento por incorrecta: ${sc.penaltyWrong}` : null,
     ].filter(Boolean);
     sheetRows.push([{ v: info.join('   ·   '), s: 'muted' }]);
-    sheetRows.push([{ v: 'Los hipervínculos abren las imágenes guardadas junto a este archivo (carpetas hojas_corregidas y fotos_originales).', s: 'muted' }]);
+    sheetRows.push([
+      {
+        v:
+          'Los hipervínculos abren las imágenes guardadas junto a este archivo (carpetas hojas_corregidas y fotos_originales).' +
+          (withForms ? ' Las respuestas P1, P2… están en el orden de la fila A (cada fila se corrigió con su propia clave).' : ''),
+        s: 'muted',
+      },
+    ]);
     sheetRows.push(head.map((h) => ({ v: h, s: 'header' })));
     const keyRow = new Array(head.length).fill(null);
     keyRow[2] = { v: 'CLAVE', s: 'bold' };
@@ -1964,6 +2285,7 @@
         g.maxScore,
         { v: g.percent, s: 'dec1' },
         g.grade === null ? '' : { v: g.grade, s: g.grade >= sc.gradePass ? 'ok' : 'bad' },
+        ...(withForms ? [formUnknown(r) ? '?' : formLetter(r.form || 0)] : []),
         ...oaResults(g).map((o) => (o.percent === null ? '' : { v: o.percent, s: 'lvl' + o.level })),
         status,
         link.sheet ? { v: 'Ver hoja corregida', link: link.sheet, tooltip: link.sheet } : { v: 'sin imagen', s: 'muted' },
@@ -1980,13 +2302,14 @@
     const headerRow = 4;
     const lastCol = Xlsx.colName(head.length - 1);
     const cols = [5, 10, 28, 10, 11, 10, 9, 9, 10, 9, 7]
+      .concat(withForms ? [6] : [])
       .concat(objectives.map((o) => Math.max(9, Math.min(24, o.name.length + 4))))
       .concat([16, 20, 18, 22])
       .concat(new Array(n).fill(5));
 
     // Hoja de análisis por pregunta.
     const c = exam.numChoices;
-    const stats = Grading.itemAnalysis(rows.map((x) => x.r.answers), exam.key, c);
+    const stats = Grading.itemAnalysis(rows.map((x) => canonAnswers(x.r)), exam.key, c);
     const oaOf = (q) => objectives.filter((o) => o.questions.indexOf(q) >= 0).map((o) => o.name).join(', ');
     const aRows = [[{ v: 'Análisis por pregunta', s: 'title' }], []];
     aRows.push(['N°', 'OA', 'Clave', '% de acierto'].concat(CHOICE_LABELS.slice(0, c), ['Omitidas', 'Dobles marcas']).map((h) => ({ v: h, s: 'header' })));
@@ -2361,6 +2684,27 @@
       loadElementImage(item.getAsFile());
     });
     $('#docPrint').addEventListener('click', printDoc);
+    $('#docPrintKey').addEventListener('click', printAnswerKey);
+    $('#docPreviewForm').addEventListener('change', (e) => {
+      previewForm = Number(e.target.value) || 0;
+      renderDoc();
+    });
+    $('#docReshuffle').addEventListener('click', () => {
+      state.exam.doc.format.formSeed = Math.floor(Math.random() * 1e9);
+      save();
+      renderDoc();
+      toast('Se generó una nueva mezcla para las filas B, C y D.');
+    });
+    $('#docFormsStatus').addEventListener('click', (e) => {
+      if (!e.target.closest('[data-forms-sync]')) return;
+      const st = formsSyncState();
+      state.exam.forms = docForms.length < 2 ? null : st.maps;
+      save();
+      renderKey();
+      renderDoc();
+      renderResultsBadge();
+      toast('La corrección usa ahora las filas de esta evaluación.');
+    });
     for (const id of ['#scPoints', '#scPenalty', '#scExigencia', '#scMin', '#scPass', '#scMax']) $(id).addEventListener('change', onScoringInput);
     $('#roster').addEventListener('input', (e) => {
       state.exam.roster = e.target.value;
@@ -2395,6 +2739,7 @@
     });
 
     $('#btnPrint').addEventListener('click', printSheet);
+    $('#sheetForm').addEventListener('change', renderSheetPreview);
     $('#btnDownloadSvg').addEventListener('click', () => {
       const page = sheetPage();
       if (!page) return toast(layoutError);

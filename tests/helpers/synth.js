@@ -64,7 +64,7 @@ function rasterizeSheet(layout, ppm, marks, seed) {
   fillRect(img, ppm, o.x - o.size / 2, o.y - o.size / 2, o.x + o.size / 2, o.y + o.size / 2, 20);
   if (!(marks && marks.hideSideMarks))
     for (const sm of layout.sideMarks) fillRect(img, ppm, sm.x - sm.size / 2, sm.y - sm.size / 2, sm.x + sm.size / 2, sm.y + sm.size / 2, 20);
-  for (const c of layout.codeCells)
+  for (const c of layout.codeCells.concat(layout.formCells || []))
     if (c.bit) fillRect(img, ppm, c.x - c.size / 2, c.y - c.size / 2, c.x + c.size / 2, c.y + c.size / 2, 20);
   // Texto del encabezado simulado como barras finas.
   const k = layout.scale || 1;

@@ -660,6 +660,52 @@
     return { marked, uncertain };
   }
 
+  /** Oscuridad promedio en un cuadrado (px) de la hoja enderezada. */
+  function squareMean(dark, cx, cy, half) {
+    const { width: w, height: h, data } = dark;
+    const x0 = Math.max(0, Math.round(cx - half));
+    const x1 = Math.min(w - 1, Math.round(cx + half));
+    const y0 = Math.max(0, Math.round(cy - half));
+    const y1 = Math.min(h - 1, Math.round(cy + half));
+    let sum = 0;
+    let n = 0;
+    for (let y = y0; y <= y1; y++)
+      for (let x = x0; x <= x1; x++) {
+        sum += data[y * w + x];
+        n++;
+      }
+    return n ? sum / n : 0;
+  }
+
+  /**
+   * Lee la fila (A–D) impresa en el margen izquierdo. Cada celda se busca en
+   * un entorno pequeño (la hoja puede estar algo curvada); una celda dudosa o
+   * un código inválido dejan la fila sin leer (index null).
+   */
+  function readForm(dark, layout, ppm) {
+    const cells = layout.formCells || [];
+    if (cells.length !== 3) return { index: 0, uncertain: false, values: [] };
+    const k = layout.scale || 1;
+    // Un mismo corrimiento para las tres celdas (la hoja puede estar algo
+    // curvada): el que mejor calza con las celdas impresas (mayor oscuridad
+    // total). Así una celda blanca no toma la tinta de su vecina.
+    const search = Math.max(2, Math.round(2 * k * ppm));
+    const step = Math.max(1, Math.round(search / 5));
+    let best = null;
+    for (let dy = -search; dy <= search; dy += step)
+      for (let dx = -search; dx <= search; dx += step) {
+        const values = cells.map((c) => squareMean(dark, c.x * ppm + dx, c.y * ppm + dy, c.size * 0.28 * ppm));
+        const total = values.reduce((a, b) => a + b, 0);
+        const dist = Math.hypot(dx, dy);
+        if (!best || total > best.total + 1e-3 || (Math.abs(total - best.total) <= 1e-3 && dist < best.dist)) best = { values, total, dist };
+      }
+    const values = best.values.map((v) => Math.round(v * 100) / 100);
+    const bits = values.map((v) => (v >= 0.4 ? 1 : 0));
+    const uncertain = values.some((v) => v > 0.22 && v < 0.55);
+    const index = uncertain ? null : SheetLayout.decodeForm(bits);
+    return { index, uncertain: uncertain || index === null, values };
+  }
+
   /* ------------------------------------------------------------------ */
   /* API principal                                                       */
   /* ------------------------------------------------------------------ */
@@ -860,6 +906,9 @@
       if (above > med * 0.45 || below > med * 0.45) return misaligned();
     }
 
+    const form = readForm(dark, layout, ppm);
+    if (form.index === null) warnings.push('No se pudo leer la fila de la hoja (A, B, C o D): indíquela manualmente.');
+
     const rowScores = rows.map((bubbles, i) =>
       bubbles.map((b) => diskMean(dark, b.x * ppm + shifts[i].dx, b.y * ppm + shifts[i].dy, b.r * ppm * opts.innerRadius))
     );
@@ -909,6 +958,7 @@
       rotation: best.k,
       corners: best.dst,
       codeVerified: !!decoded,
+      form,
       warnings,
       rectified: rect,
       overlay,

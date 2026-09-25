@@ -74,6 +74,7 @@
                    placeholder="Ej.: ABCDA BCDEA …  (use - para una pregunta sin clave o anulada)">
           </label>
           <div id="keyGrid" class="key-grid" aria-label="Clave por pregunta"></div>
+          <div id="formKeys" class="form-keys" hidden></div>
           <div class="actions">
             <label class="btn secondary" for="keyPhotoInput">📷 Leer clave desde una hoja</label>
             <input id="keyPhotoInput" type="file" accept="image/*" hidden>
@@ -159,6 +160,10 @@
               <li>Verdadero o falso: la respuesta puede ir al final como <code>(V)</code> o <code>(F)</code>, o en la clave (<code>Clave: 1A 2C 1V 2F</code>).</li>
               <li>Desarrollo: indica el espacio con <code>[8 líneas]</code>, <code>[recuadro 10]</code> o <code>[en blanco 6]</code> al final de la pregunta (también se ajusta en la vista previa).</li>
               <li>Un texto separado por una línea en blanco antes de una pregunta (por ejemplo, una lectura) se imprime junto a esa pregunta.</li>
+              <li><strong>Términos pareados:</strong> bajo un encabezado <code>III. Términos pareados</code>, escribe un par por línea: <code>Fotosíntesis = Proceso por el cual…</code> (también sirven <code>-</code>, <code>→</code> o una tabla pegada de Word). La columna B se desordena sola. También puedes escribir <code>Columna A</code> y <code>Columna B</code> por separado e indicar la respuesta al final del término: <code>1. Fotosíntesis (b)</code>. Un término sin pareja queda como distractor.</li>
+              <li><strong>Completación:</strong> bajo <code>IV. Completación</code>, escribe la respuesta entre corchetes: <code>La capital de Chile es [Santiago].</code> (o deja <code>____</code>). Las respuestas forman el banco de palabras; agrega distractores con una línea <code>Banco de palabras: Lima, Quito</code>.</li>
+              <li><strong>Ordenar secuencia:</strong> bajo <code>V. Ordenar secuencia</code>, escribe la pregunta y sus elementos (<code>a)</code>, <code>b)</code>… o <code>- </code>) <em>en el orden correcto</em>: al imprimir se desordenan y el estudiante escribe 1, 2, 3…</li>
+              <li><strong>Respuesta breve:</strong> un ítem <code>Respuesta breve</code> es de desarrollo con 2 líneas por pregunta.</li>
             </ul>
           </details>
           <textarea id="docText" rows="14" spellcheck="false" placeholder="1. ¿Cuál es la capital de Chile?&#10;a) Santiago  b) Lima  c) Quito  d) Bogotá&#10;&#10;2) ¿Qué océano baña las costas de Chile?&#10;A. Atlántico&#10;*B. Pacífico&#10;C. Índico"></textarea>
@@ -273,13 +278,49 @@
             </label>
           </div>
           <label class="check" style="margin-top:10px"><input id="docShowOA" type="checkbox"> Mostrar el OA junto a cada pregunta</label>
+          <label class="check"><input id="docFillBank" type="checkbox"> Completación: mostrar el banco de palabras</label>
         </div>
 
         <div class="card">
           <div class="card-head">
-            <h2>3. Vista previa</h2>
+            <h2>3. Filas (versiones) para evitar la copia</h2>
+            <span id="docFormsInfo" class="muted"></span>
+          </div>
+          <div class="form-grid">
+            <label>Cantidad de filas
+              <select id="docForms">
+                <option value="1">Una sola versión</option>
+                <option value="2">2 filas (A y B)</option>
+                <option value="3">3 filas (A, B y C)</option>
+                <option value="4">4 filas (A, B, C y D)</option>
+              </select>
+            </label>
+            <div class="forms-opts">
+              <label class="check"><input id="docShuffleQ" type="checkbox"> Cambiar el orden de las preguntas</label>
+              <label class="check"><input id="docShuffleO" type="checkbox"> Cambiar el orden de las alternativas</label>
+              <button id="docReshuffle" class="btn ghost small" type="button">🔀 Mezclar de nuevo</button>
+            </div>
+          </div>
+          <ul class="tips">
+            <li>La <strong>fila A</strong> mantiene el orden original. En las filas B, C y D las preguntas cambian de lugar dentro de cada ítem y las alternativas se reordenan (procurando que la respuesta correcta no quede en la misma letra que en otra fila). También se reordenan los términos pareados y las secuencias.</li>
+            <li>No se mueven: las preguntas de desarrollo, las alternativas como “Todas las anteriores” o “A y B”, ni las preguntas que el texto nombra (“responde las preguntas 1 a 3”).</li>
+            <li>Cada fila tiene su propia hoja de respuestas (con la fila impresa): al escanear se reconoce la fila y se corrige con su clave. Los resultados y el análisis por pregunta y por OA se muestran según la fila A.</li>
+          </ul>
+          <p id="docFormsStatus" class="alert warn" hidden></p>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>4. Vista previa</h2>
             <div class="actions">
+              <label id="docPreviewFormWrap" class="inline-select" hidden>Ver
+                <select id="docPreviewForm"></select>
+              </label>
+              <label id="docPrintWhichWrap" class="inline-select" hidden>Imprimir
+                <select id="docPrintWhich"></select>
+              </label>
               <button id="docPrint" class="btn primary" type="button">🖨️ Imprimir evaluación</button>
+              <button id="docPrintKey" class="btn secondary" type="button">🗝️ Imprimir pauta</button>
             </div>
           </div>
           <p class="muted small">Al imprimir puedes elegir “Guardar como PDF”. La división en páginas se ve en la vista de impresión; las preguntas no se cortan entre páginas.</p>
@@ -303,6 +344,10 @@
             <label>Hojas de respuesta por página
               <select id="exFormat"></select>
               <small>Con 2 o 4 por página se ahorra papel: recorta por la línea punteada antes de escanear.</small>
+            </label>
+            <label id="sheetFormWrap" hidden>Fila
+              <select id="sheetForm"></select>
+              <small>Imprime las hojas de cada fila (la fila queda impresa y el lector la reconoce).</small>
             </label>
             <label>Establecimiento (opcional)
               <input id="sheetSchool" type="text" maxlength="120" placeholder="Se muestra bajo el título">

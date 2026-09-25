@@ -480,6 +480,8 @@ fieldset.checks legend { font-weight: 600; font-size: 0.92rem; padding: 0 4px; }
   .print-area { display: block; }
   .print-area svg { display: block; }
   .print-doc .td-q { break-inside: avoid; }
+  .print-form + .print-form, .print-page + .print-page { break-before: page; }
+  .print-page svg { overflow: hidden; }
   .el-dialog { display: none !important; }
 }
 
@@ -489,3 +491,17 @@ fieldset.checks legend { font-weight: 600; font-size: 0.92rem; padding: 0 4px; }
   .tabs .step { display: none; }
   .btn.big { min-width: 0; }
 }
+
+/* Filas (versiones) de la evaluación */
+.forms-opts { display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+.forms-opts .btn { align-self: flex-start; }
+label.inline-select { flex-direction: row; align-items: center; gap: 6px; font-weight: 500; margin: 0; }
+label.inline-select select { width: auto; }
+.form-keys { margin-top: 12px; overflow-x: auto; }
+.form-keys table { border-collapse: collapse; font-size: 0.85rem; }
+.form-keys th, .form-keys td { border: 1px solid var(--border); padding: 2px 6px; text-align: center; }
+.form-keys th { background: var(--bg); }
+.form-keys td.fk-label { font-weight: 600; text-align: left; white-space: nowrap; }
+.tag.form { background: #e8eaf6; color: #283593; }
+.sheet-preview .sheet-page + .sheet-page { margin-top: 16px; }
+label.form-pick select { width: auto; min-width: 4.5em; }

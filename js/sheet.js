@@ -64,9 +64,29 @@
       );
     }
 
+    // Fila de la prueba (B, C, D): celdas en el margen izquierdo.
+    for (const cell of layout.formCells || []) {
+      if (!cell.bit) continue;
+      out.push(
+        `<rect x="${n(cell.x - cell.size / 2)}" y="${n(cell.y - cell.size / 2)}" width="${n(cell.size)}" height="${n(cell.size)}" fill="#000"/>`
+      );
+    }
+
     // Título y encabezado.
     const hd = layout.header;
-    const topRightEdge = layout.markers[1].x - ms / 2 - 3 * k;
+    let topRightEdge = layout.markers[1].x - ms / 2 - 3 * k;
+    if (layout.form !== null && layout.form !== undefined) {
+      // Recuadro "FILA B" a la derecha del título.
+      const bw = 15 * k;
+      const bh = 9 * k;
+      const bx = topRightEdge - 3 * k - bw;
+      const by = hd.titleY - 5.6 * k;
+      const letter = SheetLayout.FORM_LETTERS[layout.form];
+      out.push(`<rect x="${n(bx)}" y="${n(by)}" width="${n(bw)}" height="${n(bh)}" rx="${n(1.2 * k)}" fill="none" stroke="#000" stroke-width="0.35"/>`);
+      out.push(`<text x="${n(bx + 4.2 * k)}" y="${n(by + bh / 2 + 1 * k)}" font-size="${n(2.4 * k)}" text-anchor="middle">FILA</text>`);
+      out.push(`<text x="${n(bx + bw - 4.6 * k)}" y="${n(by + bh / 2 + 2.3 * k)}" font-size="${n(6.5 * k)}" font-weight="bold" text-anchor="middle">${letter}</text>`);
+      topRightEdge = bx - 2 * k;
+    }
     const maxTitleW = topRightEdge - hd.titleX;
     const title = opts.title || 'Hoja de respuestas';
     const titleSize = Math.min(5.2 * k, (maxTitleW / Math.max(8, title.length)) * 1.9);
@@ -165,13 +185,17 @@
    * Página completa para imprimir: 1, 2 o 4 hojas de respuestas con líneas de corte.
    * @returns { svg, width, height, landscape }
    */
-  function renderPageSVG(layout, opts) {
+  function renderPageSVG(layout, opts, pieceLayouts) {
     const c = layout.config;
     const tiling = SheetLayout.pageTiling(c.paper, c.format);
     const content = renderContent(layout, opts);
     const out = [svgOpen(tiling.width, tiling.height)];
     out.push(`<rect x="0" y="0" width="${n(tiling.width)}" height="${n(tiling.height)}" fill="#fff"/>`);
-    for (const p of tiling.pieces) out.push(`<g transform="translate(${n(p.x)} ${n(p.y)})">${content}</g>`);
+    // pieceLayouts: una hoja distinta por recorte (p. ej. filas A, B, C y D en la misma página).
+    tiling.pieces.forEach((p, i) => {
+      const own = pieceLayouts && pieceLayouts.length ? pieceLayouts[i % pieceLayouts.length] : null;
+      out.push(`<g transform="translate(${n(p.x)} ${n(p.y)})">${own ? renderContent(own, opts) : content}</g>`);
+    });
     for (const cut of tiling.cuts) {
       out.push(`<line x1="${n(cut.x1)}" y1="${n(cut.y1)}" x2="${n(cut.x2)}" y2="${n(cut.y2)}" stroke="#9a9a9a" stroke-width="0.25" stroke-dasharray="2 1.5"/>`);
       const vertical = cut.x1 === cut.x2;

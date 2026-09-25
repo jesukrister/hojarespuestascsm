@@ -153,6 +153,30 @@
     );
   }
 
+  /* ---------- Fila de la prueba (A, B, C, D) ----------
+   * Tres celdas en el margen izquierdo, a media altura, con un código de
+   * paridad par: un error en una celda da un código inválido (nunca otra fila).
+   * La fila A no imprime celdas, así que las hojas anteriores se leen como A.
+   */
+  const FORM_CODES = [
+    [0, 0, 0],
+    [0, 1, 1],
+    [1, 0, 1],
+    [1, 1, 0],
+  ];
+  const FORM_LETTERS = ['A', 'B', 'C', 'D'];
+
+  function decodeForm(bits) {
+    if (!bits || bits.length !== 3) return null;
+    const i = FORM_CODES.findIndex((c) => c.every((b, j) => b === bits[j]));
+    return i >= 0 ? i : null;
+  }
+
+  function normalizeForm(v) {
+    const n = Math.round(Number(v));
+    return Number.isFinite(n) && n >= 0 && n < FORM_CODES.length ? n : null;
+  }
+
   /** Tamaño de una hoja de respuestas (vertical) según papel y formato. */
   function pieceSize(paperId, formatId) {
     const p = PAPERS[paperId];
@@ -242,6 +266,12 @@
       sideMarks.push({ x: sideX, y, size: sideSize, level, side: 'left' });
       sideMarks.push({ x: W - sideX, y, size: sideSize, level, side: 'right' });
     }
+
+    // Celdas de la fila (siempre en la misma posición; sólo se imprimen las activas).
+    const form = normalizeForm(cfg && cfg.form);
+    const formBits = FORM_CODES[form === null ? 0 : form];
+    const formPitch = 7.5 * k;
+    const formCells = formBits.map((bit, i) => ({ x: sideX, y: H / 2 + (i - 1) * formPitch, size: CODE_CELL * k, bit }));
 
     const bits = encodeConfig(c);
     const codePitch = CODE_PITCH * k;
@@ -378,6 +408,8 @@
       orientation,
       sideMarks,
       codeCells,
+      formCells,
+      form,
       header: {
         top: headerTop,
         height: headerH,
@@ -402,6 +434,10 @@
     LIMITS,
     CHOICE_LABELS,
     CODE_BITS,
+    FORM_CODES,
+    FORM_LETTERS,
+    decodeForm,
+    normalizeForm,
     normalizeConfig,
     normalizeFields,
     encodeConfig,

@@ -14,6 +14,9 @@
  *   I. Selección múltiple / II. Verdadero o falso / III. Desarrollo → ítems (tipo de pregunta)
  *   ____ 1. Afirmación (F)  ·  ( ) Afirmación           → verdadero o falso (con su respuesta)
  *   Pregunta sin alternativas [8 líneas] / [recuadro 10] → desarrollo (con su espacio)
+ *   III. Términos pareados + "Término = Definición"     → términos pareados (o Columna A / Columna B)
+ *   IV. Completación + "La capital es [Santiago]."      → completar (con banco de palabras)
+ *   V. Ordenar secuencia + a) b) c) en el orden correcto → ordenar (se desordena al imprimir)
  * Las líneas cortadas por el PDF se vuelven a unir, y un texto separado por
  * una línea en blanco antes de una pregunta queda como texto de esa pregunta
  * (por ejemplo, una lectura).
@@ -37,7 +40,11 @@
   const SECTION_LINE = new RegExp(
     '^\\s*((?:(?:[íi]tem|parte|secci[óo]n)\\s*(?:[IVX]{1,4}|\\d{1,2})?|[IVX]{1,4})?\\s*[.):\\-–]?\\s*' +
       '(selecci[óo]n\\s+m[úu]ltiple|alternativas|verdadero\\s*(?:o|y|/)\\s*falso|v\\s*(?:o|/)\\s*f|desarrollo|' +
-      'preguntas?\\s+(?:abiertas?|de\\s+desarrollo)|respuestas?\\s+(?:abiertas?|breves?|cortas?)))' +
+      'preguntas?\\s+(?:abiertas?|de\\s+desarrollo)|respuestas?\\s+(?:abiertas?|breves?|cortas?)|' +
+      't[ée]rminos\\s+pareados|pareados|pareo|asociaci[óo]n(?:\\s+de\\s+(?:conceptos|t[ée]rminos))?|relacionar(?:\\s+columnas)?|' +
+      'completaci[óo]n|completar(?:\\s+(?:oraciones|el\\s+texto|espacios))?|oraciones\\s+incompletas|' +
+      'ordenar(?:\\s+(?:secuencias?|cronol[óo]gicamente|la\\s+secuencia|los\\s+hechos))?|ordenaci[óo]n|' +
+      'secuencias?(?:\\s+(?:cronol[óo]gicas?|de\\s+hechos))?|orden\\s+cronol[óo]gico))' +
       '\\s*(?:([.:\\-–])\\s*(.*)|(\\(.*\\)))?\\s*$',
     'i'
   );
@@ -49,22 +56,48 @@
   // Espacio para responder: "[8 líneas]", "[recuadro 10]", "[espacio 6]".
   const SPACE_MARK = /\s*\[\s*(?:(\d{1,2})\s*l[íi]neas?|(recuadro|cuadro|en blanco|blanco)\s*(\d{1,2})?|espacio\s*(\d{1,2}))\s*\]\s*/i;
 
-  const TYPE_LABELS = { mc: 'Selección múltiple', tf: 'Verdadero o falso', open: 'Desarrollo' };
+  // Términos pareados: "Columna A" / "Columna B" y separadores entre término y definición.
+  const COLUMN_LINE = /^\s*columna\s+([ab12]|i{1,2})\b\s*[:.\-]?\s*(.{0,60})$/i;
+  const PAIR_SEP = /\t+|\s+(?:=|→|->|=>|\|)\s+|\s+-{1,2}\s+|\s*\.{4,}\s*|\s*…{2,}\s*/;
+  const TERM_ANSWER = /\s*\(\s*([a-f])\s*\)\s*$/i; // "1. Fotosíntesis (c)"
+  const DEF_ANSWER = /\s*\(\s*(\d{1,2})\s*\)\s*$/; // "a) Proceso… (1)"
+  // Completación: "[respuesta]" o "____" marcan el espacio a completar.
+  const BLANK_RE = /\[([^\[\]\n]{1,80})\]|_{3,}/g;
+  const BANK_LINE = /^\s*(?:banco(?:\s+de\s+palabras)?|palabras(?:\s+para\s+completar)?|distractores)\s*:\s*(.+)$/i;
+  const ORDER_STEM = /^\s*(?:ordena|ordenar|enumera|numera)\b/i;
+
+  const TYPE_LABELS = {
+    mc: 'Selección múltiple',
+    tf: 'Verdadero o falso',
+    open: 'Desarrollo',
+    fill: 'Completación',
+    order: 'Ordenar secuencia',
+    match: 'Términos pareados',
+  };
 
   function sectionType(keyword) {
     const k = keyword.toLowerCase();
     if (/selecci|alternativ/.test(k)) return 'mc';
     if (/verdadero|^v\s*(o|\/)\s*f$/.test(k)) return 'tf';
+    if (/parea|pareo|asociaci|relaciona/.test(k)) return 'match';
+    if (/complet/.test(k)) return 'fill';
+    if (/orden|secuencia/.test(k)) return 'order';
     return 'open';
+  }
+
+  function detab(t) {
+    return String(t || '').replace(/[ \t]*\t[ \t]*/g, ' ');
   }
 
   function clean(text) {
     return String(text || '')
       .replace(/\r\n?/g, '\n')
       .replace(/[\u00a0\u2007\u202f]/g, ' ')
-      .replace(/\t/g, ' ')
+      .replace(/[ ]*\t[ \t]*/g, '\t') // las tabulaciones separan columnas (términos pareados)
       .replace(/[\u2010-\u2015]/g, '-')
-      .replace(/^[ \t]*[•●▪◦·][ \t]*/gm, '')
+      // Viñetas: se quitan si van antes de una alternativa o un número; si no, quedan como "- ".
+      .replace(/^[ \t]*[•●▪◦·][ \t]*(?=[([]?[a-fA-F][).\]:-]|\d{1,3}[.)\-:])/gm, '')
+      .replace(/^[ \t]*[•●▪◦·][ \t]*/gm, '- ')
       .replace(/[ ]{2,}/g, ' ');
   }
 
@@ -108,7 +141,7 @@
   function joinLines(lines) {
     let out = '';
     for (const l of lines) {
-      const t = l.trim();
+      const t = detab(l).trim();
       if (!t) {
         if (out && !out.endsWith('\n\n')) out += '\n\n';
         continue;
@@ -130,6 +163,72 @@
       n++;
     }
     return n;
+  }
+
+  /**
+   * Arma un ítem de términos pareados a partir de sus líneas:
+   * terms (columna A), defs (columna B) y matches[d] = índice del término
+   * que corresponde a la definición d (null si es un distractor o no se sabe).
+   */
+  function finishMatch(q) {
+    const terms = [];
+    const defs = [];
+    const termLabels = [];
+    const defLabels = [];
+    const links = [];
+    const byTermLabel = [];
+    const byDefLabel = [];
+    for (const e of q.entries || []) {
+      if (e.side === 'pair') {
+        let term = e.term;
+        let def = e.def;
+        terms.push(term);
+        termLabels.push(null);
+        defs.push(def);
+        defLabels.push(null);
+        links.push([terms.length - 1, defs.length - 1]);
+      } else if (e.side === 'A') {
+        let text = e.text;
+        const am = text.match(TERM_ANSWER);
+        if (am) {
+          text = text.replace(TERM_ANSWER, '').trim();
+          byTermLabel.push([terms.length, am[1].toLowerCase()]);
+        }
+        terms.push(text);
+        termLabels.push(e.label);
+      } else {
+        let text = e.text;
+        const am = text.match(DEF_ANSWER);
+        if (am) {
+          text = text.replace(DEF_ANSWER, '').trim();
+          byDefLabel.push([defs.length, am[1]]);
+        }
+        defs.push(text);
+        defLabels.push(e.label);
+      }
+    }
+    // Etiquetas por defecto según la posición (1, 2, 3… y a, b, c…).
+    termLabels.forEach((l, i) => (termLabels[i] = l || String(i + 1)));
+    defLabels.forEach((l, i) => (defLabels[i] = l || 'abcdefghijklmnopqrstuvwxyz'[i] || String(i + 1)));
+    for (const [ti, dl] of byTermLabel) {
+      const di = defLabels.indexOf(dl);
+      if (di >= 0) links.push([ti, di]);
+    }
+    for (const [di, tl] of byDefLabel) {
+      const ti = termLabels.indexOf(tl);
+      if (ti >= 0) links.push([ti, di]);
+    }
+    q.terms = terms.map((t) => t.replace(/\s+/g, ' ').trim());
+    q.defs = defs.map((t) => t.replace(/\s+/g, ' ').trim());
+    q.matches = q.defs.map(() => null);
+    for (const [t, d] of links) q.matches[d] = t;
+    // Si se escribieron las columnas por separado, la columna B ya viene en el orden deseado.
+    q.given = (q.entries || []).some((e) => e.side === 'B') && !(q.entries || []).some((e) => e.side === 'pair');
+    q.labels = { terms: termLabels, defs: defLabels };
+    q.options = [];
+    q.correct = null;
+    delete q.entries;
+    delete q.side;
   }
 
   /**
@@ -172,6 +271,14 @@
       if (!cur) return;
       cur.stem = joinLines(cur.stemLines);
       cur.preamble = joinLines(cur.preambleLines);
+      if (cur.type === 'match') {
+        finishMatch(cur);
+        delete cur.stemLines;
+        delete cur.preambleLines;
+        questions.push(cur);
+        cur = null;
+        return;
+      }
       cur.options.sort((a, b) => a.letter - b.letter);
       cur.options = cur.options.map((o) => {
         let t = joinLines(o.lines);
@@ -190,17 +297,27 @@
         cur.stem = cur.stem.replace(SPACE_MARK, ' ').trim();
       }
       // Tipo de pregunta.
-      let type = cur.tfHint ? 'tf' : cur.section !== null ? sections[cur.section].type : null;
+      const secType = cur.section !== null ? sections[cur.section].type : null;
+      let type = cur.tfHint ? 'tf' : secType === 'match' ? null : secType;
       const opts = cur.options.map((o) => o.toLowerCase().replace(/[.\s]/g, ''));
+      // En un ítem de completación, una pregunta con alternativas es de selección múltiple.
+      if (type === 'fill' && cur.options.length >= 2) type = 'mc';
       if (!type) {
         if (opts.length === 2 && /^(v|verdadero)$/.test(opts[0]) && /^(f|falso)$/.test(opts[1])) type = 'tf';
         else if (TF_LEAD.test(cur.stem) || TF_SUFFIX.test(cur.stem)) type = 'tf';
         else if (!cur.options.length) {
-          type = 'open';
-          cur.autoOpen = true;
-        } else type = 'mc';
+          if (/\S\s*_{3,}|_{3,}\s*\S/.test(cur.stem)) type = 'fill';
+          else {
+            type = 'open';
+            cur.autoOpen = true;
+          }
+        } else if (cur.correct === null && cur.options.length >= 3 && ORDER_STEM.test(cur.stem)) type = 'order';
+        else type = 'mc';
       }
       cur.type = type;
+      // "Respuesta breve": menos espacio por defecto.
+      if (type === 'open' && !cur.space && cur.section !== null && /breve|cort/i.test(sections[cur.section].title)) cur.space = 2;
+      if (type === 'order') cur.correct = null;
       if (type === 'tf') {
         if (opts.length === 2 && /^(v|verdadero)$/.test(opts[0])) {
           if (cur.correct !== null) cur.tfAnswer = cur.correct === 0 ? 'V' : 'F';
@@ -251,6 +368,73 @@
       };
     }
 
+    /** Empieza (o continúa) un ítem de términos pareados. */
+    const startMatch = () => {
+      if (cur && cur.type === 'match') return;
+      const pre = pending;
+      pending = [];
+      finish();
+      collectingSectionText = false;
+      cur = newCur(null, [], []);
+      // Texto previo (fuera de un ítem con título): enunciado del pareado.
+      if (pre.some((x) => x.trim())) cur.stemLines = pre;
+      cur.type = 'match';
+      cur.entries = [];
+      cur.side = null;
+    };
+
+    /** Procesa una línea dentro de un ítem de términos pareados. Devuelve false si no es parte del pareado. */
+    const matchLine = (line) => {
+      const raw = line.trim();
+      const label = (t) => {
+        const qn = t.match(Q_START);
+        if (qn) return { kind: 'num', label: qn[1], text: qn[2].trim() };
+        const on = t.match(OPT_START);
+        if (on && /^\s*[([]?\s*[a-fA-F]\s*[)\].:-]/.test(t)) return { kind: 'let', label: on[1].toLowerCase(), text: on[2].trim() };
+        const dash = t.match(/^-\s+(.*)$/);
+        return { kind: null, label: null, text: (dash ? dash[1] : t).trim() };
+      };
+      const parts = raw.split(PAIR_SEP);
+      const hasSep = parts.length >= 2 && parts.slice(1).join(' ').trim();
+      const add = (e) => {
+        startMatch();
+        cur.entries.push(e);
+        return true;
+      };
+      if (hasSep) {
+        const left = label(detab(parts[0]).trim());
+        const right = label(detab(parts.slice(1).join(' ')).trim());
+        if (cur && cur.type === 'match' && cur.side) {
+          // Con encabezados de columnas, una fila de tabla trae un elemento de cada columna.
+          if (left.text) add({ side: 'A', label: left.label, text: left.text });
+          if (right.text) add({ side: 'B', label: right.label, text: right.text });
+          return true;
+        }
+        if (left.kind === 'num' && right.kind === 'let') {
+          // Tabla de dos columnas: término numerado y definición con letra (no necesariamente pareados).
+          add({ side: 'A', label: left.label, text: left.text });
+          return add({ side: 'B', label: right.label, text: right.text });
+        }
+        if (!left.text) return add({ side: 'B', label: right.label, text: right.text });
+        return add({ side: 'pair', term: left.text, def: right.text });
+      }
+      const one = label(detab(raw));
+      if (!one.text) return false;
+      let side = cur && cur.type === 'match' ? cur.side : null;
+      if (!side && one.kind === 'num') side = 'A';
+      if (!side && one.kind === 'let') side = 'B';
+      if (!side && one.kind === null && /^-\s/.test(raw)) side = 'A';
+      if (side) return add({ side, label: one.label, text: one.text });
+      // Texto sin marca: continuación del último término o definición.
+      if (cur && cur.type === 'match' && cur.entries.length) {
+        const last = cur.entries[cur.entries.length - 1];
+        if (last.side === 'pair') last.def += ' ' + one.text;
+        else last.text += ' ' + one.text;
+        return true;
+      }
+      return false;
+    };
+
     for (const line of lines) {
       const t = line.trim();
       if (!t) {
@@ -269,7 +453,7 @@
 
       // Encabezado de ítem (tipo de pregunta de las siguientes).
       const sec = t.match(SECTION_LINE);
-      if (sec && !(cur && cur.options.length === 0 && cur.stemLines.length === 0)) {
+      if (sec && !(cur && cur.type !== 'match' && cur.options.length === 0 && cur.stemLines.length === 0)) {
         finish();
         const title = (sec[1] + (sec[5] ? ' ' + sec[5] : '')).replace(/\s+/g, ' ').trim();
         const instr = [];
@@ -278,10 +462,46 @@
           else instr.push(joinLines(pending));
         }
         pending = [];
-        if (sec[4]) instr.push(sec[4].trim());
-        sections.push({ title, type: sectionType(sec[2]), instructions: instr.join(' ').trim() });
+        if (sec[4]) instr.push(detab(sec[4]).trim());
+        sections.push({ title: detab(title), type: sectionType(sec[2]), instructions: instr.join(' ').trim() });
         currentSection = sections.length - 1;
         collectingSectionText = true;
+        blankSinceLast = false;
+        continue;
+      }
+
+      // Términos pareados: "Columna A" / "Columna B" y las líneas del ítem.
+      const colm = t.match(COLUMN_LINE);
+      if (colm) {
+        startMatch();
+        cur.side = /^(a|1|i)$/i.test(colm[1]) ? 'A' : 'B';
+        blankSinceLast = false;
+        continue;
+      }
+      if ((cur && cur.type === 'match') || sectionTypeOf() === 'match') {
+        if (matchLine(line)) {
+          blankSinceLast = false;
+          continue;
+        }
+      }
+
+      // Banco de palabras de un ítem de completación.
+      const bank = t.match(BANK_LINE);
+      if (bank && currentSection !== null && (sectionTypeOf() === 'fill' || collectingSectionText)) {
+        const secObj = sections[currentSection];
+        secObj.bank = (secObj.bank || []).concat(
+          detab(bank[1])
+            .split(/\s*[,;·|]\s*|\s{2,}/)
+            .map((w) => w.trim().replace(/\.$/, ''))
+            .filter(Boolean)
+        );
+        blankSinceLast = false;
+        continue;
+      }
+
+      // Ítem de ordenar: "- Hecho" es un elemento más de la secuencia.
+      if (sectionTypeOf() === 'order' && cur && /^-\s+\S/.test(t)) {
+        cur.options.push({ letter: cur.options.length, lines: [t.replace(/^-\s+/, '')] });
         blankSinceLast = false;
         continue;
       }
@@ -353,7 +573,7 @@
       // Texto normal.
       if (collectingSectionText && !cur) {
         const secObj = sections[currentSection];
-        secObj.instructions = (secObj.instructions ? secObj.instructions + ' ' : '') + t;
+        secObj.instructions = (secObj.instructions ? secObj.instructions + ' ' : '') + detab(t);
         blankSinceLast = false;
         continue;
       }
@@ -422,7 +642,15 @@
         if (x.type === 'mc') return pr.letter !== 'v' && LETTERS.indexOf(pr.letter) < x.options.length;
         return false;
       });
-      if (!q) continue;
+      if (!q) {
+        // Clave de términos pareados escrita en columnas: "1c" (término 1 con la definición c).
+        const m = ordered.find((x) => x.type === 'match' && x.labels && x.labels.terms.indexOf(String(pr.number)) >= 0 && x.labels.defs.indexOf(pr.letter) >= 0);
+        if (m) {
+          const d = m.labels.defs.indexOf(pr.letter);
+          if (m.matches[d] === null) m.matches[d] = m.labels.terms.indexOf(String(pr.number));
+        }
+        continue;
+      }
       keyed.add(q);
       if (q.type === 'tf') {
         if (!q.tfAnswer) q.tfAnswer = pr.letter.toUpperCase();
@@ -435,7 +663,17 @@
     const usual = Number(Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0] || 0);
     ordered.forEach((q, i) => {
       const label = `Pregunta ${i + 1}${q.number !== null && q.number !== i + 1 ? ` (n° ${q.number} en el texto)` : ''}`;
+      if (q.type === 'match') {
+        delete q.labels;
+        const where = q.section !== null && sections[q.section] ? `“${sections[q.section].title}”` : 'Términos pareados';
+        if (!q.terms.length || !q.defs.length) warnings.push(`${where}: faltan términos (columna A) o definiciones (columna B).`);
+        else if (q.matches.every((m) => m === null)) {
+          warnings.push(`${where}: no se sabe qué definición corresponde a cada término (escribe “Término = Definición”, o indica la letra al final: “1. Término (c)”). No se podrá hacer la pauta.`);
+        }
+        return;
+      }
       if (!q.stem) warnings.push(`${label}: no tiene enunciado.`);
+      if (q.type === 'order' && q.options.length < 2) warnings.push(`${label}: para ordenar se necesitan al menos 2 elementos (a, b, c… en el orden correcto).`);
       if (q.type === 'open' && q.autoOpen && mcs.length) warnings.push(`${label}: no tiene alternativas, se tratará como pregunta de desarrollo.`);
       delete q.autoOpen;
       if (q.type !== 'mc') return;
@@ -475,13 +713,22 @@
     openStyle: 'lines', // 'lines' | 'box' | 'blank'
     tfJustifyLines: 0, // líneas para justificar en verdadero o falso
     totalPoints: '', // puntaje total que se muestra junto a "Puntaje" (opcional)
+    fillBank: true, // banco de palabras en los ítems de completación
+    forms: 1, // cantidad de filas (A, B, C, D)
+    shuffleQuestions: true, // en las filas B–D, cambiar el orden de las preguntas
+    shuffleOptions: true, // en las filas B–D, cambiar el orden de las alternativas
+    formSeed: 0, // semilla de la mezcla (misma semilla → mismas filas)
   };
 
   const SECTION_DEFAULT_INSTRUCTIONS = {
     mc: 'Marca la alternativa correcta.',
     tf: 'Escribe V si la afirmación es verdadera o F si es falsa.',
     open: 'Responde en el espacio asignado.',
+    fill: 'Completa cada espacio con la palabra o concepto que corresponda.',
+    order: 'Ordena los elementos escribiendo en cada recuadro el número que corresponde (1 = el primero).',
+    match: 'Escribe en cada línea de la columna B el número del concepto de la columna A que le corresponde.',
   };
+  const FORM_LETTERS = ['A', 'B', 'C', 'D'];
   const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
   /**
@@ -522,13 +769,18 @@
       if (b.title && !b.instructions) {
         b.instructions = SECTION_DEFAULT_INSTRUCTIONS[b.type] || '';
         if (b.type === 'tf' && Number(f.tfJustifyLines) > 0) b.instructions += ' Justifica las falsas.';
+        if (b.type === 'fill' && f.fillBank && ((sections[b.key] || {}).bank || b.items.some((i) => blanksOf(questions[i].stem).some((x) => x)))) {
+          b.instructions += ' Usa las palabras del recuadro.';
+        }
       }
+      b.bank = explicit && b.key !== null && sections[b.key] ? sections[b.key].bank || [] : [];
     }
-    const numbers = new Array(questions.length);
+    // Los términos pareados no llevan número propio (sus términos se numeran 1, 2, 3…).
+    const numbers = new Array(questions.length).fill(null);
     let n = 0;
     for (const b of blocks) {
       if (f.numbering === 'section' && b.title) n = 0;
-      for (const i of b.items) numbers[i] = ++n;
+      for (const i of b.items) if ((questions[i].type || 'mc') !== 'match') numbers[i] = ++n;
     }
     return { blocks, numbers };
   }
@@ -565,8 +817,10 @@
       .join('</p><p>');
   }
 
+  const ALPHA = 'abcdefghijklmnopqrstuvwxyz';
+
   function letterLabel(i, style) {
-    const l = LETTERS[i];
+    const l = ALPHA[i] || String(i + 1);
     switch (style) {
       case 'A)':
         return l.toUpperCase() + ')';
@@ -641,6 +895,352 @@
     return `<div class="td-el td-text${d.boxed ? ' boxed' : ''}"${idAttr}><p>${paragraphs(d.text || '')}</p></div>`;
   }
 
+
+  /* ------------------------------------------------------------------ */
+  /* Completación, ordenar y términos pareados                            */
+  /* ------------------------------------------------------------------ */
+
+  /** Respuestas de los espacios de una oración a completar ("[Santiago]" → "Santiago", "____" → null). */
+  function blanksOf(stem) {
+    const out = [];
+    String(stem || '').replace(BLANK_RE, (m, ans) => {
+      out.push(ans ? ans.trim() : null);
+      return m;
+    });
+    return out;
+  }
+
+  /** Enunciado con los espacios para completar como líneas. */
+  function fillHTML(stem, widthMm) {
+    let html = '';
+    let last = 0;
+    const text = String(stem || '');
+    let found = false;
+    text.replace(BLANK_RE, (m, ans, idx) => {
+      html += esc(text.slice(last, idx)).replace(/\n{2,}/g, '</p><p>').replace(/\n/g, '<br>');
+      html += `<span class="td-blank" style="width:${widthMm}mm"></span>`;
+      last = idx + m.length;
+      found = true;
+      return m;
+    });
+    html += esc(text.slice(last)).replace(/\n{2,}/g, '</p><p>').replace(/\n/g, '<br>');
+    if (!found) html += ` <span class="td-blank" style="width:${widthMm}mm"></span>`;
+    return html;
+  }
+
+  /* ---------- Mezcla reproducible (misma semilla → mismo resultado) ---------- */
+
+  function hashStr(str) {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    return h;
+  }
+
+  function rng(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function identity(n) {
+    const p = [];
+    for (let i = 0; i < n; i++) p.push(i);
+    return p;
+  }
+
+  function randPerm(n, rand) {
+    const p = identity(n);
+    for (let i = n - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      const t = p[i];
+      p[i] = p[j];
+      p[j] = t;
+    }
+    return p;
+  }
+
+  /** Entre varias permutaciones al azar, la de menor costo. */
+  function bestPerm(n, rand, cost, tries) {
+    if (n < 2) return identity(n);
+    let best = null;
+    let bestCost = Infinity;
+    for (let t = 0; t < (tries || 60); t++) {
+      const p = randPerm(n, rand);
+      const c = cost(p);
+      if (c < bestCost) {
+        best = p;
+        bestCost = c;
+        if (c === 0) break;
+      }
+    }
+    return best;
+  }
+
+  /** Costo por parecerse a órdenes anteriores: posiciones repetidas y (mucho) si es idéntico. */
+  function sameness(p, prevs) {
+    let c = 0;
+    for (const q of prevs) {
+      if (!q || q.length !== p.length) continue;
+      let same = 0;
+      for (let i = 0; i < p.length; i++) if (p[i] === q[i]) same++;
+      c += same + (same === p.length ? 1000 : 0);
+    }
+    return c;
+  }
+
+  function contentKey(q) {
+    return [q.stem || '', (q.options || []).join('|'), (q.terms || []).join('|'), (q.defs || []).join('|')].join('#');
+  }
+
+  // Alternativas que deben quedar en su lugar ("Todas las anteriores", "Ninguna de las anteriores"…).
+  const FIXED_OPTION = /anteriores|^(?:todas|ninguna|ambas)\b|^(?:todas|ninguna) de (?:las|los)\b/i;
+  // Alternativas que nombran otras por su letra ("A y B son correctas"): no se mezclan.
+  const LETTER_REF = /(?:^|[\s(])[a-fA-F]\)?\s*(?:,|y|e|o|u)\s*[a-fA-F](?:\)|[\s.,]|$)/;
+
+  function canShuffleOptions(q) {
+    return q.options.length > 1 && !q.options.some((o) => LETTER_REF.test(o));
+  }
+
+  /**
+   * Ordena una pregunta para una fila: alternativas (selección múltiple),
+   * elementos (ordenar) y columnas (términos pareados).
+   * @param prev arreglos de las filas anteriores de esta misma pregunta
+   * @returns copia con options/correct reordenados y optionPerm (nueva → original)
+   */
+  function arrangeQuestion(q, formIndex, seed, prev, shuffleOptions) {
+    const c = Object.assign({}, q);
+    const rand = rng(hashStr(`${seed}|${formIndex}|${contentKey(q)}`));
+    prev = prev || [];
+    const type = q.type || 'mc';
+    c.optionPerm = null;
+    if (type === 'mc') {
+      let perm = identity(q.options.length);
+      if (formIndex > 0 && shuffleOptions && canShuffleOptions(q)) {
+        const free = perm.filter((i) => !FIXED_OPTION.test(q.options[i]));
+        const prevCorrect = prev.map((p) => (q.correct === null || !p.optionPerm ? null : p.optionPerm.indexOf(q.correct)));
+        const sub = bestPerm(free.length, rand, (fp) => {
+          const full = perm.slice();
+          free.forEach((pos, i) => (full[pos] = free[fp[i]]));
+          let cost = sameness(full, prev.map((p) => p.optionPerm));
+          if (q.correct !== null) {
+            const at = full.indexOf(q.correct);
+            for (const pc of prevCorrect) if (pc === at) cost += 50;
+          }
+          return cost;
+        });
+        const full = perm.slice();
+        free.forEach((pos, i) => (full[pos] = free[sub[i]]));
+        perm = full;
+      }
+      c.optionPerm = perm;
+      c.options = perm.map((i) => q.options[i]);
+      c.correct = q.correct === null ? null : perm.indexOf(q.correct);
+    } else if (type === 'order') {
+      const n = q.options.length;
+      // Siempre se desordena (el texto trae los elementos en el orden correcto).
+      if (formIndex === 0 || !shuffleOptions) {
+        c.itemOrder = prev.length && !shuffleOptions ? prev[0].itemOrder : bestPerm(n, rng(hashStr(`${seed}|0|${contentKey(q)}`)), (p) => sameness(p, [identity(n)]));
+      } else {
+        c.itemOrder = bestPerm(n, rand, (p) => sameness(p, [identity(n)]) + sameness(p, prev.map((x) => x.itemOrder)));
+      }
+    } else if (type === 'match') {
+      const nt = q.terms.length;
+      const nd = q.defs.length;
+      const aligned = (termOrder) => (p) => {
+        // Evita que una definición quede en la misma fila que su término.
+        let cst = 0;
+        for (let r = 0; r < p.length; r++) if (q.matches[p[r]] !== null && q.matches[p[r]] === termOrder[r]) cst++;
+        return cst;
+      };
+      if (formIndex === 0 || !shuffleOptions) {
+        if (prev.length && !shuffleOptions) {
+          c.termOrder = prev[0].termOrder;
+          c.defOrder = prev[0].defOrder;
+        } else {
+          c.termOrder = identity(nt);
+          c.defOrder = q.given ? identity(nd) : bestPerm(nd, rng(hashStr(`${seed}|0|${contentKey(q)}`)), aligned(c.termOrder));
+        }
+      } else {
+        c.termOrder = bestPerm(nt, rand, (p) => sameness(p, prev.map((x) => x.termOrder)));
+        c.defOrder = bestPerm(nd, rand, (p) => aligned(c.termOrder)(p) + sameness(p, prev.map((x) => x.defOrder)));
+      }
+    }
+    return c;
+  }
+
+  /** Agrupa las preguntas de un ítem en unidades que se mueven juntas (p. ej. varias preguntas sobre un mismo texto). */
+  const RANGE_REF = /(preguntas?\s+(?:n[°º]\s*)?)(\d{1,3})(\s*(?:a|al|-|hasta(?:\s+la)?|y)\s*)(\d{1,3})/i;
+  const GROUP_REF = /(?:siguientes|pr[óo]ximas)\s+(?:\d+\s+)?preguntas|responde\s+las\s+preguntas|(?:las|estas)\s+\d+\s+preguntas/i;
+
+  function unitsOf(items, questions) {
+    const units = [];
+    for (let k = 0; k < items.length; ) {
+      const q = questions[items[k]];
+      let len = 1;
+      const pre = q.preamble || '';
+      const rm = pre.match(RANGE_REF);
+      if (rm) len = Math.max(1, parseInt(rm[4], 10) - parseInt(rm[2], 10) + 1);
+      else if (GROUP_REF.test(pre)) {
+        len = 1;
+        while (k + len < items.length && !questions[items[k + len]].preamble) len++;
+      }
+      len = Math.min(len, items.length - k);
+      units.push(items.slice(k, k + len));
+      k += len;
+    }
+    return units;
+  }
+
+  const SHUFFLE_TYPES = { mc: true, tf: true, fill: true, order: true };
+
+  /** Unidades de un ítem que no se mueven porque las instrucciones del ítem las nombran. */
+  function pinnedUnits(block, units, numbers) {
+    const pinned = units.map(() => false);
+    const text = block.instructions || '';
+    const rm = text.match(RANGE_REF);
+    if (rm) {
+      const a = parseInt(rm[2], 10);
+      const z = parseInt(rm[4], 10);
+      units.forEach((u, i) => {
+        if (u.some((pos) => numbers[pos] !== null && numbers[pos] >= a && numbers[pos] <= z)) pinned[i] = true;
+      });
+    } else if (GROUP_REF.test(text)) {
+      // "Lee el texto y responde las siguientes preguntas": todo el ítem queda en su orden.
+      pinned.fill(true);
+    }
+    return pinned;
+  }
+
+  /**
+   * Genera las filas de una evaluación (A = orden original).
+   * @param opts { count, seed, shuffleQuestions, shuffleOptions } (por defecto, los de fmt)
+   * @returns [{ letter, index, questions, source: [índice original por posición] }]
+   */
+  function buildForms(questions, sections, fmt, opts) {
+    const f = Object.assign({}, DEFAULT_FORMAT, fmt || {});
+    opts = opts || {};
+    const count = Math.min(4, Math.max(1, Math.round(Number(opts.count !== undefined ? opts.count : f.forms)) || 1));
+    const seed = String(opts.seed !== undefined ? opts.seed : f.formSeed || 0);
+    const shuffleQ = opts.shuffleQuestions !== undefined ? !!opts.shuffleQuestions : !!f.shuffleQuestions;
+    const shuffleO = opts.shuffleOptions !== undefined ? !!opts.shuffleOptions : !!f.shuffleOptions;
+    const plan = planSections(questions, sections, f);
+    const blockUnits = plan.blocks.map((b) => unitsOf(b.items, questions));
+    const perQuestion = questions.map(() => []); // arreglos anteriores de cada pregunta
+    const unitPerms = plan.blocks.map(() => []);
+    const forms = [];
+    for (let k = 0; k < count; k++) {
+      const order = [];
+      plan.blocks.forEach((b, bi) => {
+        const units = blockUnits[bi];
+        const movable = b.items.every((i) => SHUFFLE_TYPES[questions[i].type || 'mc']);
+        let perm = identity(units.length);
+        // Unidades que se mueven (las que el texto del ítem nombra, p. ej. "responde las preguntas 1 a 3", quedan fijas).
+        const pinned = pinnedUnits(b, units, plan.numbers);
+        const free = identity(units.length).filter((u) => !pinned[u]);
+        if (k > 0 && shuffleQ && movable && free.length > 1) {
+          const sub = bestPerm(free.length, rng(hashStr(`${seed}|q|${k}|${bi}|${units.length}`)), (fp) => {
+            const full = perm.slice();
+            free.forEach((slot, i) => (full[slot] = free[fp[i]]));
+            return sameness(full, unitPerms[bi]);
+          }, 80);
+          const full = perm.slice();
+          free.forEach((slot, i) => (full[slot] = free[sub[i]]));
+          perm = full;
+        }
+        unitPerms[bi].push(perm);
+        for (const u of perm) order.push(...units[u]);
+      });
+      const qs = order.map((oi) => {
+        const c = arrangeQuestion(questions[oi], k, seed, perQuestion[oi], shuffleO);
+        perQuestion[oi].push(c);
+        return c;
+      });
+      // "Responde las preguntas 3 a 6": se actualizan los números del texto.
+      if (k > 0) {
+        order.forEach((oi, pos) => {
+          const q = qs[pos];
+          const rm = (q.preamble || '').match(RANGE_REF);
+          if (!rm) return;
+          const len = parseInt(rm[4], 10) - parseInt(rm[2], 10);
+          const first = plan.numbers[pos];
+          const last = plan.numbers[Math.min(order.length - 1, pos + len)];
+          if (first === null || last === null) return;
+          q.preamble = q.preamble.replace(RANGE_REF, (m, a, n1, mid) => `${a}${first}${mid}${last}`);
+        });
+      }
+      forms.push({ letter: FORM_LETTERS[k], index: k, questions: qs, source: order });
+    }
+    return forms;
+  }
+
+  /** Respuesta correcta de una pregunta, como texto para la pauta. */
+  function answerText(q, f) {
+    const type = q.type || 'mc';
+    if (type === 'mc') return q.correct === null ? '?' : letterLabel(q.correct, f.letterStyle).replace(/[().]/g, '').toUpperCase();
+    if (type === 'tf') return q.tfAnswer || '?';
+    if (type === 'fill') {
+      const b = blanksOf(q.stem);
+      return b.length && b.some((x) => x) ? b.map((x) => x || '?').join(' / ') : '?';
+    }
+    if (type === 'order') {
+      const ord = q.itemOrder || identity(q.options.length);
+      return ord.map((item, r) => `${ALPHA[r]}) ${item + 1}`).join(' · ');
+    }
+    if (type === 'match') {
+      const to = q.termOrder || identity(q.terms.length);
+      const dor = q.defOrder || identity(q.defs.length);
+      return dor
+        .map((d, r) => {
+          const t = q.matches[d];
+          return `${ALPHA[r] || r + 1}) ${t === null || t === undefined ? '—' : to.indexOf(t) + 1}`;
+        })
+        .join(' · ');
+    }
+    return 'Respuesta abierta';
+  }
+
+  /**
+   * Pauta de respuestas de una o varias filas.
+   * @param forms resultado de buildForms
+   */
+  function renderAnswerKeyHTML(forms, fmt, info) {
+    const f = Object.assign({}, DEFAULT_FORMAT, fmt || {});
+    info = info || {};
+    const out = [];
+    out.push(`<article class="testdoc td-keydoc" style="font-family:${esc(FONTS[f.fontFamily] || FONTS.Arial)};font-size:${Math.min(12, Number(f.fontSize) || 12)}pt">`);
+    out.push(`<h1 class="td-title">Pauta de respuestas · ${esc(f.title || 'Evaluación')}</h1>`);
+    const meta = [f.subject && `Asignatura: ${f.subject}`, f.course && `Curso: ${f.course}`].filter(Boolean);
+    if (meta.length) out.push(`<p class="td-meta" style="text-align:center">${meta.map(esc).join(' · ')}</p>`);
+    const multi = forms.length > 1;
+    const plans = forms.map((fm) => planSections(fm.questions, info.sections, f));
+    const plan = plans[0];
+    plan.blocks.forEach((b, bi) => {
+      if (b.title) out.push(`<h2 class="td-keyh">${esc(b.title)}</h2>`);
+      out.push('<table class="td-keytable"><thead><tr><th>N°</th>');
+      for (const fm of forms) out.push(`<th>${multi ? `Fila ${fm.letter}` : 'Respuesta'}</th>`);
+      out.push('</tr></thead><tbody>');
+      b.items.forEach((pos, r) => {
+        const num = plan.numbers[pos];
+        out.push(`<tr><td class="num">${num === null ? '' : num}</td>`);
+        for (let k = 0; k < forms.length; k++) {
+          const q = forms[k].questions[plans[k].blocks[bi].items[r]];
+          out.push(`<td>${esc(answerText(q, f))}</td>`);
+        }
+        out.push('</tr>');
+      });
+      out.push('</tbody></table>');
+    });
+    out.push('</article>');
+    return out.join('');
+  }
+
   /**
    * @param questions resultado de parseQuestions(...).questions
    * @param fmt ver DEFAULT_FORMAT
@@ -662,7 +1262,9 @@
     out.push('<div class="td-head-text">');
     if (f.school) out.push(`<div class="td-school">${esc(f.school)}</div>`);
     if (meta.length) out.push(`<div class="td-meta">${meta.map(esc).join(' &nbsp;·&nbsp; ')}</div>`);
-    out.push('</div></header>');
+    out.push('</div>');
+    if (info.formLabel) out.push(`<div class="td-formtag">Fila<b>${esc(info.formLabel)}</b></div>`);
+    out.push('</header>');
     out.push(`<h1 class="td-title">${esc(f.title || 'Evaluación')}</h1>`);
 
     // Campos del estudiante.
@@ -700,15 +1302,34 @@
     const elements = info.elements || [];
     const openLines = Number(f.openLines) || 6;
     const tfJustify = Number(f.tfJustifyLines) || 0;
+    // Ancho de los espacios para completar: igual para todos (no delata la respuesta).
+    const allBlanks = [].concat(...questions.filter((q) => q.type === 'fill').map((q) => blanksOf(q.stem).filter(Boolean)));
+    const blankW = Math.round(Math.min(70, Math.max(28, 10 + 2.2 * Math.max(0, ...allBlanks.map((a) => a.length)))));
     for (const block of plan.blocks) {
       if (block.title) {
         out.push(`<div class="td-section"><h2>${esc(block.title)}</h2>${block.instructions ? `<p>${esc(block.instructions)}</p>` : ''}</div>`);
       }
-      out.push(`<div class="td-questions${Number(f.columns) === 2 ? ' two-cols' : ''}">`);
+      // Banco de palabras (orden alfabético: no da pistas del orden de las oraciones).
+      if (f.fillBank) {
+        const words = [];
+        for (const i of block.items) if (questions[i].type === 'fill') words.push(...blanksOf(questions[i].stem).filter(Boolean));
+        if (words.length) words.push(...(block.bank || []));
+        const seen = new Set();
+        const uniq = words.filter((w) => {
+          const k = w.toLowerCase();
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+        uniq.sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+        if (uniq.length) out.push(`<div class="td-bank">${uniq.map((w) => `<span>${esc(w)}</span>`).join('')}</div>`);
+      }
+      out.push(`<div class="td-questions${Number(f.columns) === 2 && block.type !== 'match' ? ' two-cols' : ''}">`);
       for (const i of block.items) {
-        const q = questions[i];
+        let q = questions[i];
         const type = q.type || 'mc';
         const num = plan.numbers[i];
+        if ((type === 'order' && !q.itemOrder) || (type === 'match' && !q.defOrder)) q = arrangeQuestion(q, 0, String(f.formSeed || 0), [], true);
         out.push(`<section class="td-q td-${type}" data-q="${i}">`);
         if (q.preamble) out.push(`<div class="td-pre"><p>${paragraphs(q.preamble)}</p></div>`);
         const els = elements[i] || [];
@@ -721,6 +1342,10 @@
             `<div class="td-stem"><span class="td-num">${num}.</span><span class="td-tfblank" aria-label="Verdadero o falso"></span>` +
               `<div><p>${paragraphs(q.stem)}${oa}</p></div></div>`
           );
+        } else if (type === 'match') {
+          if (q.stem || oa) out.push(`<div class="td-stem"><div><p>${paragraphs(q.stem)}${oa}</p></div></div>`);
+        } else if (type === 'fill') {
+          out.push(`<div class="td-stem"><span class="td-num">${num}.</span><div><p>${fillHTML(q.stem, blankW)}${oa}</p></div></div>`);
         } else {
           out.push(`<div class="td-stem"><span class="td-num">${num}.</span><div><p>${paragraphs(q.stem)}${oa}</p></div></div>`);
         }
@@ -736,6 +1361,31 @@
           out.push('</ol>');
         } else if (type === 'tf') {
           if (tfJustify > 0) out.push(`<div class="td-answer">${answerSpace(tfJustify, 'lines')}</div>`);
+        } else if (type === 'fill') {
+          // Sin contenido adicional: los espacios van en la oración.
+        } else if (type === 'order') {
+          out.push('<ol class="td-order">');
+          q.itemOrder.forEach((item, r) => {
+            out.push(`<li><span class="td-orderbox"></span><span class="td-letter">${esc(letterLabel(r, f.letterStyle))}</span><span>${esc(q.options[item])}</span></li>`);
+          });
+          out.push('</ol>');
+        } else if (type === 'match') {
+          const rows = Math.max(q.termOrder.length, q.defOrder.length);
+          out.push('<table class="td-match"><thead><tr><th colspan="2">Columna A</th><th class="td-gap"></th><th colspan="2">Columna B</th></tr></thead><tbody>');
+          for (let r = 0; r < rows; r++) {
+            const t = q.termOrder[r];
+            const d = q.defOrder[r];
+            out.push(
+              '<tr>' +
+                (t === undefined ? '<td></td><td></td>' : `<td class="td-mnum">${r + 1}.</td><td class="td-mterm">${esc(q.terms[t])}</td>`) +
+                '<td class="td-gap"></td>' +
+                (d === undefined
+                  ? '<td></td><td></td>'
+                  : `<td class="td-mblank"><span class="td-letter">${esc(letterLabel(r, f.letterStyle))}</span><span class="td-mline"></span></td><td class="td-mdef">${esc(q.defs[d])}</td>`) +
+                '</tr>'
+            );
+          }
+          out.push('</tbody></table>');
         } else {
           const lines = q.space || openLines;
           const style = q.spaceStyle || f.openStyle;
@@ -815,6 +1465,28 @@
 .td-text.boxed { border: 0.3mm solid #000; padding: 2mm 3mm; }
 .td-missing { border: 0.3mm dashed #999; padding: 6mm; text-align: center; color: #777; }
 .td-opts.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 6mm; }
+.td-formtag { margin-left: auto; border: 0.5mm solid #000; border-radius: 1.5mm; padding: 1mm 3mm; text-align: center; font-size: 0.8em; line-height: 1.1; text-transform: uppercase; }
+.td-formtag b { display: block; font-size: 2em; }
+.td-blank { display: inline-block; border-bottom: 0.3mm solid #000; height: 1em; margin: 0 1mm; vertical-align: baseline; }
+.td-bank { display: flex; flex-wrap: wrap; justify-content: center; gap: 1mm 7mm; border: 0.3mm solid #000; border-radius: 1mm; padding: 2mm 4mm; margin: 0 0 3mm; font-weight: bold; break-inside: avoid; }
+.td-order { list-style: none; margin: 1.5mm 0 0 8mm; padding: 0; }
+.td-order li { display: flex; align-items: center; gap: 2mm; margin: 1mm 0; break-inside: avoid; }
+.td-orderbox { flex: none; width: 7mm; height: 6mm; border: 0.3mm solid #000; border-radius: 0.8mm; }
+.td-match { width: 100%; border-collapse: collapse; margin-top: 1mm; }
+.td-match th { text-align: left; font-size: 0.95em; border-bottom: 0.3mm solid #000; padding: 0 1mm 1mm; }
+.td-match td { vertical-align: top; padding: 1.2mm 1mm; }
+.td-match tr { break-inside: avoid; }
+.td-match .td-mnum { width: 7mm; font-weight: bold; }
+.td-match .td-mterm { width: 34%; }
+.td-match .td-gap { width: 5mm; }
+.td-match .td-mblank { width: 20mm; white-space: nowrap; }
+.td-mline { display: inline-block; width: 10mm; border-bottom: 0.3mm solid #000; height: 1em; }
+.td-keydoc h2.td-keyh { font-size: 1.05em; margin: 4mm 0 1.5mm; }
+.td-keytable { border-collapse: collapse; width: 100%; font-size: 0.95em; break-inside: auto; }
+.td-keytable th, .td-keytable td { border: 0.25mm solid #000; padding: 0.8mm 2mm; text-align: left; color: #000; }
+.td-keytable th { background: #e8e8e8; }
+.td-keytable td.num { width: 10mm; text-align: right; font-weight: bold; }
+.td-keytable tr { break-inside: avoid; }
 `;
 
   return {
@@ -829,5 +1501,11 @@
     FONTS,
     TEST_CSS,
     splitInlineOptions,
+    buildForms,
+    arrangeQuestion,
+    renderAnswerKeyHTML,
+    answerText,
+    blanksOf,
+    FORM_LETTERS,
   };
 });

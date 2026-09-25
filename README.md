@@ -21,10 +21,17 @@ cualquier hosting de archivos estáticos.
   asignatura, profesor, curso), campos a elección (nombre, curso, fecha, RUT,
   puntaje, nota), recuadro de **Objetivos de Aprendizaje**, instrucciones,
   tipo y tamaño de letra, una o dos columnas. Admite preguntas de **selección
-  múltiple, verdadero o falso y desarrollo** (con el espacio para responder
-  a elección: líneas, recuadro o en blanco), organizadas en ítems. Con un clic
-  se traspasan a la hoja de respuestas las preguntas de selección múltiple,
-  la clave y los objetivos de aprendizaje.
+  múltiple, verdadero o falso, desarrollo y respuesta breve** (con el espacio
+  para responder a elección: líneas, recuadro o en blanco), **términos
+  pareados**, **completación** (con banco de palabras) y **ordenar
+  secuencias**, organizadas en ítems. Con un clic se traspasan a la hoja de
+  respuestas las preguntas de selección múltiple, la clave y los objetivos de
+  aprendizaje. También imprime la **pauta de respuestas**.
+- **Filas A, B, C y D** para evitar la copia: se generan de 2 a 4 versiones de
+  la prueba en las que cambia automáticamente el orden de las preguntas (dentro
+  de cada ítem) y de las alternativas. Cada fila tiene su hoja de respuestas
+  con la fila impresa; el lector la reconoce y corrige con la clave de esa
+  fila, y los resultados se analizan en el orden de la fila A.
 - **Imágenes, tablas, gráficos y textos en las preguntas**: cada pregunta de
   la vista previa tiene un botón **＋ Añadir elemento** para insertar una
   imagen (subida, arrastrada o pegada con Ctrl+V), una tabla (pegada desde
@@ -129,6 +136,71 @@ III. Desarrollo (10 puntos)
 - El campo **Objetivos de Aprendizaje** del formato (uno por línea) se imprime
   en un recuadro antes de las instrucciones; el botón “Usar los OA definidos en
   la prueba” lo completa con los objetivos de la pestaña Prueba.
+
+### Términos pareados, completación y ordenar
+
+```
+III. Términos pareados
+Fotosíntesis = Proceso por el cual las plantas producen su alimento
+Mitocondria = Organelo que produce energía
+Núcleo - Contiene el material genético
+Ribosoma
+
+IV. Completación
+Banco de palabras: nitrógeno
+1. La capital de Chile es [Santiago].
+2. El agua se compone de [hidrógeno] y [oxígeno].
+
+V. Ordenar secuencia
+1. Ordena cronológicamente los hechos:
+a) Descubrimiento de América
+b) Independencia de Chile
+c) Guerra del Pacífico
+
+VI. Respuesta breve
+1. ¿Qué es un ecosistema?
+```
+
+- **Términos pareados**: un par por línea, separado por `=`, `-`, `→`, `|` o
+  una tabulación (una tabla pegada de Word o Excel). Se imprime la columna A
+  numerada y la columna B desordenada, con una línea para escribir el número.
+  Un término sin pareja queda como distractor. También se pueden escribir
+  `Columna A` y `Columna B` por separado; la respuesta se indica al final del
+  término (`1. Fotosíntesis (b)`) o en la clave (`Clave: 1b 2a`).
+- **Completación**: la respuesta va entre corchetes (`[Santiago]`) o se deja
+  `____`. Todos los espacios tienen el mismo largo (no delatan la respuesta)
+  y las respuestas forman el **banco de palabras** en orden alfabético, al que
+  se agregan distractores con `Banco de palabras: …`.
+- **Ordenar secuencia**: los elementos se escriben en el orden correcto y se
+  imprimen desordenados, con un recuadro para numerarlos.
+- **Respuesta breve**: preguntas abiertas con 2 líneas por defecto.
+- **Imprimir pauta** genera la tabla de respuestas correctas de cada fila.
+
+### Filas A, B, C y D
+
+En **Evaluación → Filas** se elige la cantidad de filas (2 a 4) y si se cambia
+el orden de las preguntas, de las alternativas o ambos. La fila A conserva el
+orden original; en las otras filas:
+
+- las preguntas cambian de lugar **dentro de su ítem** (la numeración de cada
+  ítem se mantiene), procurando que ninguna fila repita el orden de otra;
+- las alternativas se reordenan procurando que la respuesta correcta no quede
+  en la misma letra que en otra fila; “Todas/Ninguna de las anteriores” se
+  mantiene en su lugar y las preguntas con alternativas del tipo “A y B” no se
+  reordenan;
+- se reordenan las columnas de los términos pareados y los elementos a ordenar;
+- no se mueven las preguntas de desarrollo ni las que el texto del ítem nombra
+  (“Lee el texto y responde las preguntas 1 a 3”).
+
+La mezcla es reproducible (se puede volver a imprimir igual); **Mezclar de
+nuevo** genera otra. Al usar las preguntas en la hoja de respuestas se guarda
+la clave de cada fila (visible en la pestaña Prueba). En **Hoja** se imprimen
+las hojas de todas las filas (una página por fila, o filas alternadas en la
+misma página con 2 o 4 hojas por página). La fila queda impresa en la hoja
+con un recuadro “FILA B” y con tres celdas en el margen izquierdo que el
+lector reconoce; si no puede leerla, la hoja queda “por revisar” y la fila se
+elige a mano. En los resultados, el análisis por pregunta, por OA y las
+columnas P1, P2… del Excel usan la numeración de la fila A.
 
 ### Elementos en las preguntas
 
@@ -241,7 +313,7 @@ entregar una corrección equivocada sin avisar.
 | `js/sheet.js` | Generación de la hoja en SVG |
 | `js/omr.js` | Motor de reconocimiento de marcas |
 | `js/grading.js` | Corrección, puntaje, nota, análisis por pregunta y por OA |
-| `js/testdoc.js` | Lectura del texto pegado, evaluación imprimible y elementos (imagen, tabla, texto) |
+| `js/testdoc.js` | Lectura del texto pegado, evaluación imprimible, filas A–D, pauta y elementos (imagen, tabla, texto) |
 | `js/charts.js` | Gráficos SVG para las preguntas (columnas, barras, líneas, circular) |
 | `js/xlsx.js`, `js/zip.js` | Generación de la planilla Excel y del ZIP de evidencias |
 | `tests/` | Pruebas automáticas |
@@ -262,6 +334,9 @@ entregar una corrección equivocada sin avisar.
 5. Se endereza la hoja, se normaliza la iluminación y cada columna de
    preguntas se alinea fila por fila con los contornos impresos de las
    burbujas. Si la alineación no es confiable, la foto se rechaza.
-6. Se mide qué tan oscuro está el interior de cada burbuja; un umbral
+6. Se lee la fila (A–D) en las tres celdas del margen izquierdo, con un código
+   de paridad: una celda dudosa o un código inválido nunca dan otra fila, sino
+   que dejan la hoja por revisar. Las hojas sin celdas se leen como fila A.
+7. Se mide qué tan oscuro está el interior de cada burbuja; un umbral
    automático (o manual) decide cuáles están marcadas, y se detectan
    omisiones, dobles marcas y marcas dudosas.
