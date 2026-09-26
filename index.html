@@ -27,11 +27,13 @@
       <button role="tab" data-tab="hoja" aria-selected="false"><span class="step">3</span>Hoja</button>
       <button role="tab" data-tab="escanear" aria-selected="false"><span class="step">4</span>Escanear</button>
       <button role="tab" data-tab="resultados" aria-selected="false"><span class="step">5</span>Resultados <span id="resultsBadge" class="badge" hidden>0</span></button>
+      <button role="tab" data-tab="manual" aria-selected="false" class="tab-manual"><span class="step">?</span>Manual</button>
     </nav>
 
     <main>
       <!-- 1. PRUEBA ------------------------------------------------------->
       <section id="tab-prueba" class="tab-panel" role="tabpanel">
+        <p class="man-help"><button type="button" class="link-btn" data-manual="prueba">📘 ¿Cómo se usa esta pestaña?</button></p>
         <div class="card">
           <h2>Datos de la prueba</h2>
           <div class="form-grid">
@@ -143,6 +145,7 @@
 
       <!-- 2. EVALUACIÓN --------------------------------------------------->
       <section id="tab-evaluacion" class="tab-panel" role="tabpanel" hidden>
+        <p class="man-help"><button type="button" class="link-btn" data-manual="evaluacion">📘 ¿Cómo se usa esta pestaña?</button></p>
         <div class="card">
           <div class="card-head">
             <h2>1. Pega las preguntas</h2>
@@ -331,6 +334,7 @@
 
       <!-- 3. HOJA ---------------------------------------------------------->
       <section id="tab-hoja" class="tab-panel" role="tabpanel" hidden>
+        <p class="man-help"><button type="button" class="link-btn" data-manual="hoja">📘 ¿Cómo se usa esta pestaña?</button></p>
         <div class="card">
           <div class="card-head">
             <h2>Hoja de respuestas</h2>
@@ -372,6 +376,7 @@
 
       <!-- 3. ESCANEAR ------------------------------------------------------>
       <section id="tab-escanear" class="tab-panel" role="tabpanel" hidden>
+        <p class="man-help"><button type="button" class="link-btn" data-manual="escanear">📘 ¿Cómo se usa esta pestaña?</button></p>
         <div class="card">
           <h2>Escanear hojas</h2>
           <div class="scan-buttons">
@@ -405,6 +410,7 @@
 
       <!-- 4. RESULTADOS ---------------------------------------------------->
       <section id="tab-resultados" class="tab-panel" role="tabpanel" hidden>
+        <p class="man-help"><button type="button" class="link-btn" data-manual="resultados">📘 ¿Cómo se usa esta pestaña?</button></p>
         <div id="resultsEmpty" class="card empty">
           <p>Aún no hay hojas escaneadas.</p>
           <button class="btn primary" type="button" data-goto="escanear">Escanear hojas</button>
@@ -449,6 +455,240 @@
           </details>
         </div>
       </section>
+      <!-- 6. MANUAL -------------------------------------------------------->
+      <section id="tab-manual" class="tab-panel" role="tabpanel" hidden>
+        <div class="card man-intro">
+          <div class="card-head">
+            <h2>📘 Manual de uso</h2>
+            <div class="actions">
+              <button id="manPrint" class="btn ghost small" type="button">🖨️ Imprimir manual</button>
+            </div>
+          </div>
+          <p>Esta guía explica, paso a paso, cómo crear una prueba, imprimir las hojas de respuesta, escanearlas con el celular y ver los resultados. Cada parte tiene su video.</p>
+          <label class="man-search">Buscar en el manual
+            <input id="manSearch" type="search" placeholder="Ej.: clave, foto, filas, Excel…" autocomplete="off">
+          </label>
+          <nav class="man-index" aria-label="Índice del manual">
+            <button type="button" data-man-go="inicio"><b>0</b>Cómo funciona</button>
+            <button type="button" data-man-go="prueba"><b>1</b>Prueba</button>
+            <button type="button" data-man-go="evaluacion"><b>2</b>Evaluación</button>
+            <button type="button" data-man-go="filas"><b>2b</b>Filas A, B, C y D</button>
+            <button type="button" data-man-go="hoja"><b>3</b>Hoja de respuestas</button>
+            <button type="button" data-man-go="escanear"><b>4</b>Escanear</button>
+            <button type="button" data-man-go="resultados"><b>5</b>Resultados</button>
+            <button type="button" data-man-go="respaldo"><b>6</b>Guardar y respaldar</button>
+            <button type="button" data-man-go="problemas"><b>?</b>Problemas frecuentes</button>
+          </nav>
+          <p id="manNoResults" class="alert warn" hidden>No se encontró nada con esas palabras. Prueba con otra palabra, por ejemplo “clave” o “foto”.</p>
+        </div>
+
+        <!-- 0 -->
+        <article class="card man-section" id="man-inicio" data-man="inicio">
+          <h2><span class="man-num">0</span>Cómo funciona la plataforma</h2>
+          <div class="man-video" data-video="inicio"></div>
+          <p>La plataforma corrige pruebas de alternativas a partir de una <strong>foto de la hoja de respuestas</strong>. Se usa en cinco pasos, uno por pestaña:</p>
+          <ol class="man-flow">
+            <li><b>Prueba</b><span>Dices cuántas preguntas tiene y cuál es la respuesta correcta de cada una.</span></li>
+            <li><b>Evaluación</b><span>(Opcional) Pegas tus preguntas y la plataforma arma la prueba lista para imprimir.</span></li>
+            <li><b>Hoja</b><span>Imprimes las hojas de respuesta donde los estudiantes marcan.</span></li>
+            <li><b>Escanear</b><span>Le sacas una foto a cada hoja con el celular.</span></li>
+            <li><b>Resultados</b><span>Ves las notas del curso y descargas el Excel y las hojas corregidas.</span></li>
+          </ol>
+          <h3>Qué necesitas</h3>
+          <ul class="man-list">
+            <li>Un computador o celular con internet para abrir la página.</li>
+            <li>Una impresora (las hojas también se pueden fotocopiar).</li>
+            <li>Un celular con cámara para fotografiar las hojas.</li>
+          </ul>
+          <p class="man-tip"><b>💡 Bueno saber:</b> todo se guarda en tu navegador, en tu equipo. Las fotos y las notas <strong>no se envían a ningún servidor</strong>.</p>
+        </article>
+
+        <!-- 1 -->
+        <article class="card man-section" id="man-prueba" data-man="prueba">
+          <h2><span class="man-num">1</span>Pestaña Prueba: configurar la prueba</h2>
+          <div class="man-video" data-video="prueba"></div>
+          <p>Aquí le cuentas a la plataforma cómo es tu prueba.</p>
+          <ol class="man-steps">
+            <li><b>Escribe el título</b> (por ejemplo, “Prueba de Ciencias – Unidad 2”) y, si quieres, un subtítulo con el curso o el profesor.</li>
+            <li><b>Indica el N° de preguntas</b> (de 1 a 120) y cuántas <b>alternativas</b> tiene cada una (A–D, A–E, etc.).</li>
+            <li><b>Dígitos de identificación:</b> es el número que el estudiante marca en la hoja para saber quién es. Usa <b>2</b> si marcan su número de lista (01 a 99). Usa 0 si no quieres este recuadro.</li>
+            <li><b>Elige el papel:</b> carta, A4 u oficio, el mismo que usarás en la impresora.</li>
+            <li><b>Ingresa la clave</b> (las respuestas correctas) de una de estas tres formas:
+              <ul>
+                <li>haciendo clic en la letra correcta de cada pregunta;</li>
+                <li>escribiéndola seguida en “Escritura rápida”, por ejemplo <code>ABCDA BCDEA</code> (usa <code>-</code> para anular una pregunta);</li>
+                <li>rellenando una hoja con las respuestas correctas y usando <b>📷 Leer clave desde una hoja</b>.</li>
+              </ul>
+            </li>
+            <li><b>Revisa el puntaje y la nota:</b> puntos por respuesta correcta, descuento por incorrecta (0 = sin descuento), exigencia (por defecto 60 %) y la escala de notas (1,0 a 7,0).</li>
+            <li><b>(Opcional) Objetivos de aprendizaje:</b> escribe un objetivo por línea con sus preguntas, por ejemplo <code>OA12: 1-4</code> y <code>OA13: 5-8</code>. Así verás el logro de cada OA en los resultados.</li>
+            <li><b>(Opcional) Lista del curso:</b> pega los nombres en orden de lista, uno por línea. El número que marca el estudiante se cambia por su nombre automáticamente.</li>
+          </ol>
+          <p class="man-warn"><b>⚠️ Importante:</b> si ya escaneaste hojas y cambias el número de preguntas, de alternativas, de dígitos o el papel, los resultados guardados se borran (la hoja ya no sería la misma).</p>
+          <button class="btn secondary small" type="button" data-goto="prueba">Ir a la pestaña Prueba →</button>
+        </article>
+
+        <!-- 2 -->
+        <article class="card man-section" id="man-evaluacion" data-man="evaluacion">
+          <h2><span class="man-num">2</span><span>Pestaña Evaluación: crear la prueba para imprimir <small>(opcional)</small></span></h2>
+          <div class="man-video" data-video="evaluacion"></div>
+          <p>Si ya tienes tu prueba impresa, puedes saltarte este paso. Si no, la plataforma la arma por ti con membrete y formato.</p>
+          <ol class="man-steps">
+            <li><b>Copia tus preguntas</b> desde Word, PDF o donde las tengas, y <b>pégalas</b> en el cuadro grande. No importa si vienen desordenadas: se ordenan solas.</li>
+            <li><b>Revisa los avisos</b> en amarillo (por ejemplo, una pregunta con menos alternativas que las demás).</li>
+            <li><b>Completa el membrete:</b> colegio, logo, asignatura, profesor, curso y los datos que llenará el estudiante (nombre, RUT, fecha…).</li>
+            <li><b>Escribe los Objetivos de Aprendizaje y las instrucciones</b> que quieres que aparezcan en la prueba.</li>
+            <li><b>Elige el formato:</b> tipo y tamaño de letra, una o dos columnas, cómo se ven las alternativas.</li>
+            <li><b>Mira la vista previa</b> al final de la página. Ahí puedes cambiar el tipo de cada pregunta, el espacio para responder y usar <b>＋ Añadir elemento</b> para agregar una imagen, tabla, gráfico o texto.</li>
+            <li>Presiona <b>🖨️ Imprimir evaluación</b>. En la ventana de impresión puedes elegir “Guardar como PDF”. Con <b>🗝️ Imprimir pauta</b> obtienes las respuestas correctas.</li>
+            <li>Presiona <b>↪ Usar estas preguntas en la hoja de respuestas</b>: se copian el número de preguntas, la clave y los OA a la pestaña Prueba.</li>
+          </ol>
+          <h3>Cómo escribir cada tipo de pregunta</h3>
+          <p>Separa la prueba en ítems con un título (por ejemplo <code>II. Verdadero o falso</code>). Debajo de cada título escribe las preguntas así:</p>
+          <div class="man-table-wrap">
+            <table class="man-table">
+              <thead><tr><th>Tipo</th><th>Cómo escribirlo</th></tr></thead>
+              <tbody>
+                <tr><td><b>Selección múltiple</b></td><td><code>1. ¿Cuál es la capital de Chile?</code><br><code>a) Lima b) Santiago c) Quito</code><br>Marca la correcta con un asterisco (<code>*b)</code>) o escribe al final <code>Clave: 1B 2C 3A</code>.</td></tr>
+                <tr><td><b>Verdadero o falso</b></td><td><code>1. El agua hierve a 100 °C. (V)</code><br>La respuesta <code>(V)</code> o <code>(F)</code> al final es opcional (sirve para la pauta).</td></tr>
+                <tr><td><b>Desarrollo</b></td><td><code>1. Explica dos causas de la independencia. [8 líneas]</code><br>También <code>[recuadro 10]</code> o <code>[en blanco 6]</code>.</td></tr>
+                <tr><td><b>Respuesta breve</b></td><td>Un ítem titulado <code>Respuesta breve</code>: cada pregunta lleva 2 líneas.</td></tr>
+                <tr><td><b>Términos pareados</b></td><td>Un par por línea: <code>Fotosíntesis = Proceso por el cual las plantas…</code><br>La columna B se desordena sola. Un término sin pareja queda como distractor.</td></tr>
+                <tr><td><b>Completación</b></td><td><code>1. La capital de Chile es [Santiago].</code><br>La palabra entre corchetes se cambia por una línea y va al banco de palabras. Agrega distractores con <code>Banco de palabras: Lima, Quito</code>.</td></tr>
+                <tr><td><b>Ordenar secuencia</b></td><td><code>1. Ordena cronológicamente:</code> y debajo <code>a)</code>, <code>b)</code>, <code>c)</code>… <b>en el orden correcto</b>. Al imprimir se desordenan.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="man-tip"><b>💡 Consejo:</b> a la hoja de respuestas solo van las preguntas de <b>selección múltiple</b>. Las demás (verdadero o falso, desarrollo, etc.) se responden en la misma prueba y se corrigen a mano.</p>
+          <button class="btn secondary small" type="button" data-goto="evaluacion">Ir a la pestaña Evaluación →</button>
+        </article>
+
+        <!-- 2b -->
+        <article class="card man-section" id="man-filas" data-man="filas">
+          <h2><span class="man-num">2b</span>Filas A, B, C y D (para evitar la copia)</h2>
+          <div class="man-video" data-video="filas"></div>
+          <p>Puedes hacer de 2 a 4 versiones de la misma prueba. En cada fila cambia el orden de las preguntas y de las alternativas, así un estudiante no puede copiar al compañero de al lado.</p>
+          <ol class="man-steps">
+            <li>En <b>Evaluación → 3. Filas</b>, elige la <b>cantidad de filas</b> (2, 3 o 4).</li>
+            <li>Deja marcadas las opciones <b>Cambiar el orden de las preguntas</b> y <b>de las alternativas</b> (o desmarca la que no quieras).</li>
+            <li>En la vista previa, usa el selector <b>Ver: Fila A / Fila B…</b> para revisar cada una. Si no te gusta la mezcla, presiona <b>🔀 Mezclar de nuevo</b>.</li>
+            <li>Presiona <b>↪ Usar estas preguntas en la hoja de respuestas</b>. <b>Este paso es obligatorio</b>: así la plataforma sabe cómo corregir cada fila.</li>
+            <li>Imprime las pruebas (<b>Imprimir: Todas las filas</b>) y, en la pestaña <b>Hoja</b>, las hojas de respuesta de todas las filas.</li>
+            <li>Entrega a cada estudiante la <b>prueba y la hoja de la misma fila</b>. La fila aparece impresa en ambas (“FILA B”).</li>
+          </ol>
+          <p class="man-tip"><b>💡 Bueno saber:</b> al escanear, la plataforma reconoce la fila de cada hoja y la corrige con su propia clave. En los resultados, todas las preguntas se muestran con la numeración de la fila A para comparar al curso completo.</p>
+          <p class="man-warn"><b>⚠️ Importante:</b> si cambias las preguntas o presionas “Mezclar de nuevo” después de imprimir, las filas cambian. Vuelve a imprimir o no cambies nada hasta terminar de corregir.</p>
+          <button class="btn secondary small" type="button" data-goto="evaluacion">Ir a la pestaña Evaluación →</button>
+        </article>
+
+        <!-- 3 -->
+        <article class="card man-section" id="man-hoja" data-man="hoja">
+          <h2><span class="man-num">3</span>Pestaña Hoja: imprimir las hojas de respuesta</h2>
+          <div class="man-video" data-video="hoja"></div>
+          <ol class="man-steps">
+            <li>Elige cuántas <b>hojas de respuesta por página</b>: 1, 2 (media hoja) o 4 (cuarto de hoja). Con 2 o 4 ahorras papel y tinta; después se recortan por la línea punteada ✂.</li>
+            <li>Elige los <b>campos</b> que quieres en la hoja (curso, fecha, RUT) y escribe el nombre del colegio si quieres.</li>
+            <li>Si tu prueba tiene filas, elige qué imprimir: <b>una página por fila</b> o <b>filas alternadas</b> en la misma página.</li>
+            <li>Presiona <b>🖨️ Imprimir</b>. En la ventana de impresión elige <b>escala 100 %</b> o “Tamaño real” y desactiva los encabezados del navegador.</li>
+            <li>Imprime una hoja y, si quieres, <b>fotocópiala</b> las veces que necesites.</li>
+          </ol>
+          <h3>Qué decirles a los estudiantes</h3>
+          <ul class="man-list">
+            <li>Rellenar <b>completo</b> un círculo por pregunta, con lápiz grafito o pasta oscura.</li>
+            <li>Si se equivocan, borrar bien la marca anterior.</li>
+            <li>No doblar la hoja ni rayar los cuadrados negros de las esquinas.</li>
+            <li>Marcar su número de lista en el recuadro “N° de lista / código”.</li>
+          </ul>
+          <p class="man-warn"><b>⚠️ Importante:</b> los cuadrados negros de las esquinas, los de los costados y los cuadritos de abajo son los que permiten leer la hoja. No los recortes, no los cubras y no escribas encima.</p>
+          <p class="man-tip"><b>💡 Para practicar:</b> el botón <b>Descargar ejemplo rellenado</b> crea una imagen de una hoja ya marcada. Súbela en la pestaña Escanear para ver cómo funciona.</p>
+          <button class="btn secondary small" type="button" data-goto="hoja">Ir a la pestaña Hoja →</button>
+        </article>
+
+        <!-- 4 -->
+        <article class="card man-section" id="man-escanear" data-man="escanear">
+          <h2><span class="man-num">4</span>Pestaña Escanear: fotografiar las hojas</h2>
+          <div class="man-video" data-video="escanear"></div>
+          <ol class="man-steps">
+            <li>Abre la página en el celular y entra a <b>Escanear</b>.</li>
+            <li>Presiona <b>📷 Tomar foto</b> y fotografía una hoja. En el computador, usa <b>🖼️ Subir imágenes</b> para elegir varias fotos a la vez (o arrástralas a la página).</li>
+            <li>Espera unos segundos: aparece una línea verde con el código del estudiante, sus respuestas correctas y la nota.</li>
+            <li>Debajo verás la hoja con la corrección: <span class="man-dot ok"></span> verde = correcta, <span class="man-dot bad"></span> rojo = incorrecta, círculo azul punteado = la respuesta correcta.</li>
+            <li>Si una pregunta tiene un <b>recuadro amarillo</b>, la marca era dudosa: mírala y, si hace falta, corrígela eligiendo la letra en la lista de la derecha.</li>
+            <li>Sigue con la próxima hoja.</li>
+          </ol>
+          <h3>Cómo sacar una buena foto</h3>
+          <ul class="man-list">
+            <li>Pon la hoja sobre una mesa de color distinto al blanco.</li>
+            <li>Que se vean <b>las cuatro esquinas</b> con sus cuadrados negros.</li>
+            <li>Buena luz, sin sombras fuertes ni reflejos.</li>
+            <li>Foto desde arriba. No importa si la hoja queda un poco girada o inclinada.</li>
+          </ul>
+          <p class="man-tip"><b>💡 Bueno saber:</b> si corriges una respuesta a mano, queda marcada con un triángulo morado, para que se sepa que la cambió el docente.</p>
+          <button class="btn secondary small" type="button" data-goto="escanear">Ir a la pestaña Escanear →</button>
+        </article>
+
+        <!-- 5 -->
+        <article class="card man-section" id="man-resultados" data-man="resultados">
+          <h2><span class="man-num">5</span>Pestaña Resultados: notas, análisis y evidencias</h2>
+          <div class="man-video" data-video="resultados"></div>
+          <ol class="man-steps">
+            <li>Arriba verás el <b>resumen del curso</b>: hojas corregidas, nota promedio, logro y aprobación.</li>
+            <li>En la tabla de <b>Estudiantes</b>, haz clic en un nombre para ver su hoja corregida. Ahí puedes escribir o corregir el nombre y el código.</li>
+            <li>Las hojas con la etiqueta <span class="tag warn">revisar</span> tienen algo dudoso: ábrelas y revísalas.</li>
+            <li>En <b>Logro por objetivo de aprendizaje</b> verás cada OA como Logrado (L), Medianamente logrado (ML) o No logrado (NL).</li>
+            <li>En <b>Análisis por pregunta</b> verás qué preguntas le costaron más al curso (en rojo, menos del 40 % de acierto) y qué alternativas marcaron.</li>
+            <li>Presiona <b>📦 Descargar evidencias (ZIP)</b> para guardar todo en tu computador.</li>
+          </ol>
+          <h3>Qué trae la carpeta de evidencias</h3>
+          <ul class="man-list">
+            <li><b>resultados.xlsx</b>: planilla Excel con puntajes, notas, logro por OA y análisis por pregunta. Cada estudiante tiene enlaces que abren su hoja.</li>
+            <li><b>hojas_corregidas</b>: la hoja de cada estudiante con la corrección, en JPG.</li>
+            <li><b>fotos_originales</b>: las fotos tal como se tomaron.</li>
+          </ul>
+          <p class="man-tip"><b>💡 Consejo:</b> descomprime el ZIP antes de abrir el Excel, para que los enlaces a las imágenes funcionen. En Chrome o Edge también puedes usar <b>📁 Guardar en una carpeta…</b>, que guarda todo directamente, sin ZIP.</p>
+          <button class="btn secondary small" type="button" data-goto="resultados">Ir a la pestaña Resultados →</button>
+        </article>
+
+        <!-- 6 -->
+        <article class="card man-section" id="man-respaldo" data-man="respaldo">
+          <h2><span class="man-num">6</span>Guardar y respaldar tu trabajo</h2>
+          <div class="man-video" data-video="respaldo"></div>
+          <ul class="man-list">
+            <li>Todo se guarda solo en <b>este navegador y este equipo</b>. Si abres la página en otro computador, no verás tu prueba.</li>
+            <li>Para usar la prueba en otro equipo (o compartirla con un colega), ve a la pestaña Prueba y presiona <b>Exportar configuración</b>. Se descarga un archivo que después abres con <b>Importar configuración</b>.</li>
+            <li>Al terminar de corregir, <b>descarga las evidencias (ZIP)</b>: es tu respaldo de las notas y las hojas.</li>
+            <li>Si borras los datos de navegación del navegador, o usas una ventana de incógnito, se pierde lo guardado.</li>
+            <li>Para empezar una prueba nueva, cambia la configuración y usa <b>Borrar resultados</b> en la pestaña Resultados (después de descargar las evidencias).</li>
+          </ul>
+        </article>
+
+        <!-- ? -->
+        <article class="card man-section" id="man-problemas" data-man="problemas">
+          <h2><span class="man-num">?</span>Problemas frecuentes</h2>
+          <div class="man-video" data-video="problemas"></div>
+          <div class="man-faq">
+            <details><summary>Dice “No se encontraron las cuatro marcas negras de las esquinas”.</summary>
+              <p>La foto no muestra la hoja completa o hay poca luz. Vuelve a sacarla con las cuatro esquinas visibles, sobre una mesa oscura y sin sombras.</p></details>
+            <details><summary>Dice “Esta hoja corresponde a otra prueba”.</summary>
+              <p>La hoja se imprimió con otra configuración (otro número de preguntas, alternativas, dígitos o papel). Revisa la pestaña Prueba: debe estar igual que cuando imprimiste las hojas.</p></details>
+            <details><summary>Dice “Las filas de respuestas no quedaron bien alineadas”.</summary>
+              <p>La hoja está muy doblada o curvada. Alísala sobre una mesa y vuelve a sacar la foto. La plataforma prefiere rechazar la foto antes que corregir mal.</p></details>
+            <details><summary>Una pregunta tiene un recuadro amarillo (marca dudosa).</summary>
+              <p>El estudiante marcó muy suave, borró mal o marcó dos veces. Mira la hoja y elige la letra correcta en la lista de la derecha. Si muchas marcas salen dudosas, en Escanear puedes desmarcar “Sensibilidad automática” y ajustar el umbral.</p></details>
+            <details><summary>Aparece “código repetido”.</summary>
+              <p>Dos hojas tienen el mismo número de lista: puede ser un error del estudiante o la misma hoja escaneada dos veces. Abre ambas, corrige el código o elimina la repetida.</p></details>
+            <details><summary>No se pudo leer la fila (A, B, C o D).</summary>
+              <p>Quizás el borde izquierdo de la hoja quedó fuera de la foto. Abre la hoja en Resultados y elige la fila en el selector “Fila”, o vuelve a sacar la foto.</p></details>
+            <details><summary>La hoja se imprimió más grande o más pequeña.</summary>
+              <p>Al imprimir, elige escala 100 % o “Tamaño real” (no “Ajustar a la página”) y el mismo papel configurado en la pestaña Prueba.</p></details>
+            <details><summary>¿Puedo usar fotocopias?</summary>
+              <p>Sí, siempre que los cuadrados negros se vean negros y nítidos.</p></details>
+            <details><summary>¿Necesito internet?</summary>
+              <p>Solo para abrir la página. La lectura de las fotos se hace en tu equipo: las imágenes no se envían a ningún servidor.</p></details>
+          </div>
+        </article>
+      </section>
+
     </main>
 
     <footer class="app-footer">
@@ -556,6 +796,7 @@
   <script src="js/testdoc.js"></script>
   <script src="js/zip.js"></script>
   <script src="js/xlsx.js"></script>
+  <script src="js/manual-videos.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

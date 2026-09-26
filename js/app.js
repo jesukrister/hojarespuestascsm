@@ -20,7 +20,7 @@
   const MAX_IMAGE_SIDE = 2000;
   const PREVIEW_WIDTH = 1200;
   const PHOTO_MAX_SIDE = 1600;
-  const TABS = ['prueba', 'evaluacion', 'hoja', 'escanear', 'resultados'];
+  const TABS = ['prueba', 'evaluacion', 'hoja', 'escanear', 'resultados', 'manual'];
 
   const $ = (sel, root) => (root || document).querySelector(sel);
   const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
@@ -334,12 +334,141 @@
 
   function showTab(name) {
     if (TABS.indexOf(name) < 0) name = 'prueba';
-    for (const b of $$('.tabs button')) b.setAttribute('aria-selected', String(b.dataset.tab === name));
+    for (const b of $$('.tabs button')) {
+      b.setAttribute('aria-selected', String(b.dataset.tab === name));
+      // En pantallas angostas la barra de pestañas se desplaza: se deja visible la elegida.
+      if (b.dataset.tab === name && b.scrollIntoView) b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
     for (const t of TABS) $('#tab-' + t).hidden = t !== name;
     if (name === 'hoja') renderSheetPreview();
     if (name === 'evaluacion') renderDoc();
     if (name === 'resultados') renderResults();
+    if (name === 'manual') renderManualVideos();
     if (location.hash !== '#' + name) history.replaceState(null, '', '#' + name);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* 6. Manual                                                           */
+  /* ------------------------------------------------------------------ */
+
+  /** Segundos de inicio de un enlace de YouTube (?t=90, ?t=1m30s, &start=90). */
+  function videoStart(url) {
+    const m = url.match(/[?&#](?:t|start)=((?:\d+h)?(?:\d+m)?(?:\d+s?)?)/);
+    if (!m || !m[1]) return 0;
+    const t = m[1];
+    if (/^\d+$/.test(t)) return Number(t);
+    const part = (re) => Number((t.match(re) || [0, 0])[1]);
+    return part(/(\d+)h/) * 3600 + part(/(\d+)m/) * 60 + part(/(\d+)s/);
+  }
+
+  /** HTML para mostrar un video del manual a partir de su enlace (YouTube, Vimeo, Google Drive o archivo). */
+  function videoEmbed(url, title) {
+    url = String(url || '').trim();
+    if (!url) return '';
+    const isWeb = /^https?:\/\//i.test(url);
+    const isFile = !isWeb && /^[\w.\/%-]+\.(mp4|webm|ogg|ogv|m4v|mov)$/i.test(url);
+    if (!isWeb && !isFile) return '';
+    const frame = (src) =>
+      `<div class="man-embed"><iframe src="${esc(src)}" title="${esc(title)}" loading="lazy" ` +
+      `allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`;
+    let m = url.match(/(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/i);
+    if (m) {
+      const start = videoStart(url);
+      return frame(`https://www.youtube-nocookie.com/embed/${m[1]}?rel=0${start ? '&start=' + start : ''}`);
+    }
+    m = url.match(/vimeo\.com\/(?:video\/)?(\d+)(?:\/([\da-f]+))?/i);
+    if (m) return frame(`https://player.vimeo.com/video/${m[1]}${m[2] ? '?h=' + m[2] : ''}`);
+    m = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([\w-]+)/i);
+    if (m) return frame(`https://drive.google.com/file/d/${m[1]}/preview`);
+    if (isFile || /\.(mp4|webm|ogg|ogv|m4v|mov)(?:[?#]|$)/i.test(url)) {
+      return `<div class="man-embed"><video src="${esc(url)}" controls preload="metadata" playsinline title="${esc(title)}"></video></div>`;
+    }
+    return `<a class="btn secondary" href="${esc(url)}" target="_blank" rel="noopener">▶ Ver el video</a>`;
+  }
+
+  let manualVideosDone = false;
+  function renderManualVideos() {
+    if (manualVideosDone) return;
+    manualVideosDone = true;
+    const videos = window.MANUAL_VIDEOS || {};
+    const placeholders = window.MANUAL_SHOW_PLACEHOLDERS !== false;
+    for (const slot of $$('#tab-manual .man-video')) {
+      const section = slot.closest('.man-section');
+      const title = 'Video: ' + ($('h2', section) ? $('h2', section).textContent.replace(/^\S+/, '').trim() : 'manual');
+      const html = videoEmbed(videos[slot.dataset.video], title);
+      if (html) {
+        slot.innerHTML = html;
+        slot.hidden = false;
+      } else if (placeholders) {
+        slot.innerHTML = '<div class="man-video-soon">🎬 Video de esta parte: próximamente</div>';
+        slot.hidden = false;
+      } else {
+        slot.hidden = true;
+      }
+    }
+  }
+
+  function normalizeText(t) {
+    return String(t || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '');
+  }
+
+  /** Muestra sólo las partes del manual que contienen todas las palabras buscadas. */
+  function filterManual(query) {
+    const words = normalizeText(query).split(/\s+/).filter(Boolean);
+    let any = false;
+    for (const sec of $$('#tab-manual .man-section')) {
+      const faq = $$('.man-faq details', sec);
+      const matches = (el) => {
+        const txt = normalizeText(el.textContent);
+        return words.every((w) => txt.indexOf(w) >= 0);
+      };
+      let show;
+      if (faq.length) {
+        let n = 0;
+        for (const d of faq) {
+          const ok = !words.length || matches(d);
+          d.hidden = !ok;
+          if (words.length) d.open = ok;
+          if (ok) n++;
+        }
+        show = !words.length || n > 0;
+      } else {
+        show = !words.length || matches(sec);
+      }
+      sec.hidden = !show;
+      if (show) any = true;
+    }
+    $('#manNoResults').hidden = any;
+  }
+
+  function goToManual(key) {
+    if ($('#tab-manual').hidden) showTab('manual');
+    const sec = $('#man-' + key);
+    if (!sec) return;
+    if (sec.hidden) {
+      $('#manSearch').value = '';
+      filterManual('');
+    }
+    sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function printManual() {
+    const paper = PAPERS[state.exam.paper] || PAPERS.carta;
+    setPageStyle(`@page { size: ${paper.width}mm ${paper.height}mm; margin: 14mm 14mm 16mm; }`);
+    const clone = $('#tab-manual').cloneNode(true);
+    clone.removeAttribute('id');
+    clone.hidden = false;
+    for (const el of $$('[id]', clone)) el.removeAttribute('id');
+    for (const el of $$('.man-section, .man-faq details', clone)) el.hidden = false;
+    for (const d of $$('details', clone)) d.open = true;
+    for (const el of $$('.man-video, .man-search, .man-index, button, .alert', clone)) el.remove();
+    $('#printArea').className = 'print-area print-manual';
+    $('#printArea').innerHTML = '';
+    $('#printArea').appendChild(clone);
+    window.print();
   }
 
   /* ------------------------------------------------------------------ */
@@ -2830,6 +2959,14 @@
       const f = e.target.files[0];
       e.target.value = '';
       if (f) importExam(f);
+    });
+
+    // Manual.
+    $('#manSearch').addEventListener('input', (e) => filterManual(e.target.value));
+    $('#manPrint').addEventListener('click', printManual);
+    document.addEventListener('click', (e) => {
+      const go = e.target.closest('[data-man-go], [data-manual]');
+      if (go) goToManual(go.dataset.manGo || go.dataset.manual);
     });
 
     window.addEventListener('hashchange', () => showTab(location.hash.slice(1)));

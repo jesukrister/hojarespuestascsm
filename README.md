@@ -66,6 +66,9 @@ cualquier hosting de archivos estáticos.
   imágenes. También se puede exportar sólo un CSV.
 - **Lista del curso** opcional: el número de lista marcado en la hoja se asocia
   automáticamente con el nombre del estudiante.
+- **Manual de uso** (pestaña *Manual*): guía paso a paso en lenguaje simple,
+  con un espacio para un video en cada parte, buscador, enlaces “¿Cómo se usa
+  esta pestaña?” en cada pestaña y versión para imprimir.
 
 ## Uso
 
@@ -283,6 +286,32 @@ servidor del colegio, etc.) funciona igual: basta con subir los archivos.
 > Para usar la cámara desde el celular, la página debe servirse por **HTTPS**
 > (GitHub Pages y los servicios mencionados ya lo hacen).
 
+## Videos del manual
+
+Cada parte del manual tiene un espacio para un video. Para agregarlos, abre
+`js/manual-videos.js`, pega el enlace de cada video entre las comillas y
+publica de nuevo la página:
+
+```js
+window.MANUAL_VIDEOS = {
+  inicio: 'https://www.youtube.com/watch?v=XXXXXXXXXXX',
+  prueba: 'https://youtu.be/XXXXXXXXXXX',
+  evaluacion: '',            // sin video todavía
+  ...
+};
+```
+
+Sirven enlaces de YouTube (también videos “no listados” y con minuto de
+inicio, `?t=90`), Vimeo, Google Drive (compartidos como “Cualquier persona con
+el enlace”) o un archivo de video guardado junto a la página (por ejemplo
+`videos/escanear.mp4`). Mientras una parte no tiene video se muestra “Video
+próximamente”; para ocultar ese aviso, cambia
+`window.MANUAL_SHOW_PLACEHOLDERS` a `false`.
+
+Los videos de YouTube, Vimeo y Drive se ven cuando la página está publicada
+(por ejemplo en GitHub Pages); al abrir `index.html` directamente desde el
+computador, algunos servicios no permiten mostrarlos.
+
 ## Desarrollo
 
 No hay dependencias ni paso de compilación. Para probar localmente se puede
@@ -309,6 +338,7 @@ entregar una corrección equivocada sin avisar.
 | --- | --- |
 | `index.html`, `css/styles.css` | Interfaz |
 | `js/app.js` | Lógica de la interfaz y almacenamiento |
+| `js/manual-videos.js` | Enlaces de los videos del manual |
 | `js/layout.js` | Geometría de la hoja (compartida por el generador y el lector) |
 | `js/sheet.js` | Generación de la hoja en SVG |
 | `js/omr.js` | Motor de reconocimiento de marcas |
