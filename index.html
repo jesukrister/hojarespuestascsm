@@ -163,14 +163,23 @@
               <li>Verdadero o falso: la respuesta puede ir al final como <code>(V)</code> o <code>(F)</code>, o en la clave (<code>Clave: 1A 2C 1V 2F</code>).</li>
               <li>Desarrollo: indica el espacio con <code>[8 líneas]</code>, <code>[recuadro 10]</code> o <code>[en blanco 6]</code> al final de la pregunta (también se ajusta en la vista previa).</li>
               <li>Un texto separado por una línea en blanco antes de una pregunta (por ejemplo, una lectura) se imprime junto a esa pregunta.</li>
-              <li><strong>Términos pareados:</strong> bajo un encabezado <code>III. Términos pareados</code>, escribe un par por línea: <code>Fotosíntesis = Proceso por el cual…</code> (también sirven <code>-</code>, <code>→</code> o una tabla pegada de Word). La columna B se desordena sola. También puedes escribir <code>Columna A</code> y <code>Columna B</code> por separado e indicar la respuesta al final del término: <code>1. Fotosíntesis (b)</code>. Un término sin pareja queda como distractor.</li>
+              <li><strong>Términos pareados:</strong> escribe un par por línea con <code>=</code> entre el término y su definición: <code>Fotosíntesis = Proceso por el cual…</code> (también sirven <code>:</code>, <code>-</code>, <code>→</code> o una tabla pegada de Word). Conviene ponerle un título al ítem, como <code>III. Términos pareados</code>. La columna B se desordena sola. También puedes escribir <code>Columna A</code> y <code>Columna B</code> por separado e indicar la respuesta al final del término: <code>1. Fotosíntesis (b)</code>. Un término sin pareja queda como distractor.</li>
               <li><strong>Completación:</strong> bajo <code>IV. Completación</code>, escribe la respuesta entre corchetes: <code>La capital de Chile es [Santiago].</code> (o deja <code>____</code>). Las respuestas forman el banco de palabras; agrega distractores con una línea <code>Banco de palabras: Lima, Quito</code>.</li>
               <li><strong>Ordenar secuencia:</strong> bajo <code>V. Ordenar secuencia</code>, escribe la pregunta y sus elementos (<code>a)</code>, <code>b)</code>… o <code>- </code>) <em>en el orden correcto</em>: al imprimir se desordenan y el estudiante escribe 1, 2, 3…</li>
               <li><strong>Respuesta breve:</strong> un ítem <code>Respuesta breve</code> es de desarrollo con 2 líneas por pregunta.</li>
             </ul>
           </details>
+          <div id="docMathBar" class="math-bar" hidden>
+            <button id="docMathInsert" class="btn secondary small" type="button">∑ Insertar fórmula</button>
+            <span class="muted small">Para cambiar una fórmula ya escrita, pon el cursor sobre ella y presiona el botón.</span>
+          </div>
           <textarea id="docText" rows="14" spellcheck="false" placeholder="1. ¿Cuál es la capital de Chile?&#10;a) Santiago  b) Lima  c) Quito  d) Bogotá&#10;&#10;2) ¿Qué océano baña las costas de Chile?&#10;A. Atlántico&#10;*B. Pacífico&#10;C. Índico"></textarea>
           <label class="check" style="margin-top:8px"><input id="docSort" type="checkbox" checked> Ordenar según la numeración del texto (si las preguntas están desordenadas)</label>
+          <details class="more-tools">
+            <summary>Más herramientas</summary>
+            <label class="check"><input id="docMathTools" type="checkbox"> Activar el editor de fórmulas matemáticas</label>
+            <p class="muted small">Agrega el botón <strong>∑ Insertar fórmula</strong> sobre el cuadro de texto, con un teclado en pantalla para escribir fracciones, raíces, potencias y otros símbolos (Matemática, Física, Química…). Si no lo usas, déjalo desactivado.</p>
+          </details>
           <ul id="docWarnings" class="warn-list" hidden></ul>
           <div class="actions">
             <button id="docApply" class="btn secondary" type="button">↪ Usar estas preguntas en la hoja de respuestas</button>
@@ -553,13 +562,28 @@
                 <tr><td><b>Verdadero o falso</b></td><td><code>1. El agua hierve a 100 °C. (V)</code><br>La respuesta <code>(V)</code> o <code>(F)</code> al final es opcional (sirve para la pauta).</td></tr>
                 <tr><td><b>Desarrollo</b></td><td><code>1. Explica dos causas de la independencia. [8 líneas]</code><br>También <code>[recuadro 10]</code> o <code>[en blanco 6]</code>.</td></tr>
                 <tr><td><b>Respuesta breve</b></td><td>Un ítem titulado <code>Respuesta breve</code>: cada pregunta lleva 2 líneas.</td></tr>
-                <tr><td><b>Términos pareados</b></td><td>Un par por línea: <code>Fotosíntesis = Proceso por el cual las plantas…</code><br>La columna B se desordena sola. Un término sin pareja queda como distractor.</td></tr>
+                <tr><td><b>Términos pareados</b></td><td>Escribe el título del ítem y debajo <b>un par por línea</b>, con el término, el signo <code>=</code> y su definición:
+                  <pre class="man-example">III. Términos pareados
+Fotosíntesis = Proceso por el cual las plantas producen su alimento
+Mitocondria = Organelo que produce energía
+Núcleo = Contiene el material genético</pre>
+                  En lugar de <code>=</code> también sirven <code>:</code>, <code>-</code> o <code>→</code>, o una tabla de dos columnas copiada de Word. La plataforma arma la columna A (términos numerados) y la columna B (definiciones desordenadas). Un término sin definición queda como distractor.</td></tr>
                 <tr><td><b>Completación</b></td><td><code>1. La capital de Chile es [Santiago].</code><br>La palabra entre corchetes se cambia por una línea y va al banco de palabras. Agrega distractores con <code>Banco de palabras: Lima, Quito</code>.</td></tr>
                 <tr><td><b>Ordenar secuencia</b></td><td><code>1. Ordena cronológicamente:</code> y debajo <code>a)</code>, <code>b)</code>, <code>c)</code>… <b>en el orden correcto</b>. Al imprimir se desordenan.</td></tr>
               </tbody>
             </table>
           </div>
           <p class="man-tip"><b>💡 Consejo:</b> a la hoja de respuestas solo van las preguntas de <b>selección múltiple</b>. Las demás (verdadero o falso, desarrollo, etc.) se responden en la misma prueba y se corrigen a mano.</p>
+          <h3>Fórmulas matemáticas (opcional)</h3>
+          <p>Para escribir fracciones, raíces, potencias y otros símbolos sin un teclado especial:</p>
+          <ol class="man-steps">
+            <li>Bajo el cuadro de texto, abre <b>Más herramientas</b> y marca <b>Activar el editor de fórmulas matemáticas</b>. Solo hay que hacerlo una vez.</li>
+            <li>En el cuadro de texto, pon el cursor donde va la fórmula y presiona <b>∑ Insertar fórmula</b>.</li>
+            <li>Escribe la fórmula con los botones de arriba (fracción, raíz, potencia…), con tu teclado (<b>/</b> hace una fracción y <b>^</b> una potencia) o con el <b>⌨️ Teclado en pantalla</b>.</li>
+            <li>Presiona <b>Insertar</b>. En el cuadro de texto la fórmula queda escrita entre <code>\(</code> y <code>\)</code>, y en la vista previa se ve como en un libro.</li>
+            <li>Para cambiarla, pon el cursor sobre ella y presiona otra vez <b>∑ Insertar fórmula</b>.</li>
+          </ol>
+          <p class="man-tip"><b>💡 Bueno saber:</b> las fórmulas sirven en enunciados, alternativas, términos pareados y oraciones para completar. Si no enseñas Matemática, puedes ignorar esta opción: viene desactivada.</p>
           <button class="btn secondary small" type="button" data-goto="evaluacion">Ir a la pestaña Evaluación →</button>
         </article>
 
@@ -681,6 +705,10 @@
               <p>Quizás el borde izquierdo de la hoja quedó fuera de la foto. Abre la hoja en Resultados y elige la fila en el selector “Fila”, o vuelve a sacar la foto.</p></details>
             <details><summary>La hoja se imprimió más grande o más pequeña.</summary>
               <p>Al imprimir, elige escala 100 % o “Tamaño real” (no “Ajustar a la página”) y el mismo papel configurado en la pestaña Prueba.</p></details>
+            <details><summary>Los términos pareados no aparecen como columnas.</summary>
+              <p>Revisa que cada par esté en <b>una sola línea</b>, con el término, un signo <code>=</code> (o <code>:</code>) y la definición, por ejemplo <code>Fotosíntesis = Proceso por el cual las plantas producen su alimento</code>. Pon los pares uno debajo del otro, bajo un título como <code>III. Términos pareados</code>. Si algo no se reconoce, aparece un aviso en amarillo bajo el cuadro de texto.</p></details>
+            <details><summary>¿Cómo escribo fracciones, raíces o potencias?</summary>
+              <p>En la pestaña Evaluación, abre <b>Más herramientas</b> (bajo el cuadro de texto) y activa el <b>editor de fórmulas matemáticas</b>. Aparecerá el botón <b>∑ Insertar fórmula</b>, con un teclado en pantalla. Más detalles en la parte 2 de este manual.</p></details>
             <details><summary>¿Puedo usar fotocopias?</summary>
               <p>Sí, siempre que los cuadrados negros se vean negros y nítidos.</p></details>
             <details><summary>¿Necesito internet?</summary>
@@ -695,6 +723,40 @@
       <p>Todo el procesamiento ocurre en tu dispositivo: las imágenes no se envían a ningún servidor.</p>
     </footer>
   </div>
+
+  <dialog id="mathDialog" class="el-dialog math-dialog" aria-labelledby="mathDialogTitle">
+    <div class="el-head">
+      <h2 id="mathDialogTitle">Insertar fórmula</h2>
+      <button type="button" class="btn ghost small" data-math-close aria-label="Cerrar">✕</button>
+    </div>
+    <p class="muted small">Escribe la fórmula con tu teclado o con el teclado en pantalla. Por ejemplo, escribe <b>/</b> para una fracción y <b>^</b> para una potencia.</p>
+    <div class="math-quick" aria-label="Símbolos frecuentes">
+      <button type="button" data-math-insert="\frac{#@}{#?}" title="Fracción">a⁄b</button>
+      <button type="button" data-math-insert="\sqrt{#0}" title="Raíz cuadrada">√</button>
+      <button type="button" data-math-insert="\sqrt[#?]{#0}" title="Raíz n-ésima">ⁿ√</button>
+      <button type="button" data-math-insert="#@^{#?}" title="Potencia">xⁿ</button>
+      <button type="button" data-math-insert="#@_{#?}" title="Subíndice">xₙ</button>
+      <button type="button" data-math-insert="\times" title="Multiplicación">×</button>
+      <button type="button" data-math-insert="\div" title="División">÷</button>
+      <button type="button" data-math-insert="\pm" title="Más o menos">±</button>
+      <button type="button" data-math-insert="\le" title="Menor o igual">≤</button>
+      <button type="button" data-math-insert="\ge" title="Mayor o igual">≥</button>
+      <button type="button" data-math-insert="\ne" title="Distinto">≠</button>
+      <button type="button" data-math-insert="\pi" title="Pi">π</button>
+      <button type="button" data-math-insert="^{\circ}" title="Grados">°</button>
+      <button type="button" data-math-insert="\angle" title="Ángulo">∠</button>
+      <button type="button" data-math-insert="\infty" title="Infinito">∞</button>
+      <button type="button" data-math-insert="\left(#0\right)" title="Paréntesis">( )</button>
+    </div>
+    <div id="mathFieldHost" class="math-field-host"><p class="muted small">Cargando el editor…</p></div>
+    <p id="mathError" class="alert error" hidden></p>
+    <div class="actions end">
+      <button type="button" class="btn ghost" id="mathKeyboardToggle">⌨️ Teclado en pantalla</button>
+      <button type="button" class="btn ghost" data-math-close>Cancelar</button>
+      <button type="button" class="btn primary" id="mathInsertBtn">Insertar</button>
+    </div>
+    <div id="mathKeyboardHost" class="math-keyboard-host"></div>
+  </dialog>
 
   <dialog id="elDialog" class="el-dialog" aria-labelledby="elDialogTitle">
     <form method="dialog" class="el-form">

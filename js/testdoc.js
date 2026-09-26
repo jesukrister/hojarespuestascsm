@@ -44,7 +44,8 @@
       't[ée]rminos\\s+pareados|pareados|pareo|asociaci[óo]n(?:\\s+de\\s+(?:conceptos|t[ée]rminos))?|relacionar(?:\\s+columnas)?|' +
       'completaci[óo]n|completar(?:\\s+(?:oraciones|el\\s+texto|espacios))?|oraciones\\s+incompletas|' +
       'ordenar(?:\\s+(?:secuencias?|cronol[óo]gicamente|la\\s+secuencia|los\\s+hechos))?|ordenaci[óo]n|' +
-      'secuencias?(?:\\s+(?:cronol[óo]gicas?|de\\s+hechos))?|orden\\s+cronol[óo]gico))' +
+      'secuencias?(?:\\s+(?:cronol[óo]gicas?|de\\s+hechos))?|orden\\s+cronol[óo]gico|' +
+      '(?:relaciona|une|asocia)r?\\s+(?:(?:la|las|los|cada)\\s+)?(?:columnas?|conceptos?|t[ée]rminos|definiciones|palabras)[^.:]*))' +
       '\\s*(?:([.:\\-–])\\s*(.*)|(\\(.*\\)))?\\s*$',
     'i'
   );
@@ -58,7 +59,12 @@
 
   // Términos pareados: "Columna A" / "Columna B" y separadores entre término y definición.
   const COLUMN_LINE = /^\s*columna\s+([ab12]|i{1,2})\b\s*[:.\-]?\s*(.{0,60})$/i;
-  const PAIR_SEP = /\t+|\s+(?:=|→|->|=>|\|)\s+|\s+-{1,2}\s+|\s*\.{4,}\s*|\s*…{2,}\s*/;
+  const PAIR_SEP = /\t+|\s*(?:=>|->|→|⟶|=)\s*|\s*\|\s*|\s+-{1,2}\s*|\s*-{1,2}\s+|\s*\.{4,}\s*|\s*…{2,}\s*/;
+  // Separadores claros (sin encabezado de ítem, dos o más líneas así forman un pareado).
+  const STRONG_PAIR = /^([^=→\t]{1,60}?)\s*(?:\t+|=>|->|→|⟶|=)\s*(\S.*)$/;
+  // "Término: definición" sólo dentro de un ítem de términos pareados.
+  const COLON_PAIR = /^([^:]{1,50}?)\s*:\s*(\S.*)$/;
+  const NOT_A_TERM = /^(?:instrucci[óo]n(?:es)?|indicaci[óo]n(?:es)?|nota|ejemplo|puntaje|columna\s*\S*)$/i;
   const TERM_ANSWER = /\s*\(\s*([a-f])\s*\)\s*$/i; // "1. Fotosíntesis (c)"
   const DEF_ANSWER = /\s*\(\s*(\d{1,2})\s*\)\s*$/; // "a) Proceso… (1)"
   // Completación: "[respuesta]" o "____" marcan el espacio a completar.
@@ -385,7 +391,9 @@
 
     /** Procesa una línea dentro de un ítem de términos pareados. Devuelve false si no es parte del pareado. */
     const matchLine = (line) => {
-      const raw = line.trim();
+      const raw0 = line.trim();
+      // Viñeta al inicio ("- Término = Definición"): no es un separador.
+      const raw = raw0.replace(/^-\s+(?=.*(?:\t|=|→|->|:|\s-{1,2}\s))/, '');
       const label = (t) => {
         const qn = t.match(Q_START);
         if (qn) return { kind: 'num', label: qn[1], text: qn[2].trim() };
@@ -394,7 +402,15 @@
         const dash = t.match(/^-\s+(.*)$/);
         return { kind: null, label: null, text: (dash ? dash[1] : t).trim() };
       };
-      const parts = raw.split(PAIR_SEP);
+      // Los separadores se buscan fuera de las fórmulas ("\(a^2 + b^2 = c^2\)").
+      const mk = maskMath(raw);
+      let parts = mk.masked.split(PAIR_SEP);
+      if (parts.length < 2 || !parts.slice(1).join(' ').trim()) {
+        const cm = mk.masked.match(COLON_PAIR);
+        const left = cm ? label(detab(cm[1]).trim()).text : '';
+        if (cm && left && left.split(/\s+/).length <= 6 && !NOT_A_TERM.test(left)) parts = [cm[1], cm[2]];
+      }
+      parts = parts.map(mk.restore);
       const hasSep = parts.length >= 2 && parts.slice(1).join(' ').trim();
       const add = (e) => {
         startMatch();
@@ -435,7 +451,23 @@
       return false;
     };
 
-    for (const line of lines) {
+    /** ¿La línea parece un par "Término = Definición" (sin número ni letra)? */
+    const looksLikePair = (l) => {
+      const tl = detab(l).trim() === l.trim() ? l.trim() : l.trim();
+      if (!tl || Q_START.test(tl) || Q_WORD.test(tl) || OPT_START.test(tl) || TF_LEAD.test(tl) || hasMath(tl)) return false;
+      const m = tl.match(STRONG_PAIR);
+      if (!m) return false;
+      const left = m[1].trim();
+      // Un término tiene alguna palabra; una ecuación ("2x + 3 = 7") no es un par.
+      return /[a-záéíóúüñ]{3,}/i.test(left) && !/[+*/^<>]/.test(left) && (tl.match(/=/g) || []).length <= 1;
+    };
+    const nextNonEmpty = (i) => {
+      for (let j = i + 1; j < lines.length; j++) if (lines[j].trim()) return lines[j];
+      return '';
+    };
+
+    for (let li = 0; li < lines.length; li++) {
+      const line = lines[li];
       const t = line.trim();
       if (!t) {
         blankSinceLast = true;
@@ -483,6 +515,16 @@
           blankSinceLast = false;
           continue;
         }
+      } else if (
+        (!cur || cur.options.length > 0 || blankSinceLast) &&
+        looksLikePair(line) &&
+        looksLikePair(nextNonEmpty(li))
+      ) {
+        // Sin encabezado: dos o más líneas "Término = Definición" seguidas son un pareado.
+        startMatch();
+        matchLine(line);
+        blankSinceLast = false;
+        continue;
       }
 
       // Banco de palabras de un ítem de completación.
@@ -600,6 +642,14 @@
           'la línea “Clave:” debe ir al final.'
       );
     }
+    sections.forEach((sec, si) => {
+      if (sec.type === 'match' && !questions.some((q) => q.section === si)) {
+        warnings.push(
+          `“${sec.title}”: no se encontraron pares. Escribe un par por línea, con “=” entre el término y su definición ` +
+            '(por ejemplo: Fotosíntesis = Proceso por el cual las plantas producen su alimento).'
+        );
+      }
+    });
     const trailing = joinLines(pending);
     if (trailing) warnings.push(`Texto al final que no pertenece a ninguna pregunta: “${trailing.slice(0, 80)}${trailing.length > 80 ? '…' : ''}”.`);
 
@@ -810,11 +860,75 @@
       .replace(/"/g, '&quot;');
   }
 
-  function paragraphs(text) {
-    return esc(text)
-      .split(/\n{2,}/)
-      .map((p) => p.replace(/\n/g, '<br>'))
-      .join('</p><p>');
+  /* ---------- Fórmulas: \( … \) en el texto ---------- */
+
+  // Una fórmula se escribe entre \( y \) (así la inserta el editor de fórmulas).
+  const MATH_RE = /\\\(([\s\S]+?)\\\)/g;
+  let mathRenderer = null;
+
+  /** Función (LaTeX → HTML) que dibuja las fórmulas; sin ella se muestran como texto. */
+  function setMathRenderer(fn) {
+    mathRenderer = typeof fn === 'function' ? fn : null;
+  }
+
+  function hasMath(text) {
+    MATH_RE.lastIndex = 0;
+    return MATH_RE.test(String(text || ''));
+  }
+
+  function mathHTML(tex) {
+    if (mathRenderer) {
+      try {
+        return `<span class="td-math">${mathRenderer(tex)}</span>`;
+      } catch (e) {
+        /* se muestra como texto */
+      }
+    }
+    return `<span class="td-math-raw">${esc(tex)}</span>`;
+  }
+
+  /** Divide un texto en trozos de texto y de fórmula. */
+  function splitMath(text) {
+    const str = String(text == null ? '' : text);
+    const out = [];
+    let last = 0;
+    MATH_RE.lastIndex = 0;
+    let m;
+    while ((m = MATH_RE.exec(str))) {
+      if (m.index > last) out.push({ text: str.slice(last, m.index) });
+      out.push({ math: m[1] });
+      last = m.index + m[0].length;
+    }
+    if (last < str.length) out.push({ text: str.slice(last) });
+    return out;
+  }
+
+  /** Texto en una línea, con sus fórmulas. */
+  function escRich(text) {
+    return splitMath(text)
+      .map((p) => (p.math !== undefined ? mathHTML(p.math) : esc(p.text)))
+      .join('');
+  }
+
+  /** Párrafos (línea en blanco = párrafo nuevo), con sus fórmulas. */
+  function paragraphs(text, textHook) {
+    return splitMath(text)
+      .map((p) =>
+        p.math !== undefined
+          ? mathHTML(p.math)
+          : (textHook ? textHook(p.text) : esc(p.text)).replace(/\n{2,}/g, '</p><p>').replace(/\n/g, '<br>')
+      )
+      .join('');
+  }
+
+  /** Cambia las fórmulas por marcas neutras (para buscar separadores fuera de ellas) y permite restaurarlas. */
+  function maskMath(text) {
+    const saved = [];
+    const masked = String(text || '').replace(MATH_RE, (m) => {
+      saved.push(m);
+      return `\uE000${saved.length - 1}\uE001`;
+    });
+    return { masked, restore: (t) => String(t).replace(/\uE000(\d+)\uE001/g, (m, i) => saved[Number(i)]) };
   }
 
   const ALPHA = 'abcdefghijklmnopqrstuvwxyz';
@@ -903,29 +1017,27 @@
   /** Respuestas de los espacios de una oración a completar ("[Santiago]" → "Santiago", "____" → null). */
   function blanksOf(stem) {
     const out = [];
-    String(stem || '').replace(BLANK_RE, (m, ans) => {
-      out.push(ans ? ans.trim() : null);
-      return m;
-    });
+    for (const part of splitMath(stem)) {
+      if (part.math !== undefined) continue;
+      part.text.replace(BLANK_RE, (m, ans) => {
+        out.push(ans ? ans.trim() : null);
+        return m;
+      });
+    }
     return out;
   }
 
   /** Enunciado con los espacios para completar como líneas. */
   function fillHTML(stem, widthMm) {
-    let html = '';
-    let last = 0;
-    const text = String(stem || '');
+    const blank = `<span class="td-blank" style="width:${widthMm}mm"></span>`;
     let found = false;
-    text.replace(BLANK_RE, (m, ans, idx) => {
-      html += esc(text.slice(last, idx)).replace(/\n{2,}/g, '</p><p>').replace(/\n/g, '<br>');
-      html += `<span class="td-blank" style="width:${widthMm}mm"></span>`;
-      last = idx + m.length;
-      found = true;
-      return m;
-    });
-    html += esc(text.slice(last)).replace(/\n{2,}/g, '</p><p>').replace(/\n/g, '<br>');
-    if (!found) html += ` <span class="td-blank" style="width:${widthMm}mm"></span>`;
-    return html;
+    const html = paragraphs(stem, (text) =>
+      esc(text).replace(new RegExp(BLANK_RE.source, 'g'), () => {
+        found = true;
+        return blank;
+      })
+    );
+    return found ? html : `${html} ${blank}`;
   }
 
   /* ---------- Mezcla reproducible (misma semilla → mismo resultado) ---------- */
@@ -1231,7 +1343,7 @@
         out.push(`<tr><td class="num">${num === null ? '' : num}</td>`);
         for (let k = 0; k < forms.length; k++) {
           const q = forms[k].questions[plans[k].blocks[bi].items[r]];
-          out.push(`<td>${esc(answerText(q, f))}</td>`);
+          out.push(`<td>${escRich(answerText(q, f))}</td>`);
         }
         out.push('</tr>');
       });
@@ -1290,11 +1402,11 @@
       .split(/\r?\n/)
       .map((l) => l.trim())
       .filter(Boolean);
-    if (oas.length === 1) out.push(`<div class="td-oabox"><strong>Objetivo de Aprendizaje:</strong> ${esc(oas[0])}</div>`);
+    if (oas.length === 1) out.push(`<div class="td-oabox"><strong>Objetivo de Aprendizaje:</strong> ${escRich(oas[0])}</div>`);
     else if (oas.length > 1) {
-      out.push(`<div class="td-oabox"><strong>Objetivos de Aprendizaje:</strong><ul>${oas.map((o) => `<li>${esc(o)}</li>`).join('')}</ul></div>`);
+      out.push(`<div class="td-oabox"><strong>Objetivos de Aprendizaje:</strong><ul>${oas.map((o) => `<li>${escRich(o)}</li>`).join('')}</ul></div>`);
     }
-    if (f.instructions) out.push(`<div class="td-instr"><strong>Instrucciones:</strong> ${esc(f.instructions)}</div>`);
+    if (f.instructions) out.push(`<div class="td-instr"><strong>Instrucciones:</strong> ${escRich(f.instructions)}</div>`);
     if (info.intro) out.push(`<div class="td-intro"><p>${paragraphs(info.intro)}</p></div>`);
 
     // Preguntas, agrupadas en ítems.
@@ -1307,7 +1419,7 @@
     const blankW = Math.round(Math.min(70, Math.max(28, 10 + 2.2 * Math.max(0, ...allBlanks.map((a) => a.length)))));
     for (const block of plan.blocks) {
       if (block.title) {
-        out.push(`<div class="td-section"><h2>${esc(block.title)}</h2>${block.instructions ? `<p>${esc(block.instructions)}</p>` : ''}</div>`);
+        out.push(`<div class="td-section"><h2>${esc(block.title)}</h2>${block.instructions ? `<p>${escRich(block.instructions)}</p>` : ''}</div>`);
       }
       // Banco de palabras (orden alfabético: no da pistas del orden de las oraciones).
       if (f.fillBank) {
@@ -1322,7 +1434,7 @@
           return true;
         });
         uniq.sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
-        if (uniq.length) out.push(`<div class="td-bank">${uniq.map((w) => `<span>${esc(w)}</span>`).join('')}</div>`);
+        if (uniq.length) out.push(`<div class="td-bank">${uniq.map((w) => `<span>${escRich(w)}</span>`).join('')}</div>`);
       }
       out.push(`<div class="td-questions${Number(f.columns) === 2 && block.type !== 'match' ? ' two-cols' : ''}">`);
       for (const i of block.items) {
@@ -1356,7 +1468,7 @@
           if (layout === 'auto') layout = maxLen <= 18 && q.options.length >= 3 ? 'row' : maxLen <= 40 ? 'grid' : 'list';
           out.push(`<ol class="td-opts ${layout}">`);
           q.options.forEach((o, j) => {
-            out.push(`<li><span class="td-letter">${esc(letterLabel(j, f.letterStyle))}</span><span>${esc(o)}</span></li>`);
+            out.push(`<li><span class="td-letter">${esc(letterLabel(j, f.letterStyle))}</span><span>${escRich(o)}</span></li>`);
           });
           out.push('</ol>');
         } else if (type === 'tf') {
@@ -1366,7 +1478,7 @@
         } else if (type === 'order') {
           out.push('<ol class="td-order">');
           q.itemOrder.forEach((item, r) => {
-            out.push(`<li><span class="td-orderbox"></span><span class="td-letter">${esc(letterLabel(r, f.letterStyle))}</span><span>${esc(q.options[item])}</span></li>`);
+            out.push(`<li><span class="td-orderbox"></span><span class="td-letter">${esc(letterLabel(r, f.letterStyle))}</span><span>${escRich(q.options[item])}</span></li>`);
           });
           out.push('</ol>');
         } else if (type === 'match') {
@@ -1377,11 +1489,11 @@
             const d = q.defOrder[r];
             out.push(
               '<tr>' +
-                (t === undefined ? '<td></td><td></td>' : `<td class="td-mnum">${r + 1}.</td><td class="td-mterm">${esc(q.terms[t])}</td>`) +
+                (t === undefined ? '<td></td><td></td>' : `<td class="td-mnum">${r + 1}.</td><td class="td-mterm">${escRich(q.terms[t])}</td>`) +
                 '<td class="td-gap"></td>' +
                 (d === undefined
                   ? '<td></td><td></td>'
-                  : `<td class="td-mblank"><span class="td-letter">${esc(letterLabel(r, f.letterStyle))}</span><span class="td-mline"></span></td><td class="td-mdef">${esc(q.defs[d])}</td>`) +
+                  : `<td class="td-mblank"><span class="td-letter">${esc(letterLabel(r, f.letterStyle))}</span><span class="td-mline"></span></td><td class="td-mdef">${escRich(q.defs[d])}</td>`) +
                 '</tr>'
             );
           }
@@ -1394,7 +1506,7 @@
             out.push('<ol class="td-subq">');
             q.options.forEach((o, j) => {
               out.push(
-                `<li><div class="td-subq-text"><span class="td-letter">${esc(letterLabel(j, f.letterStyle))}</span><span>${esc(o)}</span></div>` +
+                `<li><div class="td-subq-text"><span class="td-letter">${esc(letterLabel(j, f.letterStyle))}</span><span>${escRich(o)}</span></div>` +
                   `${answerSpace(Math.max(2, Math.round(lines / 2)), style)}</li>`
               );
             });
@@ -1414,6 +1526,7 @@
   /** Estilos de la evaluación (vista previa e impresión). */
   const TEST_CSS = `
 .testdoc { color: #000; line-height: 1.35; }
+.testdoc th, .testdoc td { white-space: normal; position: static; text-transform: none; letter-spacing: normal; font-size: inherit; color: #000; background: none; border-bottom: 0; padding: 0; text-align: left; }
 .testdoc p { margin: 0 0 0.35em; }
 .td-head { display: flex; align-items: center; gap: 4mm; border-bottom: 0.4mm solid #000; padding-bottom: 2mm; margin-bottom: 3mm; }
 .td-logo { max-height: 18mm; max-width: 35mm; object-fit: contain; }
@@ -1465,6 +1578,8 @@
 .td-text.boxed { border: 0.3mm solid #000; padding: 2mm 3mm; }
 .td-missing { border: 0.3mm dashed #999; padding: 6mm; text-align: center; color: #777; }
 .td-opts.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 6mm; }
+.td-math .katex { font-size: 1.08em; }
+.td-math-raw { font-family: "Cambria Math", "STIX Two Math", serif; background: #f2f2f2; padding: 0 0.3em; border-radius: 0.2em; }
 .td-formtag { margin-left: auto; border: 0.5mm solid #000; border-radius: 1.5mm; padding: 1mm 3mm; text-align: center; font-size: 0.8em; line-height: 1.1; text-transform: uppercase; }
 .td-formtag b { display: block; font-size: 2em; }
 .td-blank { display: inline-block; border-bottom: 0.3mm solid #000; height: 1em; margin: 0 1mm; vertical-align: baseline; }
@@ -1473,7 +1588,7 @@
 .td-order li { display: flex; align-items: center; gap: 2mm; margin: 1mm 0; break-inside: avoid; }
 .td-orderbox { flex: none; width: 7mm; height: 6mm; border: 0.3mm solid #000; border-radius: 0.8mm; }
 .td-match { width: 100%; border-collapse: collapse; margin-top: 1mm; }
-.td-match th { text-align: left; font-size: 0.95em; border-bottom: 0.3mm solid #000; padding: 0 1mm 1mm; }
+.td-match th { text-align: left; font-size: 0.95em; font-weight: bold; border-bottom: 0.3mm solid #000; padding: 0 1mm 1mm; }
 .td-match td { vertical-align: top; padding: 1.2mm 1mm; }
 .td-match tr { break-inside: avoid; }
 .td-match .td-mnum { width: 7mm; font-weight: bold; }
@@ -1507,5 +1622,8 @@
     answerText,
     blanksOf,
     FORM_LETTERS,
+    setMathRenderer,
+    hasMath,
+    splitMath,
   };
 });

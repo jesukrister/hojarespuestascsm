@@ -196,3 +196,71 @@ test('el lector reconoce la fila impresa en la hoja', () => {
     assert.equal(res.form.index, form, `${format} fila ${form}: ${res.form.values}`);
   }
 });
+
+test('términos pareados: distintas formas de escribir los pares', () => {
+  const cases = {
+    'sin encabezado': 'Fotosíntesis = Proceso de las plantas\nMitocondria = Organelo que produce energía',
+    '= sin espacios': 'Términos pareados\nFotosíntesis=Proceso de las plantas\nMitocondria=Organelo que produce energía',
+    'dos puntos': 'Términos pareados\nFotosíntesis: Proceso de las plantas\nMitocondria: Organelo que produce energía',
+    'guion pegado': 'Términos pareados\nFotosíntesis- Proceso de las plantas\nMitocondria -Organelo que produce energía',
+    viñetas: 'Términos pareados\n• Fotosíntesis = Proceso de las plantas\n• Mitocondria = Organelo que produce energía',
+    'encabezado Relaciona': 'Relaciona la columna A con la columna B\nFotosíntesis = Proceso de las plantas\nMitocondria = Organelo que produce energía',
+    'tras otra pregunta': '1. ¿Capital?\na) Lima b) Santiago\n\nFotosíntesis → Proceso de las plantas\nMitocondria → Organelo que produce energía',
+  };
+  for (const [name, text] of Object.entries(cases)) {
+    const r = TestDoc.parseQuestions(text);
+    const m = r.questions.find((q) => q.type === 'match');
+    assert.ok(m, name);
+    assert.deepEqual(m.terms, ['Fotosíntesis', 'Mitocondria'], name);
+    assert.deepEqual(m.defs, ['Proceso de las plantas', 'Organelo que produce energía'], name);
+    assert.deepEqual(m.matches, [0, 1], name);
+  }
+  // "Instrucciones: …" dentro del ítem no es un par.
+  const r = TestDoc.parseQuestions('Términos pareados\nInstrucciones: escribe el número.\nSol = Estrella\nLuna = Satélite');
+  assert.equal(r.sections[0].instructions, 'Instrucciones: escribe el número.');
+  assert.deepEqual(r.questions[0].terms, ['Sol', 'Luna']);
+});
+
+test('ecuaciones y montos no se confunden con términos pareados', () => {
+  const types = (t) => TestDoc.parseQuestions(t).questions.map((q) => q.type);
+  assert.deepEqual(types('1. Resuelve el sistema:\n\nx + y = 10\nx - y = 2'), ['open']);
+  assert.deepEqual(types('1. Calcula x si 2x = 10\n2. Calcula y si 3y = 9'), ['open', 'open']);
+  assert.deepEqual(types('1. Si x = 3 e y = 4, ¿cuánto vale x + y?\na) 5 b) 7 c) 12'), ['mc']);
+});
+
+test('avisa si un ítem de términos pareados quedó sin pares', () => {
+  const r = TestDoc.parseQuestions('Términos pareados\nEsto no tiene pares\nSelección múltiple\n1. ¿Capital?\na) Lima b) Santiago');
+  assert.ok(r.warnings.some((w) => /no se encontraron pares/.test(w)), r.warnings.join(' | '));
+});
+
+test('fórmulas \\( … \\): se dibujan con el renderizador y no confunden al lector del texto', () => {
+  const text = `I. Selección múltiple
+1. ¿Cuánto es \\(\\frac{3}{4} + x^2\\)?
+a) \\(1\\) b) \\(\\sqrt[3]{8}\\) c) 3
+II. Completación
+1. La raíz \\(\\sqrt[3]{27}\\) es [3].
+III. Términos pareados
+Teorema de Pitágoras = \\(a^2 + b^2 = c^2\\)
+Área del cuadrado = \\(l^2\\)`;
+  const r = TestDoc.parseQuestions(text);
+  assert.deepEqual(r.questions.map((q) => q.type), ['mc', 'fill', 'match']);
+  assert.equal(r.questions[0].options.length, 3);
+  assert.deepEqual(TestDoc.blanksOf(r.questions[1].stem), ['3'], 'el [3] de la raíz no es un espacio');
+  assert.deepEqual(r.questions[2].defs, ['\\(a^2 + b^2 = c^2\\)', '\\(l^2\\)'], 'el = de la fórmula no separa el par');
+  // Sin renderizador: la fórmula se muestra como texto.
+  let html = TestDoc.renderTestHTML(r.questions, {}, { sections: r.sections });
+  assert.match(html, /class="td-math-raw">\\frac\{3\}\{4\} \+ x\^2</);
+  // Con renderizador.
+  TestDoc.setMathRenderer((tex) => `<m>${tex}</m>`);
+  try {
+    html = TestDoc.renderTestHTML(r.questions, {}, { sections: r.sections });
+    assert.match(html, /<span class="td-math"><m>\\frac\{3\}\{4\} \+ x\^2<\/m><\/span>/);
+    assert.match(html, /<m>\\sqrt\[3\]\{27\}<\/m>/);
+    assert.equal((html.match(/class="td-blank"/g) || []).length, 1);
+  } finally {
+    TestDoc.setMathRenderer(null);
+  }
+  // Pares automáticos: una línea con fórmula no se toma como par sin encabezado.
+  const r2 = TestDoc.parseQuestions('1. Resuelve:\n\n\\(x = 2\\) y \\(y = 3\\)\n\\(a = 1\\)');
+  assert.deepEqual(r2.questions.map((q) => q.type), ['open']);
+});

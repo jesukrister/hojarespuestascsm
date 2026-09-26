@@ -24,7 +24,8 @@ cualquier hosting de archivos estáticos.
   múltiple, verdadero o falso, desarrollo y respuesta breve** (con el espacio
   para responder a elección: líneas, recuadro o en blanco), **términos
   pareados**, **completación** (con banco de palabras) y **ordenar
-  secuencias**, organizadas en ítems. Con un clic se traspasan a la hoja de
+  secuencias**, organizadas en ítems, y **fórmulas matemáticas** con un
+  editor visual opcional. Con un clic se traspasan a la hoja de
   respuestas las preguntas de selección múltiple, la clave y los objetivos de
   aprendizaje. También imprime la **pauta de respuestas**.
 - **Filas A, B, C y D** para evitar la copia: se generan de 2 a 4 versiones de
@@ -164,8 +165,9 @@ VI. Respuesta breve
 1. ¿Qué es un ecosistema?
 ```
 
-- **Términos pareados**: un par por línea, separado por `=`, `-`, `→`, `|` o
-  una tabulación (una tabla pegada de Word o Excel). Se imprime la columna A
+- **Términos pareados**: un par por línea, separado por `=`, `:`, `-`, `→`,
+  `|` o una tabulación (una tabla pegada de Word o Excel). Dos o más líneas
+  seguidas `Término = Definición` se reconocen aunque no tengan encabezado. Se imprime la columna A
   numerada y la columna B desordenada, con una línea para escribir el número.
   Un término sin pareja queda como distractor. También se pueden escribir
   `Columna A` y `Columna B` por separado; la respuesta se indica al final del
@@ -178,6 +180,21 @@ VI. Respuesta breve
   imprimen desordenados, con un recuadro para numerarlos.
 - **Respuesta breve**: preguntas abiertas con 2 líneas por defecto.
 - **Imprimir pauta** genera la tabla de respuestas correctas de cada fila.
+
+### Fórmulas matemáticas (opcional)
+
+En **Evaluación → Más herramientas** (bajo el cuadro de texto) se puede
+activar el **editor de fórmulas**. Viene desactivado para no recargar la página
+a quien no lo necesita. Al activarlo aparece el botón **∑ Insertar fórmula**,
+que abre un editor visual (MathLive) con botones para fracciones, raíces,
+potencias y símbolos, y un teclado en pantalla. La fórmula se guarda en el
+texto entre `\(` y `\)` (LaTeX) y se dibuja en la vista previa y al imprimir
+con KaTeX. Para editar una fórmula, se pone el cursor sobre ella y se presiona
+el mismo botón. Sirve en enunciados, alternativas, términos pareados y
+oraciones para completar.
+
+Las librerías están incluidas en `vendor/math/` (licencia MIT) y sólo se
+descargan cuando se usan: al activar el editor o si el texto tiene fórmulas.
 
 ### Filas A, B, C y D
 
@@ -339,6 +356,7 @@ entregar una corrección equivocada sin avisar.
 | `index.html`, `css/styles.css` | Interfaz |
 | `js/app.js` | Lógica de la interfaz y almacenamiento |
 | `js/manual-videos.js` | Enlaces de los videos del manual |
+| `vendor/math/` | KaTeX y MathLive (fórmulas), cargados sólo al usarse |
 | `js/layout.js` | Geometría de la hoja (compartida por el generador y el lector) |
 | `js/sheet.js` | Generación de la hoja en SVG |
 | `js/omr.js` | Motor de reconocimiento de marcas |

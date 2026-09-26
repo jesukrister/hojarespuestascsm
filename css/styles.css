@@ -583,3 +583,22 @@ label.form-pick select { width: auto; min-width: 4.5em; }
   .man-index { gap: 6px; }
   .man-index button { padding: 5px 10px; font-size: 0.85rem; }
 }
+
+.man-example { margin: 6px 0; padding: 8px 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; white-space: pre-wrap; overflow-x: auto; }
+
+/* ---------- Fórmulas (opcional) ---------- */
+.more-tools { margin-top: 8px; }
+.more-tools summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; font-weight: 600; }
+.more-tools[open] summary { margin-bottom: 6px; }
+.more-tools p { margin: 4px 0 0 26px; }
+.math-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0 0 8px; }
+.math-dialog { width: min(760px, calc(100vw - 24px)); overflow: auto; }
+.math-dialog > p, .math-dialog > .math-quick, .math-dialog > .math-field-host, .math-dialog > .actions { margin-left: 18px; margin-right: 18px; }
+.math-dialog > .actions { margin-bottom: 16px; }
+.math-quick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; margin-bottom: 10px; }
+.math-quick button { min-width: 42px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); font: inherit; font-size: 1rem; cursor: pointer; }
+.math-quick button:hover { border-color: var(--primary); color: var(--primary); }
+.math-field-host { min-height: 64px; }
+.math-field-host math-field { display: block; width: 100%; font-size: 1.6rem; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }
+.math-field-host math-field:focus-within { outline: 2px solid var(--primary); outline-offset: 1px; }
+.math-keyboard-host { position: relative; }

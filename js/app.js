@@ -53,7 +53,7 @@
   function defaultDoc() {
     const f = JSON.parse(JSON.stringify(TestDoc.DEFAULT_FORMAT));
     f.title = '';
-    return { text: '', sortByNumber: true, format: f, elements: [], qsettings: {} };
+    return { text: '', sortByNumber: true, format: f, elements: [], qsettings: {}, mathTools: false };
   }
 
   function sanitizeDoc(raw) {
@@ -61,6 +61,7 @@
     if (!raw || typeof raw !== 'object') return d;
     if (typeof raw.text === 'string') d.text = raw.text;
     d.sortByNumber = raw.sortByNumber !== false;
+    d.mathTools = raw.mathTools === true;
     // Ajustes por pregunta (tipo y espacio), por clave de enunciado.
     if (raw.qsettings && typeof raw.qsettings === 'object') {
       for (const [k, v] of Object.entries(raw.qsettings)) {
@@ -799,6 +800,8 @@
     const f = d.format;
     $('#docText').value = d.text;
     $('#docSort').checked = d.sortByNumber;
+    $('#docMathTools').checked = d.mathTools;
+    $('#docMathBar').hidden = !d.mathTools;
     $('#docSchool').value = f.school;
     $('#docTitle').value = f.title;
     $('#docSubject').value = f.subject;
@@ -862,6 +865,8 @@
 
   function renderDoc() {
     const d = state.exam.doc;
+    // Si el texto tiene fórmulas, se carga (una vez) lo necesario para dibujarlas.
+    if (!mathReady && TestDoc.hasMath(d.text)) ensureKatex().then(renderDoc, () => {});
     docParsed = TestDoc.parseQuestions(d.text, { sortByNumber: d.sortByNumber });
     docQuestions = effectiveQuestions(docParsed.questions);
     const qs = docQuestions;
@@ -1291,6 +1296,8 @@
     for (const cb of $$('[data-docfield]')) f.fields[cb.dataset.docfield] = cb.checked;
     state.exam.doc.text = $('#docText').value;
     state.exam.doc.sortByNumber = $('#docSort').checked;
+    state.exam.doc.mathTools = $('#docMathTools').checked;
+    $('#docMathBar').hidden = !state.exam.doc.mathTools;
     $('#sheetSchool').value = f.school;
     save();
     scheduleDocRender();
@@ -1316,7 +1323,19 @@
     }
   }
 
-  function printDoc() {
+  /** Espera las fórmulas (si hay) y sus tipos de letra antes de imprimir. */
+  async function mathBeforePrint() {
+    if (TestDoc.hasMath(state.exam.doc.text) && !mathReady) {
+      try {
+        await ensureKatex();
+      } catch (e) {
+        toast('No se pudieron cargar las fórmulas: se imprimirán como texto.');
+      }
+    }
+  }
+
+  async function printDoc() {
+    await mathBeforePrint();
     renderDoc();
     if (!docQuestions.length) return;
     const st = formsSyncState();
@@ -1338,17 +1357,20 @@
     const byQuestion = matchElements(docQuestions).byQuestion;
     $('#printArea').className = 'print-area print-doc';
     $('#printArea').innerHTML = forms.map((fm) => `<div class="print-form">${renderFormHTML(fm, byQuestion)}</div>`).join('');
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
     window.print();
   }
 
   /** Pauta de respuestas de todas las filas. */
-  function printAnswerKey() {
+  async function printAnswerKey() {
+    await mathBeforePrint();
     renderDoc();
     if (!docQuestions.length) return;
     const paper = PAPERS[state.exam.doc.format.paper] || PAPERS.carta;
     setPageStyle(`@page { size: ${paper.width}mm ${paper.height}mm; margin: 15mm; }`);
     $('#printArea').className = 'print-area print-doc';
     $('#printArea').innerHTML = TestDoc.renderAnswerKeyHTML(docForms, docFormat(), { sections: docParsed.sections });
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
     window.print();
   }
 
@@ -1356,6 +1378,166 @@
     const st = document.createElement('style');
     st.textContent = TestDoc.TEST_CSS;
     document.head.appendChild(st);
+  }
+
+
+  /* ---------- Fórmulas matemáticas (opcional) ---------- */
+
+  // Las librerías están en vendor/math y se cargan sólo cuando se usan.
+  const MATH_BASE = 'vendor/math/';
+  let mathReady = false;
+  let katexPromise = null;
+  let mathlivePromise = null;
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const el = document.createElement('script');
+      el.src = src;
+      el.onload = resolve;
+      el.onerror = () => reject(new Error('No se pudo cargar ' + src));
+      document.head.appendChild(el);
+    });
+  }
+
+  function loadCss(href) {
+    return new Promise((resolve, reject) => {
+      const el = document.createElement('link');
+      el.rel = 'stylesheet';
+      el.href = href;
+      el.onload = resolve;
+      el.onerror = () => reject(new Error('No se pudo cargar ' + href));
+      document.head.appendChild(el);
+    });
+  }
+
+  /** LaTeX del editor, sin marcas internas (espacios vacíos, etc.). */
+  function cleanTex(tex) {
+    return String(tex || '')
+      .replace(/\\placeholder(?:\[[^\]]*\])?\{([^{}]*)\}/g, (m, v) => (v.trim() ? v : '\\square'))
+      .trim();
+  }
+
+  const KATEX_MACROS = { '\\exponentialE': 'e', '\\imaginaryI': 'i', '\\differentialD': '\\mathrm{d}', '\\placeholder': '\\square' };
+
+  function ensureKatex() {
+    if (!katexPromise) {
+      katexPromise = Promise.all([loadCss(MATH_BASE + 'katex.min.css'), loadScript(MATH_BASE + 'katex.min.js')])
+        .then(() => {
+          TestDoc.setMathRenderer((tex) =>
+            // \displaystyle: fracciones y raíces a tamaño completo (más legibles en la prueba impresa).
+            window.katex.renderToString('\\displaystyle ' + cleanTex(tex), { throwOnError: false, macros: Object.assign({}, KATEX_MACROS) })
+          );
+          mathReady = true;
+        })
+        .catch((e) => {
+          katexPromise = null;
+          throw e;
+        });
+    }
+    return katexPromise;
+  }
+
+  function ensureMathLive() {
+    if (!mathlivePromise) {
+      mathlivePromise = loadScript(MATH_BASE + 'mathlive.min.js')
+        .then(() => {
+          const ML = window.MathLive;
+          ML.MathfieldElement.fontsDirectory = new URL(MATH_BASE + 'fonts/', location.href).href;
+          ML.MathfieldElement.soundsDirectory = null;
+          // El teclado en pantalla se muestra dentro del cuadro de diálogo.
+          const kb = window.mathVirtualKeyboard;
+          if (kb) {
+            const host = $('#mathKeyboardHost');
+            kb.container = host;
+            // El teclado se dibuja con posición absoluta: se reserva su alto dentro del cuadro.
+            const fit = () => {
+              const h = kb.visible && kb.boundingRect ? kb.boundingRect.height : 0;
+              host.style.height = h ? h + 'px' : '0';
+            };
+            kb.addEventListener('geometrychange', fit);
+            kb.addEventListener('virtual-keyboard-toggle', () => requestAnimationFrame(fit));
+          }
+        })
+        .catch((e) => {
+          mathlivePromise = null;
+          throw e;
+        });
+    }
+    return mathlivePromise;
+  }
+
+  /** Fórmula \( … \) donde está el cursor del cuadro de texto (para editarla), o la selección actual. */
+  function formulaAtCursor(ta) {
+    const text = ta.value;
+    const pos = ta.selectionStart;
+    const re = /\\\(([\s\S]+?)\\\)/g;
+    let m;
+    while ((m = re.exec(text))) {
+      if (pos >= m.index && pos <= m.index + m[0].length) return { start: m.index, end: m.index + m[0].length, tex: m[1].trim() };
+    }
+    return { start: ta.selectionStart, end: ta.selectionEnd, tex: '' };
+  }
+
+  const MATH_EDIT = { start: 0, end: 0 };
+
+  async function openMathDialog() {
+    const ta = $('#docText');
+    const at = formulaAtCursor(ta);
+    MATH_EDIT.start = at.start;
+    MATH_EDIT.end = at.end;
+    $('#mathDialogTitle').textContent = at.tex ? 'Editar fórmula' : 'Insertar fórmula';
+    $('#mathInsertBtn').textContent = at.tex ? 'Guardar cambios' : 'Insertar';
+    $('#mathError').hidden = true;
+    const dlg = $('#mathDialog');
+    if (!dlg.open) dlg.showModal();
+    try {
+      await Promise.all([ensureMathLive(), ensureKatex()]);
+    } catch (e) {
+      $('#mathError').textContent = 'No se pudo cargar el editor de fórmulas. Revisa la conexión y vuelve a intentarlo.';
+      $('#mathError').hidden = false;
+      return;
+    }
+    const host = $('#mathFieldHost');
+    let mf = $('math-field', host);
+    if (!mf) {
+      host.innerHTML = '';
+      mf = document.createElement('math-field');
+      mf.setAttribute('aria-label', 'Fórmula');
+      host.appendChild(mf);
+      mf.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          insertFormula();
+        }
+      });
+    }
+    mf.value = at.tex;
+    requestAnimationFrame(() => mf.focus());
+  }
+
+  function closeMathDialog() {
+    if (window.mathVirtualKeyboard) window.mathVirtualKeyboard.hide();
+    const dlg = $('#mathDialog');
+    if (dlg.open) dlg.close();
+  }
+
+  function insertFormula() {
+    const mf = $('#mathFieldHost math-field');
+    if (!mf) return;
+    const tex = cleanTex(mf.value);
+    const ta = $('#docText');
+    const before = ta.value.slice(0, MATH_EDIT.start);
+    const after = ta.value.slice(MATH_EDIT.end);
+    const piece = tex ? `\\(${tex}\\)` : '';
+    // Un espacio alrededor, para que no quede pegada al texto.
+    const pre = piece && before && !/\s$/.test(before) ? ' ' : '';
+    const post = piece && after && !/^[\s.,;:)?!]/.test(after) ? ' ' : '';
+    ta.value = before + pre + piece + post + after;
+    const caret = (before + pre + piece + post).length;
+    closeMathDialog();
+    ta.focus();
+    ta.setSelectionRange(caret, caret);
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
   /** Traspasa las preguntas de la evaluación a la hoja de respuestas: cantidad, alternativas, clave y OA. */
@@ -2813,6 +2995,29 @@
       loadElementImage(item.getAsFile());
     });
     $('#docPrint').addEventListener('click', printDoc);
+    // Fórmulas (opcional).
+    $('#docMathInsert').addEventListener('click', openMathDialog);
+    $('#mathInsertBtn').addEventListener('click', insertFormula);
+    for (const b of $$('[data-math-close]')) b.addEventListener('click', closeMathDialog);
+    $('#mathDialog').addEventListener('cancel', () => {
+      if (window.mathVirtualKeyboard) window.mathVirtualKeyboard.hide();
+    });
+    $('#mathKeyboardToggle').addEventListener('click', () => {
+      const kb = window.mathVirtualKeyboard;
+      const mf = $('#mathFieldHost math-field');
+      if (!kb || !mf) return;
+      if (kb.visible) kb.hide();
+      else {
+        mf.focus();
+        kb.show();
+      }
+    });
+    $('.math-quick').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-math-insert]');
+      const mf = $('#mathFieldHost math-field');
+      if (!b || !mf) return;
+      mf.insert(b.dataset.mathInsert, { selectionMode: 'placeholder', focus: true });
+    });
     $('#docPrintKey').addEventListener('click', printAnswerKey);
     $('#docPreviewForm').addEventListener('change', (e) => {
       previewForm = Number(e.target.value) || 0;
