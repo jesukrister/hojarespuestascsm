@@ -471,6 +471,10 @@ fieldset.checks legend { font-weight: 600; font-size: 0.92rem; padding: 0 4px; }
 }
 
 .app-footer { text-align: center; color: var(--muted); font-size: 0.82rem; margin-top: 24px; }
+.app-footer p { margin: 6px 0; }
+.app-footer .legal { font-size: 0.76rem; }
+.app-footer a { color: var(--primary); }
+.native-app .donate-wrap { display: none !important; }
 
 /* ---------- Impresión ---------- */
 .print-area { display: none; }

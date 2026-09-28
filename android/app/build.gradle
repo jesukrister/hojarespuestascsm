@@ -18,21 +18,23 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-    // Firma: siempre la misma llave, para que cada APK nuevo se instale como
-    // actualización (sin desinstalar ni perder los datos guardados en el teléfono).
-    // Se puede usar otra llave con las variables KEYSTORE_FILE, KEYSTORE_PASSWORD,
-    // KEY_ALIAS y KEY_PASSWORD (por ejemplo, desde secretos de GitHub).
+    // Firma con la llave privada del proyecto. No está en el repositorio: GitHub
+    // Actions la toma de los secretos KEYSTORE_BASE64 y KEYSTORE_PASSWORD
+    // (ver README). Sin llave, la versión "release" se compila sin firmar.
+    def keystoreFile = System.getenv("KEYSTORE_FILE")
     signingConfigs {
         release {
-            storeFile file(System.getenv("KEYSTORE_FILE") ?: "../keystore/lector-hojas.jks")
-            storePassword System.getenv("KEYSTORE_PASSWORD") ?: "lectorhojas"
-            keyAlias System.getenv("KEY_ALIAS") ?: "lectorhojas"
-            keyPassword System.getenv("KEY_PASSWORD") ?: "lectorhojas"
+            if (keystoreFile) {
+                storeFile file(keystoreFile)
+                storePassword System.getenv("KEYSTORE_PASSWORD")
+                keyAlias System.getenv("KEY_ALIAS") ?: "lector-hojas"
+                keyPassword System.getenv("KEY_PASSWORD") ?: System.getenv("KEYSTORE_PASSWORD")
+            }
         }
     }
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            if (keystoreFile) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

@@ -355,13 +355,33 @@ npm run android:sync          # copia la página a android/
 cd android && ./gradlew assembleRelease
 ```
 
-**Firma**: el APK se firma siempre con la misma llave
-(`android/keystore/lector-hojas.jks`), para que cada versión se instale como
-actualización y no se pierdan los datos guardados en el teléfono. Para
-publicar en Google Play conviene una llave propia: se guarda en los secretos
-del repositorio (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`,
-`KEY_PASSWORD`) y el workflow la usa automáticamente. (Cambiar de llave
-obliga a desinstalar la versión anterior una vez).
+**Firma**: el APK y el AAB se firman con la **llave privada** del proyecto,
+que no está en el repositorio. GitHub Actions la toma de dos secretos del
+repositorio (*Settings → Secrets and variables → Actions*):
+
+- `KEYSTORE_BASE64`: el archivo de la llave (`.jks`) en base64.
+- `KEYSTORE_PASSWORD`: su contraseña.
+
+Sin esos secretos la app se compila igual (para verificar que no hay errores),
+pero no se publica. Cada versión publicada queda en **Releases → `app-android`**:
+`LectorHojas.apk` (instalación directa) y `LectorHojas-GooglePlay.aab` (para
+Google Play). La guía para publicar en Google Play, con los textos de la ficha,
+está en [`docs/google-play.md`](docs/google-play.md).
+
+## Donaciones
+
+La página web muestra un botón **❤ Apoya este proyecto** al pegar el enlace de
+donación (PayPal, Ko-fi, Mercado Pago, Flow…) en `js/donaciones.js`. En la app
+Android el botón no aparece, porque Google Play exige usar su propio sistema de
+pagos para donaciones al desarrollador.
+
+## Licencia
+
+© 2026 Francesco Vivero. Todos los derechos reservados. Uso gratuito de las
+versiones oficiales; prohibida su copia, modificación o redistribución sin
+autorización del autor. Ver [`LICENSE`](LICENSE) y la
+[política de privacidad](privacidad.html). Los componentes de terceros (KaTeX,
+MathLive, Capacitor) conservan sus licencias MIT.
 
 ## Desarrollo
 
@@ -392,6 +412,8 @@ entregar una corrección equivocada sin avisar.
 | `js/manual-videos.js` | Enlaces de los videos del manual |
 | `js/native.js` | Integración con la app Android (descargas, impresión, botón Atrás) |
 | `android/`, `capacitor.config.json`, `scripts/build-www.mjs` | Proyecto de la app Android |
+| `js/donaciones.js` | Enlace del botón de donación (sólo web) |
+| `privacidad.html`, `LICENSE`, `docs/google-play.md`, `docs/play/` | Política de privacidad, licencia y material para Google Play |
 | `vendor/math/` | KaTeX y MathLive (fórmulas), cargados sólo al usarse |
 | `js/layout.js` | Geometría de la hoja (compartida por el generador y el lector) |
 | `js/sheet.js` | Generación de la hoja en SVG |

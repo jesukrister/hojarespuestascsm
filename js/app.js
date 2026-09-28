@@ -3219,7 +3219,22 @@
     window.addEventListener('hashchange', () => showTab(location.hash.slice(1)));
   }
 
+  /** Botón de donación: sólo en la página web y si hay un enlace configurado (js/donaciones.js). */
+  function renderDonation() {
+    const d = window.DONACIONES || {};
+    const url = String(d.url || '').trim();
+    const inApp = !!window.NativeApp || document.documentElement.classList.contains('native-app');
+    const show = !inApp && /^https:\/\/\S+$/i.test(url);
+    for (const wrap of $$('.donate-wrap')) wrap.hidden = !show;
+    if (!show) return;
+    for (const a of $$('.donate-link')) {
+      a.href = url;
+      if (d.texto && !a.closest('.man-donate')) a.textContent = '❤ ' + d.texto;
+    }
+  }
+
   bind();
+  renderDonation();
   fillExamForm();
   renderKey();
   renderObjectives();

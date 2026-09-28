@@ -19,5 +19,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.2"
-  }
+  },
+  "author": "Francesco Vivero",
+  "license": "SEE LICENSE IN LICENSE"
 }

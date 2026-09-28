@@ -1,0 +1,47 @@
+LECTOR DE HOJAS DE RESPUESTA — LICENCIA DE USO
+
+Copyright © 2026 Francesco Vivero. Todos los derechos reservados.
+
+Este programa (código fuente, aplicación Android, página web, diseño de las
+hojas de respuesta, textos, manual e íconos) es una obra protegida por la
+Ley N° 17.336 sobre Propiedad Intelectual de Chile y por los tratados
+internacionales de derecho de autor.
+
+1. USO GRATUITO
+   Se permite usar gratuitamente la aplicación, en sus versiones oficiales,
+   para fines educativos, personales o institucionales: crear evaluaciones,
+   imprimir hojas de respuesta, escanearlas y obtener resultados.
+
+2. LO QUE NO ESTÁ PERMITIDO SIN AUTORIZACIÓN ESCRITA DEL AUTOR
+   a) Copiar, modificar, adaptar, traducir o crear obras derivadas del código
+      fuente o de la aplicación.
+   b) Distribuir, publicar (incluidas tiendas de aplicaciones como Google Play),
+      vender, arrendar o sublicenciar la aplicación o versiones modificadas.
+   c) Publicar la aplicación con otro nombre, otro autor u otra firma digital,
+      o presentarla como oficial.
+   d) Quitar o alterar este aviso de derechos de autor.
+
+   Que el código sea visible en GitHub no concede permiso para reutilizarlo,
+   salvo lo que los Términos de Servicio de GitHub permiten dentro de GitHub
+   (ver el repositorio y hacer un "fork" en esa plataforma).
+
+3. VERSIONES OFICIALES
+   Sólo son oficiales la página https://jesukrister.github.io/hojarespuestascsm/,
+   la aplicación publicada por el autor en Google Play y los archivos
+   publicados en https://github.com/jesukrister/hojarespuestascsm/releases,
+   firmados con la llave del autor. Una copia obtenida de otra fuente puede
+   haber sido alterada y no debe instalarse.
+
+4. SIN GARANTÍA
+   La aplicación se entrega "tal cual", sin garantías de ningún tipo. El autor
+   no responde por daños derivados de su uso. Los resultados de la corrección
+   automática deben ser revisados por el docente.
+
+5. COMPONENTES DE TERCEROS
+   La aplicación incluye componentes de terceros que conservan sus propias
+   licencias (MIT): KaTeX y MathLive (vendor/math/LICENSE-katex.txt y
+   vendor/math/LICENSE-mathlive.txt) y Capacitor (en la aplicación Android).
+   Esta licencia no restringe los derechos que esas licencias otorgan sobre
+   dichos componentes.
+
+Para solicitar autorizaciones: https://github.com/jesukrister/hojarespuestascsm/issues

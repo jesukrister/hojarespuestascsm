@@ -52,45 +52,60 @@ jobs:
           node scripts/build-www.mjs
           npx cap sync android
 
-      # Opcional: firmar con una llave propia guardada en los secretos del
-      # repositorio (KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD).
-      # Si no existen, se usa la llave incluida en android/keystore.
-      - name: Llave de firma propia (opcional)
+      # Llave privada de firma: se guarda en los secretos del repositorio
+      # (Settings → Secrets and variables → Actions): KEYSTORE_BASE64 y
+      # KEYSTORE_PASSWORD. Sin ellos se compila igual (para verificar), pero no
+      # se publica nada.
+      - name: Llave de firma
+        id: llave
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        if: ${{ env.KEYSTORE_BASE64 != '' }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/propia.jks"
-          echo "KEYSTORE_FILE=$RUNNER_TEMP/propia.jks" >> "$GITHUB_ENV"
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/lector-hojas.jks"
+            echo "KEYSTORE_FILE=$RUNNER_TEMP/lector-hojas.jks" >> "$GITHUB_ENV"
+            echo "firmado=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Falta la llave privada (secretos KEYSTORE_BASE64 y KEYSTORE_PASSWORD): la app se compila sin firmar y no se publica."
+            echo "firmado=false" >> "$GITHUB_OUTPUT"
+            # Se retira la versión anterior, firmada con la llave pública ya reemplazada.
+            gh release delete app-android --yes --cleanup-tag || true
+          fi
 
-      - name: Compilar APK
+      - name: Compilar APK y AAB
         working-directory: android
         env:
           VERSION_CODE: ${{ github.run_number }}
           VERSION_NAME: 1.0.${{ github.run_number }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          ./gradlew assembleRelease bundleRelease --no-daemon --stacktrace
 
-      - name: Preparar archivo
-        run: cp android/app/build/outputs/apk/release/app-release.apk LectorHojas.apk
+      - name: Preparar archivos
+        if: steps.llave.outputs.firmado == 'true'
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk LectorHojas.apk
+          cp android/app/build/outputs/bundle/release/app-release.aab LectorHojas-GooglePlay.aab
 
       - uses: actions/upload-artifact@v4
+        if: steps.llave.outputs.firmado == 'true'
         with:
-          name: LectorHojas-apk
-          path: LectorHojas.apk
+          name: LectorHojas-${{ github.run_number }}
+          path: |
+            LectorHojas.apk
+            LectorHojas-GooglePlay.aab
 
       - name: Publicar en Releases
+        if: steps.llave.outputs.firmado == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="app-android"
           gh release delete "$TAG" --yes --cleanup-tag || true
-          gh release create "$TAG" LectorHojas.apk \
+          gh release create "$TAG" LectorHojas.apk LectorHojas-GooglePlay.aab \
             --target "$GITHUB_SHA" \
             --title "App Android · versión 1.0.${{ github.run_number }}" \
-            --notes "Descarga **LectorHojas.apk** en el teléfono y ábrelo para instalar (Android pedirá permitir la instalación desde esta fuente). Para actualizar, instala el APK nuevo encima del anterior: los datos se conservan. Compilado desde ${GITHUB_REF_NAME} (${GITHUB_SHA::7})." \
+            --notes "**LectorHojas.apk**: para instalar directamente en un teléfono Android. **LectorHojas-GooglePlay.aab**: el archivo que se sube a Google Play Console. Ambos firmados con la llave oficial del proyecto. Compilado desde ${GITHUB_REF_NAME} (${GITHUB_SHA::7})." \
             --prerelease

@@ -7,7 +7,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const out = join(root, 'www');
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out);
-for (const item of ['index.html', 'css', 'js', 'vendor']) {
+for (const item of ['index.html', 'privacidad.html', 'css', 'js', 'vendor']) {
   cpSync(join(root, item), join(out, item), { recursive: true });
 }
 console.log('www/ listo');
