@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Lector de Hojas</string>
+    <string name="title_activity_main">Lector de Hojas</string>
+    <string name="package_name">cl.lectorhojas.app</string>
+    <string name="custom_url_scheme">cl.lectorhojas.app</string>
+</resources>

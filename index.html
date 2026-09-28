@@ -694,7 +694,7 @@ Núcleo = Contiene el material genético</pre>
             <details><summary>Dice “No se encontraron las cuatro marcas negras de las esquinas”.</summary>
               <p>La foto no muestra la hoja completa o hay poca luz. Vuelve a sacarla con las cuatro esquinas visibles, sobre una mesa oscura y sin sombras.</p></details>
             <details><summary>Dice “Esta hoja corresponde a otra prueba”.</summary>
-              <p>La hoja se imprimió con otra configuración (otro número de preguntas, alternativas, dígitos o papel). Revisa la pestaña Prueba: debe estar igual que cuando imprimiste las hojas.</p></details>
+              <p>La hoja se imprimió con otra configuración (otro número de preguntas, alternativas, dígitos, papel u hojas por página). Presiona <b>Usar la configuración de esta hoja</b> en el mensaje: la plataforma se ajusta a la hoja y la vuelve a leer. Después revisa la clave en la pestaña Prueba.</p></details>
             <details><summary>Dice “Las filas de respuestas no quedaron bien alineadas”.</summary>
               <p>La hoja está muy doblada o curvada. Alísala sobre una mesa y vuelve a sacar la foto. La plataforma prefiere rechazar la foto antes que corregir mal.</p></details>
             <details><summary>Una pregunta tiene un recuadro amarillo (marca dudosa).</summary>
@@ -711,6 +711,8 @@ Núcleo = Contiene el material genético</pre>
               <p>En la pestaña Evaluación, abre <b>Más herramientas</b> (bajo el cuadro de texto) y activa el <b>editor de fórmulas matemáticas</b>. Aparecerá el botón <b>∑ Insertar fórmula</b>, con un teclado en pantalla. Más detalles en la parte 2 de este manual.</p></details>
             <details><summary>¿Puedo usar fotocopias?</summary>
               <p>Sí, siempre que los cuadrados negros se vean negros y nítidos.</p></details>
+            <details><summary>¿Hay una app para el celular?</summary>
+              <p>Sí, para Android. Desde el teléfono, entra a la página de descargas del proyecto (<a href="https://github.com/jesukrister/hojarespuestascsm/releases/tag/app-android" target="_blank" rel="noopener">Releases → App Android</a>), descarga <b>LectorHojas.apk</b> y ábrelo. Android pedirá permiso para instalar apps de esa fuente: acéptalo solo para esta instalación. En la app, los archivos (Excel, ZIP, PDF) se guardan en <b>Descargas/LectorHojas</b> y se pueden compartir; para imprimir se usa el servicio de impresión del teléfono, que también permite <b>Guardar como PDF</b>. Para actualizar, instala el APK nuevo encima del anterior: tus pruebas y resultados se conservan.</p></details>
             <details><summary>¿Necesito internet?</summary>
               <p>Solo para abrir la página. La lectura de las fotos se hace en tu equipo: las imágenes no se envían a ningún servidor.</p></details>
           </div>
@@ -850,6 +852,7 @@ Núcleo = Contiene el material genético</pre>
   <div id="printArea" class="print-area" aria-hidden="true"></div>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
+  <script src="js/native.js"></script>
   <script src="js/layout.js"></script>
   <script src="js/omr.js"></script>
   <script src="js/grading.js"></script>

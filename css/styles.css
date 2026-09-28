@@ -258,7 +258,7 @@ label.range output { min-width: 3.2em; font-variant-numeric: tabular-nums; }
 }
 .scan-queue li .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .scan-queue li.ok { background: var(--ok-soft); }
-.scan-queue li.error { background: var(--bad-soft); color: var(--bad); }
+.scan-queue li.error { background: var(--bad-soft); color: var(--bad); flex-wrap: wrap; }
 .scan-queue li button { flex: none; }
 .spinner {
   width: 16px;
@@ -476,7 +476,7 @@ fieldset.checks legend { font-weight: 600; font-size: 0.92rem; padding: 0 4px; }
 .print-area { display: none; }
 @media print {
   body { background: #fff; }
-  .app, .toast { display: none !important; }
+  .app, .toast, .native-notice { display: none !important; }
   .print-area { display: block; }
   .print-area svg { display: block; }
   .print-doc .td-q { break-inside: avoid; }
@@ -602,3 +602,15 @@ label.form-pick select { width: auto; min-width: 4.5em; }
 .math-field-host math-field { display: block; width: 100%; font-size: 1.6rem; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }
 .math-field-host math-field:focus-within { outline: 2px solid var(--primary); outline-offset: 1px; }
 .math-keyboard-host { position: relative; }
+
+/* ---------- App Android ---------- */
+.native-notice {
+  position: fixed; left: 12px; right: 12px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 60;
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px;
+  background: #1c2430; color: #fff; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3); font-size: 0.92rem;
+}
+.native-notice[hidden] { display: none; }
+.native-notice span { flex: 1; word-break: break-word; }
+.native-notice button { border: 0; border-radius: 8px; padding: 8px 12px; background: #fff; color: var(--primary); font: inherit; font-weight: 700; }
+.native-notice button.close { background: transparent; color: #fff; padding: 8px; }
+.native-app body { padding-top: env(safe-area-inset-top, 0px); }

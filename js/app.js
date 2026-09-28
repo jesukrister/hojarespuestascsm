@@ -291,6 +291,11 @@
   }
 
   function download(filename, blob) {
+    // En la app Android el archivo se guarda en Descargas (ver js/native.js).
+    if (window.NativeApp) {
+      window.NativeApp.saveBlob(filename, blob);
+      return;
+    }
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -1745,11 +1750,22 @@
         li.innerHTML = `<span>✓</span><span class="name"></span><button type="button" class="btn small ghost" data-view="${esc(id)}">Ver</button>`;
         li.querySelector('.name').textContent = text;
       },
-      error(text) {
+      error(text, action) {
         li.className = 'error';
         li.innerHTML = `<span>✗</span><span class="name"></span>`;
         li.querySelector('.name').textContent = text;
         li.querySelector('.name').style.whiteSpace = 'normal';
+        if (action) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'btn small secondary';
+          b.textContent = action.label;
+          b.addEventListener('click', () => {
+            li.remove();
+            action.run();
+          });
+          li.appendChild(b);
+        }
       },
     };
   }
@@ -1767,7 +1783,12 @@
         const { gray, canvas } = await fileToGray(file);
         const res = OMR.scanSheet(gray, layout, scanOptions());
         if (!res.ok) {
-          item.error(`${file.name || 'foto'}: ${res.error}`);
+          // Hoja impresa con otra configuración: se ofrece usar la de la hoja.
+          const other = res.decoded && !sameStructure(res.decoded, state.exam) ? res.decoded : null;
+          item.error(
+            `${file.name || 'foto'}: ${res.error}`,
+            other && { label: 'Usar la configuración de esta hoja', run: () => useSheetConfig(other, file) }
+          );
           continue;
         }
         const record = createResult(res, file.name || 'foto');
@@ -1786,6 +1807,27 @@
       }
     }
     renderResultsBadge();
+  }
+
+  /** Cambia la configuración a la leída en el código de una hoja y la vuelve a escanear. */
+  function useSheetConfig(cfg, file) {
+    const next = Object.assign({}, state.exam, {
+      paper: cfg.paper,
+      numQuestions: cfg.numQuestions,
+      numChoices: cfg.numChoices,
+      idDigits: cfg.idDigits,
+      format: cfg.format,
+    });
+    if (!applyStructure(next)) return;
+    fillExamForm();
+    save();
+    renderKey();
+    renderObjectives();
+    updateLayoutError();
+    renderResultsBadge();
+    const fmtLabel = FORMATS[cfg.format].label.toLowerCase();
+    toast(`Configuración cambiada: ${cfg.numQuestions} preguntas, ${cfg.numChoices} alternativas, papel ${PAPERS[cfg.paper].label.split(' ')[0]}, ${fmtLabel}. Revisa la clave.`);
+    if (file) handleFiles([file]);
   }
 
   async function readKeyFromPhoto(file) {

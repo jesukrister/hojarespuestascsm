@@ -5,9 +5,19 @@
   "description": "Genera hojas de respuesta, las lee desde una foto y corrige pruebas de selección múltiple en el navegador.",
   "scripts": {
     "test": "node --test \"tests/*.test.js\"",
-    "start": "npx --yes serve ."
+    "start": "npx --yes serve .",
+    "build:www": "node scripts/build-www.mjs",
+    "android:sync": "node scripts/build-www.mjs && npx cap sync android"
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2"
   }
 }

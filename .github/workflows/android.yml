@@ -1,0 +1,96 @@
+# Compila la app Android (APK) y la publica en "Releases" del repositorio.
+name: App Android (APK)
+
+on:
+  push:
+    paths:
+      - 'index.html'
+      - 'css/**'
+      - 'js/**'
+      - 'vendor/**'
+      - 'android/**'
+      - 'scripts/**'
+      - 'capacitor.config.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Pruebas de la página
+        run: npm test
+
+      - name: Copiar la página a la app
+        run: |
+          node scripts/build-www.mjs
+          npx cap sync android
+
+      # Opcional: firmar con una llave propia guardada en los secretos del
+      # repositorio (KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD).
+      # Si no existen, se usa la llave incluida en android/keystore.
+      - name: Llave de firma propia (opcional)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        if: ${{ env.KEYSTORE_BASE64 != '' }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/propia.jks"
+          echo "KEYSTORE_FILE=$RUNNER_TEMP/propia.jks" >> "$GITHUB_ENV"
+
+      - name: Compilar APK
+        working-directory: android
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+          VERSION_NAME: 1.0.${{ github.run_number }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Preparar archivo
+        run: cp android/app/build/outputs/apk/release/app-release.apk LectorHojas.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LectorHojas-apk
+          path: LectorHojas.apk
+
+      - name: Publicar en Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="app-android"
+          gh release delete "$TAG" --yes --cleanup-tag || true
+          gh release create "$TAG" LectorHojas.apk \
+            --target "$GITHUB_SHA" \
+            --title "App Android · versión 1.0.${{ github.run_number }}" \
+            --notes "Descarga **LectorHojas.apk** en el teléfono y ábrelo para instalar (Android pedirá permitir la instalación desde esta fuente). Para actualizar, instala el APK nuevo encima del anterior: los datos se conservan. Compilado desde ${GITHUB_REF_NAME} (${GITHUB_SHA::7})." \
+            --prerelease

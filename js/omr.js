@@ -734,6 +734,7 @@
     // primero que muestre la marca de orientación o un código válido.
     let best = null;
     let quad = found.quads[0];
+    let otherDecoded = null;
     for (const q of found.quads) {
       let qBest = null;
       for (let k = 0; k < 4; k++) {
@@ -754,6 +755,15 @@
         quad = q;
         break;
       }
+      // Antes de probar otro cuadrilátero: ¿es una hoja de otro formato o papel?
+      // (sus marcas están en otra proporción y la marca de orientación en otro lugar).
+      const other = decodeWithOtherFormats(img, q, layout);
+      if (other) {
+        best = qBest;
+        quad = q;
+        otherDecoded = other;
+        break;
+      }
     }
     if (!best) {
       return { ok: false, corners: quad, error: 'No se pudo calcular la geometría de la hoja.' };
@@ -766,7 +776,7 @@
     const sidePts = locateSideMarks(found.blobs, best.H, layout, pxPerMm);
     const sideFound = sidePts.filter(Boolean).length;
 
-    let decoded = best.ev.decoded;
+    let decoded = best.ev.decoded || otherDecoded;
     // Si el código no se lee con la configuración actual, puede que la hoja se
     // haya impreso en otro formato o papel (el código queda en otra posición).
     if (!decoded) decoded = decodeWithOtherFormats(img, quad, layout);
@@ -798,171 +808,201 @@
     }
     if (!decoded) warnings.push('No se pudo verificar el código de la hoja; revise que corresponda a esta prueba.');
 
-    const mapping = buildMapping(layout, d, sidePts);
-    if (!mapping) return { ok: false, corners: d, error: 'No se pudo calcular la geometría de la hoja.' };
+    // Lectura con un conjunto de marcas laterales. Si una marca lateral falta
+    // (recortada o tapada), otra mancha cercana (un número, una burbuja
+    // rellena) puede tomarse por ella y deformar la hoja enderezada: por eso,
+    // si la lectura no pasa los controles, se repite ignorando las marcas
+    // laterales dudosas. Cada intento debe pasar todos los controles.
+    const attempt = (sidePts) => {
+      const warn = warnings.slice();
+      const mapping = buildMapping(layout, d, sidePts);
+      if (!mapping) return { ok: false, corners: d, error: 'No se pudo calcular la geometría de la hoja.' };
 
-    // Resolución de la hoja enderezada: similar a la de la foto (4–8 px/mm).
-    const ppm = Math.min(8, Math.max(4, Math.round(pxPerMm)));
+      // Resolución de la hoja enderezada: similar a la de la foto (4–8 px/mm).
+      const ppm = Math.min(8, Math.max(4, Math.round(pxPerMm)));
 
-    const rect = rectify(img, mapping, layout, ppm);
-    const dark = darknessMap(rect);
+      const rect = rectify(img, mapping, layout, ppm);
+      const dark = darknessMap(rect);
 
-    // Alinear filas (preguntas y dígitos de ID), columna por columna.
-    const rows = layout.questions.map((q) => q.bubbles).concat(layout.idRows.map((r) => r.bubbles));
-    const levelsY = [layout.markers[0].y, layout.markers[3].y].concat(
-      layout.sideMarks.filter((sm, i) => sidePts[i]).map((sm) => sm.y)
-    );
-    const groups = layout.grid.columns.map((col) => {
-      const idx = [];
-      for (let i = 0; i < col.count; i++) idx.push(col.firstQuestion + i);
-      return idx;
-    });
-    if (layout.idRows.length) groups.push(layout.idRows.map((_, i) => layout.questions.length + i));
-    const shifts = new Array(rows.length);
-    for (const idxs of groups) {
-      let anchor = 0;
-      let bestD = Infinity;
-      idxs.forEach((ri, k) => {
-        const y = rows[ri][0].y;
-        const dist = Math.min.apply(null, levelsY.map((l) => Math.abs(l - y)));
-        if (dist < bestD) {
-          bestD = dist;
-          anchor = k;
-        }
+      // Alinear filas (preguntas y dígitos de ID), columna por columna.
+      const rows = layout.questions.map((q) => q.bubbles).concat(layout.idRows.map((r) => r.bubbles));
+      const levelsY = [layout.markers[0].y, layout.markers[3].y].concat(
+        layout.sideMarks.filter((sm, i) => sidePts[i]).map((sm) => sm.y)
+      );
+      const groups = layout.grid.columns.map((col) => {
+        const idx = [];
+        for (let i = 0; i < col.count; i++) idx.push(col.firstQuestion + i);
+        return idx;
       });
-      const pitchMm = idxs.length > 1 ? Math.abs(rows[idxs[1]][0].y - rows[idxs[0]][0].y) : layout.grid.pitch;
-      // Se prueba partir sin corrimiento y corrido media fila hacia arriba y
-      // hacia abajo: entre dos filas hay un falso "calce" (los contornos de
-      // arriba y de abajo) y así se evita quedar atrapado en él.
-      const groupRows = idxs.map((ri) => rows[ri]);
-      const half = (pitchMm * ppm) / 2;
-      let best = alignGroup(dark, groupRows, ppm, anchor, pitchMm, 0, 0.45);
-      for (const seed of [half, -half]) {
-        const alt = alignGroup(dark, groupRows, ppm, anchor, pitchMm, seed, 0.3);
-        if (alt.score > best.score) best = alt;
-      }
-      idxs.forEach((ri, k) => (shifts[ri] = best.shifts[k]));
-    }
-
-    // Control de alineación. Toda burbuja real tiene su contorno impreso y
-    // alrededor de la grilla (encima de la primera fila, debajo de la última,
-    // a la derecha de la última alternativa) no hay burbujas. Si falta un
-    // contorno donde debería estar, o aparece donde no debería, la lectura
-    // quedó corrida: es preferible rechazar la foto que corregir mal.
-    const shiftedFit = (bubbles, s, ox, oy) =>
-      rowFit(dark, bubbles.map((b) => ({ x: b.x + ox, y: b.y + oy, r: b.r })), ppm)(s.dx, s.dy);
-    const misaligned = () => ({
-      ok: false,
-      corners: d,
-      error:
-        'Las filas de respuestas no quedaron bien alineadas (la hoja parece doblada o curvada). ' +
-        'Alísela sobre una superficie plana y tome la foto nuevamente.',
-    });
-    const pitch = layout.grid.pitch;
-    const pitchOf = (g) => {
-      const ix = groups[g];
-      return ix.length > 1 ? Math.abs(rows[ix[1]][0].y - rows[ix[0]][0].y) : pitch;
-    };
-    for (let g = 0; g < groups.length; g++) {
-      const idxs = groups[g];
-      const nb = rows[idxs[0]].length;
-      const bubblePitch = nb > 1 ? rows[idxs[0]][1].x - rows[idxs[0]][0].x : pitch;
-      // Contraste por fila y por posición de alternativa (promediado en la columna).
-      const rowC = [];
-      const posC = new Array(nb + 1).fill(0);
-      for (const ri of idxs) {
-        let sum = 0;
-        for (let k = 0; k < nb; k++) {
-          const c = shiftedFit([rows[ri][k]], shifts[ri], 0, 0);
-          posC[k] += c / idxs.length;
-          sum += c;
+      if (layout.idRows.length) groups.push(layout.idRows.map((_, i) => layout.questions.length + i));
+      const shifts = new Array(rows.length);
+      for (const idxs of groups) {
+        let anchor = 0;
+        let bestD = Infinity;
+        idxs.forEach((ri, k) => {
+          const y = rows[ri][0].y;
+          const dist = Math.min.apply(null, levelsY.map((l) => Math.abs(l - y)));
+          if (dist < bestD) {
+            bestD = dist;
+            anchor = k;
+          }
+        });
+        const pitchMm = idxs.length > 1 ? Math.abs(rows[idxs[1]][0].y - rows[idxs[0]][0].y) : layout.grid.pitch;
+        // Se prueba partir sin corrimiento y corrido media fila hacia arriba y
+        // hacia abajo: entre dos filas hay un falso "calce" (los contornos de
+        // arriba y de abajo) y así se evita quedar atrapado en él.
+        const groupRows = idxs.map((ri) => rows[ri]);
+        const half = (pitchMm * ppm) / 2;
+        let best = alignGroup(dark, groupRows, ppm, anchor, pitchMm, 0, 0.45);
+        for (const seed of [half, -half]) {
+          const alt = alignGroup(dark, groupRows, ppm, anchor, pitchMm, seed, 0.3);
+          if (alt.score > best.score) best = alt;
         }
-        rowC.push(sum / nb);
-        posC[nb] += shiftedFit([rows[ri][nb - 1]], shifts[ri], bubblePitch, 0) / idxs.length;
+        idxs.forEach((ri, k) => (shifts[ri] = best.shifts[k]));
       }
-      const sorted = rowC.slice().sort((a, b) => a - b);
-      const med = sorted[Math.floor(sorted.length / 2)];
-      // Las burbujas impresas siempre muestran contorno: si una columna no
-      // lo muestra, la lectura cayó fuera de la grilla (o la foto es ilegible).
-      if (med < 0.05) return misaligned();
-      if (sorted[0] < med * 0.3) return misaligned();
-      for (let k = 0; k < nb; k++) if (posC[k] < med * 0.4) return misaligned();
-      const isQuestionColumn = g < layout.grid.columns.length;
-      if (!isQuestionColumn) continue;
-      // Con la lectura bien alineada, correrla media fila hace desaparecer los
-      // contornos; si en cambio mejora, la lectura quedó entre dos filas.
-      const halfShift = pitchOf(g) / 2;
-      const meanC = rowC.reduce((a, b) => a + b, 0) / rowC.length;
-      for (const dy of [-halfShift, halfShift]) {
-        const c = idxs.reduce((sum, ri) => sum + shiftedFit(rows[ri], shifts[ri], 0, dy), 0) / idxs.length;
-        if (c > meanC * 0.6) return misaligned();
+
+      // Control de alineación. Toda burbuja real tiene su contorno impreso y
+      // alrededor de la grilla (encima de la primera fila, debajo de la última,
+      // a la derecha de la última alternativa) no hay burbujas. Si falta un
+      // contorno donde debería estar, o aparece donde no debería, la lectura
+      // quedó corrida: es preferible rechazar la foto que corregir mal.
+      const shiftedFit = (bubbles, s, ox, oy) =>
+        rowFit(dark, bubbles.map((b) => ({ x: b.x + ox, y: b.y + oy, r: b.r })), ppm)(s.dx, s.dy);
+      const misaligned = (reason) => ({
+        ok: false,
+        reason, // detalle interno (para diagnóstico)
+        debug: opts.debug ? { rect, shifts, sidePts } : undefined,
+        corners: d,
+        error:
+          'Las filas de respuestas no quedaron bien alineadas (la hoja parece doblada o curvada). ' +
+          'Alísela sobre una superficie plana y tome la foto nuevamente.',
+      });
+      const pitch = layout.grid.pitch;
+      const pitchOf = (g) => {
+        const ix = groups[g];
+        return ix.length > 1 ? Math.abs(rows[ix[1]][0].y - rows[ix[0]][0].y) : pitch;
+      };
+      for (let g = 0; g < groups.length; g++) {
+        const idxs = groups[g];
+        const nb = rows[idxs[0]].length;
+        const bubblePitch = nb > 1 ? rows[idxs[0]][1].x - rows[idxs[0]][0].x : pitch;
+        // Contraste por fila y por posición de alternativa (promediado en la columna).
+        const rowC = [];
+        const posC = new Array(nb + 1).fill(0);
+        for (const ri of idxs) {
+          let sum = 0;
+          for (let k = 0; k < nb; k++) {
+            const c = shiftedFit([rows[ri][k]], shifts[ri], 0, 0);
+            posC[k] += c / idxs.length;
+            sum += c;
+          }
+          rowC.push(sum / nb);
+          posC[nb] += shiftedFit([rows[ri][nb - 1]], shifts[ri], bubblePitch, 0) / idxs.length;
+        }
+        const sorted = rowC.slice().sort((a, b) => a - b);
+        const med = sorted[Math.floor(sorted.length / 2)];
+        // Las burbujas impresas siempre muestran contorno: si una columna no
+        // lo muestra, la lectura cayó fuera de la grilla (o la foto es ilegible).
+        if (med < 0.05) return misaligned({ check: 'median', g, med });
+        if (sorted[0] < med * 0.3) return misaligned({ check: 'minRow', g, med, min: sorted[0], rowC });
+        // Una posición sin contorno indica una lectura corrida en una alternativa.
+        // Se compara con el papel vacío a la derecha de la grilla (posC[nb]): una
+        // burbuja impresa tenue (poca tinta o luz desigual) sigue muy por encima
+        // de ese nivel, mientras que una posición vacía queda a su altura.
+        const emptyLevel = Math.max(0.04, 4 * posC[nb]);
+        for (let k = 0; k < nb; k++) {
+          if (posC[k] < med * 0.4 && posC[k] < emptyLevel) return misaligned({ check: 'position', g, med, posC });
+        }
+        const isQuestionColumn = g < layout.grid.columns.length;
+        if (!isQuestionColumn) continue;
+        // Con la lectura bien alineada, correrla media fila hace desaparecer los
+        // contornos; si en cambio mejora, la lectura quedó entre dos filas.
+        const halfShift = pitchOf(g) / 2;
+        const meanC = rowC.reduce((a, b) => a + b, 0) / rowC.length;
+        for (const dy of [-halfShift, halfShift]) {
+          const c = idxs.reduce((sum, ri) => sum + shiftedFit(rows[ri], shifts[ri], 0, dy), 0) / idxs.length;
+          if (c > meanC * 0.6) return misaligned({ check: 'halfRow', g, dy, c, meanC });
+        }
+        if (posC[nb] > med * 0.45) return misaligned({ check: 'rightPhantom', g, med, posC });
+        if (idxs.length < 2) continue;
+        const first = idxs[0];
+        const last = idxs[idxs.length - 1];
+        const above = shiftedFit(rows[first], shifts[first], 0, -pitch);
+        const below = shiftedFit(rows[last], shifts[last], 0, pitch);
+        if (above > med * 0.45 || below > med * 0.45) return misaligned({ check: 'aboveBelow', g, med, above, below });
       }
-      if (posC[nb] > med * 0.45) return misaligned();
-      if (idxs.length < 2) continue;
-      const first = idxs[0];
-      const last = idxs[idxs.length - 1];
-      const above = shiftedFit(rows[first], shifts[first], 0, -pitch);
-      const below = shiftedFit(rows[last], shifts[last], 0, pitch);
-      if (above > med * 0.45 || below > med * 0.45) return misaligned();
-    }
 
-    const form = readForm(dark, layout, ppm);
-    if (form.index === null) warnings.push('No se pudo leer la fila de la hoja (A, B, C o D): indíquela manualmente.');
+      const form = readForm(dark, layout, ppm);
+      if (form.index === null) warn.push('No se pudo leer la fila de la hoja (A, B, C o D): indíquela manualmente.');
 
-    const rowScores = rows.map((bubbles, i) =>
-      bubbles.map((b) => diskMean(dark, b.x * ppm + shifts[i].dx, b.y * ppm + shifts[i].dy, b.r * ppm * opts.innerRadius))
-    );
+      const rowScores = rows.map((bubbles, i) =>
+        bubbles.map((b) => diskMean(dark, b.x * ppm + shifts[i].dx, b.y * ppm + shifts[i].dy, b.r * ppm * opts.innerRadius))
+      );
 
-    // Umbral.
-    let T;
-    let thresholdMode;
-    if (typeof opts.threshold === 'number') {
-      T = opts.threshold;
-      thresholdMode = 'manual';
-    } else {
-      const all = [].concat(...rowScores);
-      const o = otsu(all);
-      // Punto medio entre ambas clases: más estable que el corte de Otsu
-      // cuando hay una gran brecha entre burbujas vacías y marcadas.
-      T = o.highMean - o.lowMean >= 0.15 ? (o.lowMean + o.highMean) / 2 : opts.fallbackThreshold;
-      T = Math.min(opts.maxThreshold, Math.max(opts.minThreshold, T));
-      thresholdMode = 'auto';
-    }
+      // Umbral.
+      let T;
+      let thresholdMode;
+      if (typeof opts.threshold === 'number') {
+        T = opts.threshold;
+        thresholdMode = 'manual';
+      } else {
+        const all = [].concat(...rowScores);
+        const o = otsu(all);
+        // Punto medio entre ambas clases: más estable que el corte de Otsu
+        // cuando hay una gran brecha entre burbujas vacías y marcadas.
+        T = o.highMean - o.lowMean >= 0.15 ? (o.lowMean + o.highMean) / 2 : opts.fallbackThreshold;
+        T = Math.min(opts.maxThreshold, Math.max(opts.minThreshold, T));
+        thresholdMode = 'auto';
+      }
 
-    const answers = layout.questions.map((q, i) => {
-      const r = decideRow(rowScores[i], T, opts);
-      return { marked: r.marked, uncertain: r.uncertain, scores: rowScores[i].map((s) => Math.round(s * 1000) / 1000) };
-    });
+      const answers = layout.questions.map((q, i) => {
+        const r = decideRow(rowScores[i], T, opts);
+        return { marked: r.marked, uncertain: r.uncertain, scores: rowScores[i].map((s) => Math.round(s * 1000) / 1000) };
+      });
 
-    const idDigits = layout.idRows.map((row, j) => {
-      const i = layout.questions.length + j;
-      const r = decideRow(rowScores[i], T, opts);
-      return { value: r.marked.length === 1 ? r.marked[0] : null, marked: r.marked, uncertain: r.uncertain };
-    });
-    const idComplete = idDigits.length > 0 && idDigits.every((dg) => dg.value !== null);
-    const idValue = idDigits.length ? idDigits.map((dg) => (dg.value === null ? '?' : String(dg.value))).join('') : null;
+      const idDigits = layout.idRows.map((row, j) => {
+        const i = layout.questions.length + j;
+        const r = decideRow(rowScores[i], T, opts);
+        return { value: r.marked.length === 1 ? r.marked[0] : null, marked: r.marked, uncertain: r.uncertain };
+      });
+      const idComplete = idDigits.length > 0 && idDigits.every((dg) => dg.value !== null);
+      const idValue = idDigits.length ? idDigits.map((dg) => (dg.value === null ? '?' : String(dg.value))).join('') : null;
 
-    // Posiciones en px (sobre la hoja enderezada) para dibujar resultados.
-    const toPx = (bubbles, s) => bubbles.map((b) => ({ x: b.x * ppm + s.dx, y: b.y * ppm + s.dy, r: b.r * ppm }));
-    const overlay = {
-      questions: layout.questions.map((q, i) => toPx(q.bubbles, shifts[i])),
-      id: layout.idRows.map((row, j) => toPx(row.bubbles, shifts[layout.questions.length + j])),
+      // Posiciones en px (sobre la hoja enderezada) para dibujar resultados.
+      const toPx = (bubbles, s) => bubbles.map((b) => ({ x: b.x * ppm + s.dx, y: b.y * ppm + s.dy, r: b.r * ppm }));
+      const overlay = {
+        questions: layout.questions.map((q, i) => toPx(q.bubbles, shifts[i])),
+        id: layout.idRows.map((row, j) => toPx(row.bubbles, shifts[layout.questions.length + j])),
+      };
+
+      return {
+        ok: true,
+        answers,
+        id: { value: idValue, complete: idComplete, digits: idDigits },
+        threshold: Math.round(T * 1000) / 1000,
+        thresholdMode,
+        rotation: best.k,
+        corners: best.dst,
+        codeVerified: !!decoded,
+        form,
+        warnings: warn,
+        rectified: rect,
+        overlay,
+      };
     };
 
-    return {
-      ok: true,
-      answers,
-      id: { value: idValue, complete: idComplete, digits: idDigits },
-      threshold: Math.round(T * 1000) / 1000,
-      thresholdMode,
-      rotation: best.k,
-      corners: best.dst,
-      codeVerified: !!decoded,
-      form,
-      warnings,
-      rectified: rect,
-      overlay,
-    };
+    const variants = [sidePts];
+    const keepLevel = (level) => sidePts.map((p, i) => (layout.sideMarks[i].level === level ? p : null));
+    const hasLevel = (pts, level) => layout.sideMarks.every((sm, i) => sm.level !== level || pts[i]);
+    if (hasLevel(sidePts, 1) && hasLevel(sidePts, 2)) variants.push(keepLevel(1), keepLevel(2));
+    if (sidePts.some(Boolean)) variants.push(sidePts.map(() => null));
+    let first = null;
+    for (const v of variants) {
+      const res = attempt(v);
+      if (res.ok) return res;
+      if (!first) first = res;
+    }
+    return first;
   }
 
   return {
@@ -977,5 +1017,6 @@
     darknessMap,
     otsu,
     scanSheet,
+    evaluateHypothesis,
   };
 });

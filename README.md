@@ -329,6 +329,40 @@ Los videos de YouTube, Vimeo y Drive se ven cuando la página está publicada
 (por ejemplo en GitHub Pages); al abrir `index.html` directamente desde el
 computador, algunos servicios no permiten mostrarlos.
 
+## App Android (APK)
+
+La misma aplicación se empaqueta como app Android con
+[Capacitor](https://capacitorjs.com) (carpeta `android/`). Cada vez que se
+suben cambios, GitHub Actions (`.github/workflows/android.yml`) prueba la
+página, compila el APK y lo publica en **Releases → `app-android`**
+(`LectorHojas.apk`). También queda como *artifact* de la ejecución.
+
+En la app:
+
+- la cámara se abre desde **Tomar foto** (Android pide el permiso la primera vez);
+- los archivos que en el navegador se descargan (Excel, ZIP, PDF, CSV,
+  imágenes) se guardan en **Descargas/LectorHojas**, con un botón para
+  compartirlos;
+- **Imprimir** usa el servicio de impresión de Android, que también permite
+  *Guardar como PDF*;
+- el botón Atrás cierra los cuadros de diálogo y vuelve a la pestaña anterior.
+
+Para compilar en un computador (con Android Studio o el SDK de Android):
+
+```bash
+npm install
+npm run android:sync          # copia la página a android/
+cd android && ./gradlew assembleRelease
+```
+
+**Firma**: el APK se firma siempre con la misma llave
+(`android/keystore/lector-hojas.jks`), para que cada versión se instale como
+actualización y no se pierdan los datos guardados en el teléfono. Para
+publicar en Google Play conviene una llave propia: se guarda en los secretos
+del repositorio (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`,
+`KEY_PASSWORD`) y el workflow la usa automáticamente. (Cambiar de llave
+obliga a desinstalar la versión anterior una vez).
+
 ## Desarrollo
 
 No hay dependencias ni paso de compilación. Para probar localmente se puede
@@ -356,6 +390,8 @@ entregar una corrección equivocada sin avisar.
 | `index.html`, `css/styles.css` | Interfaz |
 | `js/app.js` | Lógica de la interfaz y almacenamiento |
 | `js/manual-videos.js` | Enlaces de los videos del manual |
+| `js/native.js` | Integración con la app Android (descargas, impresión, botón Atrás) |
+| `android/`, `capacitor.config.json`, `scripts/build-www.mjs` | Proyecto de la app Android |
 | `vendor/math/` | KaTeX y MathLive (fórmulas), cargados sólo al usarse |
 | `js/layout.js` | Geometría de la hoja (compartida por el generador y el lector) |
 | `js/sheet.js` | Generación de la hoja en SVG |
@@ -377,8 +413,11 @@ entregar una corrección equivocada sin avisar.
    orientación y un código de configuración válido; si el código corresponde
    a otra prueba, se avisa.
 4. Las marcas laterales dividen la hoja en franjas con su propia homografía,
-   para compensar hojas curvadas. Si la hoja fue impresa en otro formato
-   (hoja completa, media o cuarto de hoja) o papel, se detecta y se avisa.
+   para compensar hojas curvadas. Si una marca lateral falta (recortada o
+   tapada) y otra mancha se tomó por ella, la lectura se repite ignorando las
+   marcas dudosas. Si la hoja fue impresa en otro formato (hoja completa, media
+   o cuarto de hoja, aunque se haya impreso ampliada) o papel, se detecta y se
+   ofrece usar esa configuración.
 5. Se endereza la hoja, se normaliza la iluminación y cada columna de
    preguntas se alinea fila por fila con los contornos impresos de las
    burbujas. Si la alineación no es confiable, la foto se rechaza.
