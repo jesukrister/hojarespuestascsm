@@ -68,7 +68,33 @@ function rasterizeSheet(layout, ppm, marks, seed) {
     if (c.bit) fillRect(img, ppm, c.x - c.size / 2, c.y - c.size / 2, c.x + c.size / 2, c.y + c.size / 2, 20);
   // Texto del encabezado simulado como barras finas.
   const k = layout.scale || 1;
-  const titleEnd = Math.min(layout.header.titleX + 90 * k, layout.markers[1].x - layout.markerSize / 2 - 4 * k);
+  let titleEnd = Math.min(layout.header.titleX + 90 * k, layout.markers[1].x - layout.markerSize / 2 - 4 * k);
+  // Fila impresa: círculos A–D con el de la fila relleno, o recuadro "FILA B".
+  if (layout.form !== null && layout.form !== undefined && layout.formBubbles) {
+    const fb = layout.formBubbles;
+    if (marks && marks.formStyle === 'box') {
+      const bw = 15 * k, bh = 9 * k;
+      const bx = layout.markers[1].x - layout.markerSize / 2 - 6 * k - bw;
+      const by = layout.header.titleY - 5.6 * k;
+      const t = 0.35;
+      fillRect(img, ppm, bx, by, bx + bw, by + t, 20);
+      fillRect(img, ppm, bx, by + bh - t, bx + bw, by + bh, 20);
+      fillRect(img, ppm, bx, by, bx + t, by + bh, 20);
+      fillRect(img, ppm, bx + bw - t, by, bx + bw, by + bh, 20);
+      fillRect(img, ppm, bx + 2 * k, by + 3 * k, bx + 6 * k, by + 5 * k, 40); // "FILA"
+      fillRect(img, ppm, bx + bw - 7 * k, by + 1.5 * k, bx + bw - 2.5 * k, by + bh - 1.5 * k, 25); // letra
+      titleEnd = Math.min(titleEnd, bx - 2 * k);
+    } else {
+      const labelX = fb[0].x - fb[0].r - 1.6 * k;
+      fillRect(img, ppm, labelX - 7 * k, fb[0].y - 1 * k, labelX, fb[0].y + 1 * k, 40); // "FILA"
+      fb.forEach((b, i) => {
+        strokeCircle(img, ppm, b.x, b.y, b.r, 0.25, 70);
+        fillRect(img, ppm, b.x - b.r * 0.3, b.y - b.r * 0.4, b.x + b.r * 0.3, b.y + b.r * 0.4, 170);
+        if (i === layout.form) fillDisk(img, ppm, b.x, b.y, b.r * 0.95, 25);
+      });
+      titleEnd = Math.min(titleEnd, labelX - 10 * k);
+    }
+  }
   fillRect(img, ppm, layout.header.titleX, layout.header.titleY - 4 * k, titleEnd, layout.header.titleY + 1 * k, 30);
   for (const f of layout.header.fields) fillRect(img, ppm, f.x, f.y + 0.4, f.x2, f.y + 0.7, 30);
   const bubbles = (b) => {

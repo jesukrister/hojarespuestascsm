@@ -76,16 +76,25 @@
     const hd = layout.header;
     let topRightEdge = layout.markers[1].x - ms / 2 - 3 * k;
     if (layout.form !== null && layout.form !== undefined) {
-      // Recuadro "FILA B" a la derecha del título.
-      const bw = 15 * k;
-      const bh = 9 * k;
-      const bx = topRightEdge - 3 * k - bw;
-      const by = hd.titleY - 5.6 * k;
       const letter = SheetLayout.FORM_LETTERS[layout.form];
-      out.push(`<rect x="${n(bx)}" y="${n(by)}" width="${n(bw)}" height="${n(bh)}" rx="${n(1.2 * k)}" fill="none" stroke="#000" stroke-width="0.35"/>`);
-      out.push(`<text x="${n(bx + 4.2 * k)}" y="${n(by + bh / 2 + 1 * k)}" font-size="${n(2.4 * k)}" text-anchor="middle">FILA</text>`);
-      out.push(`<text x="${n(bx + bw - 4.6 * k)}" y="${n(by + bh / 2 + 2.3 * k)}" font-size="${n(6.5 * k)}" font-weight="bold" text-anchor="middle">${letter}</text>`);
-      topRightEdge = bx - 2 * k;
+      if (opts.formStyle === 'box') {
+        // Recuadro "FILA B" a la derecha del título.
+        const bw = 15 * k;
+        const bh = 9 * k;
+        const bx = topRightEdge - 3 * k - bw;
+        const by = hd.titleY - 5.6 * k;
+        out.push(`<rect x="${n(bx)}" y="${n(by)}" width="${n(bw)}" height="${n(bh)}" rx="${n(1.2 * k)}" fill="none" stroke="#000" stroke-width="0.35"/>`);
+        out.push(`<text x="${n(bx + 4.2 * k)}" y="${n(by + bh / 2 + 1 * k)}" font-size="${n(2.4 * k)}" text-anchor="middle">FILA</text>`);
+        out.push(`<text x="${n(bx + bw - 4.6 * k)}" y="${n(by + bh / 2 + 2.3 * k)}" font-size="${n(6.5 * k)}" font-weight="bold" text-anchor="middle">${letter}</text>`);
+        topRightEdge = bx - 2 * k;
+      } else {
+        // Círculos A B C D con el de la fila ya relleno.
+        const fb = layout.formBubbles;
+        const labelX = fb[0].x - fb[0].r - 1.6 * k;
+        out.push(`<text x="${n(labelX)}" y="${n(fb[0].y + 1 * k)}" font-size="${n(2.8 * k)}" font-weight="bold" text-anchor="end">FILA</text>`);
+        fb.forEach((b, i) => out.push(bubble(b, b.r * 1.05, i === layout.form)));
+        topRightEdge = labelX - 10 * k;
+      }
     }
     const maxTitleW = topRightEdge - hd.titleX;
     const title = opts.title || 'Hoja de respuestas';

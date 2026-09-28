@@ -80,3 +80,53 @@ test('sin marcas laterales visibles, la hoja se lee igual (sin confundirlas con 
     assert.equal(res.id.value, '31');
   }
 });
+
+test('fila con círculos preimpresos: se lee junto con las celdas del margen', () => {
+  const cfg = { paper: 'carta', format: 'half', numQuestions: 20, numChoices: 4, idDigits: 2 };
+  const reading = SheetLayout.computeLayout(cfg);
+  for (const form of [0, 1, 2, 3]) {
+    const printed = SheetLayout.computeLayout(Object.assign({ form }, cfg));
+    const { marks } = randomAnswers(20, 4, 10 + form);
+    const sheet = rasterizeSheet(printed, PPM, { answers: marks, id: [0, 4], formStyle: 'bubbles' }, 10 + form);
+    const res = OMR.scanSheet(shoot(printed, sheet, 10 + form), reading);
+    assert.ok(res.ok, res.error);
+    assert.equal(res.form.index, form);
+    assert.equal(res.form.source, 'ambos');
+  }
+});
+
+test('fila: si las celdas del margen no se leen valen los círculos; si discrepan, queda por revisar', () => {
+  const cfg = { paper: 'carta', format: 'full', numQuestions: 20, numChoices: 4, idDigits: 2 };
+  const reading = SheetLayout.computeLayout(cfg);
+  const printed = SheetLayout.computeLayout(Object.assign({ form: 2 }, cfg));
+  const { marks } = randomAnswers(20, 4, 21);
+  const cells = printed.formCells;
+  const x0 = cells[0].x - 3, x1 = cells[0].x + 3, y0 = cells[0].y - 4, y1 = cells[2].y + 4;
+
+  // Margen manchado (celdas ilegibles): se usa la fila de los círculos.
+  const smudged = rasterizeSheet(printed, PPM, { answers: marks, id: [1, 2], formStyle: 'bubbles' }, 21);
+  for (let y = Math.round(y0 * PPM); y < Math.round(y1 * PPM); y++)
+    for (let x = Math.round(x0 * PPM); x < Math.round(x1 * PPM); x++) smudged.data[y * smudged.width + x] = 150;
+  let res = OMR.scanSheet(shoot(printed, smudged, 21), reading);
+  assert.ok(res.ok, res.error);
+  assert.equal(res.form.index, 2);
+  assert.equal(res.form.source, 'circulos');
+
+  // Celdas tapadas con corrector (se leen como fila A) y círculos en C: no se adivina.
+  const covered = rasterizeSheet(printed, PPM, { answers: marks, id: [1, 2], formStyle: 'bubbles' }, 21);
+  fade(covered, x0, y0, x1, y1, 1);
+  res = OMR.scanSheet(shoot(printed, covered, 21), reading);
+  assert.ok(res.ok, res.error);
+  assert.equal(res.form.index, null);
+});
+
+test('una hoja sin fila impresa nunca se lee como otra fila', () => {
+  const cfg = { paper: 'a4', format: 'quarter', numQuestions: 12, numChoices: 5, idDigits: 1 };
+  const layout = SheetLayout.computeLayout(cfg);
+  const { marks } = randomAnswers(12, 5, 31);
+  const sheet = rasterizeSheet(layout, PPM, { answers: marks, id: [7] }, 31);
+  const res = OMR.scanSheet(shoot(layout, sheet, 31), layout);
+  assert.ok(res.ok, res.error);
+  assert.equal(res.form.index, 0);
+  assert.equal(res.form.source, 'celdas');
+});

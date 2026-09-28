@@ -43,6 +43,7 @@
       threshold: null,
       format: 'full',
       sheetFields: { curso: true, fecha: true, rut: true },
+      formStyle: 'bubbles', // cómo se imprime la fila: círculos A–D ('bubbles') o recuadro ('box')
       oaText: '',
       levels: Object.assign({}, Grading.DEFAULT_LEVELS),
       doc: defaultDoc(),
@@ -97,6 +98,7 @@
     }
     exam.key = fitKey(Array.isArray(raw.key) ? raw.key : [], exam.numQuestions, exam.numChoices);
     exam.sheetFields = SheetLayout.normalizeFields(raw.sheetFields);
+    exam.formStyle = raw.formStyle === 'box' ? 'box' : 'bubbles';
     exam.oaText = typeof raw.oaText === 'string' ? raw.oaText : '';
     const lv = raw.levels || {};
     for (const k of Object.keys(exam.levels)) {
@@ -630,6 +632,7 @@
       title: state.exam.title || 'Hoja de respuestas',
       subtitle: state.exam.subtitle,
       school: state.exam.doc.format.school,
+      formStyle: state.exam.formStyle,
       fill,
     };
   }
@@ -679,6 +682,8 @@
     const wrap = $('#sheetFormWrap');
     const forms = state.exam.forms;
     wrap.hidden = !forms;
+    $('#sheetFormStyleWrap').hidden = !forms;
+    $('#sheetFormStyle').value = state.exam.formStyle;
     if (!forms) return;
     const sel = $('#sheetForm');
     const prev = sel.value;
@@ -1773,18 +1778,16 @@
   async function handleFiles(fileList) {
     const files = Array.from(fileList || []).filter((f) => !f.type || f.type.startsWith('image/'));
     if (!files.length) return;
-    const layout = getLayout();
-    if (!layout) return toast(layoutError);
+    if (!getLayout()) return toast(layoutError);
     if (!state.exam.key.some((k) => k !== null)) toast('Aún no hay clave de respuestas: se leerán las marcas, pero no se podrá calificar.');
     for (const file of files) {
       const item = queueItem(file.name || 'foto');
       await nextFrame();
       try {
         const { gray, canvas } = await fileToGray(file);
-        const res = OMR.scanSheet(gray, layout, scanOptions());
+        const { res, other } = scanAuto(gray);
         if (!res.ok) {
-          // Hoja impresa con otra configuración: se ofrece usar la de la hoja.
-          const other = res.decoded && !sameStructure(res.decoded, state.exam) ? res.decoded : null;
+          // Hoja de otra evaluación: se ofrece usar la configuración de la hoja.
           item.error(
             `${file.name || 'foto'}: ${res.error}`,
             other && { label: 'Usar la configuración de esta hoja', run: () => useSheetConfig(other, file) }
@@ -1809,8 +1812,38 @@
     renderResultsBadge();
   }
 
-  /** Cambia la configuración a la leída en el código de una hoja y la vuelve a escanear. */
-  function useSheetConfig(cfg, file) {
+  /**
+   * Lee una hoja y, si su código indica otra configuración:
+   *  - misma prueba (preguntas, alternativas y dígitos) impresa en otro
+   *    formato o papel: se lee con el diseño de la hoja, sin cambiar nada;
+   *  - prueba aún sin configurar (sin clave ni resultados): se adopta la
+   *    configuración de la hoja;
+   *  - otra evaluación: se devuelve el error y la configuración de la hoja (other).
+   */
+  function scanAuto(gray) {
+    const layout = getLayout();
+    if (!layout) return { res: { ok: false, error: layoutError } };
+    const res = OMR.scanSheet(gray, layout, scanOptions());
+    const d = res.decoded;
+    if (res.ok || !d || sameStructure(d, state.exam)) return { res };
+    const e = state.exam;
+    if (d.numQuestions === e.numQuestions && d.numChoices === e.numChoices && d.idDigits === e.idDigits) {
+      const alt = computeLayout(Object.assign({}, e, { paper: d.paper, format: d.format, fields: e.sheetFields }));
+      const res2 = OMR.scanSheet(gray, alt, scanOptions());
+      if (res2.ok) {
+        const fmtLabel = FORMATS[d.format].label.toLowerCase();
+        res2.warnings = (res2.warnings || []).concat(`Hoja impresa en otro formato (${fmtLabel}, papel ${PAPERS[d.paper].label.split(' ')[0]}): se leyó con su propio diseño.`);
+      }
+      return { res: res2 };
+    }
+    if (!e.key.some((k) => k !== null) && !state.results.length) {
+      if (applySheetConfig(d)) return { res: OMR.scanSheet(gray, getLayout(), scanOptions()), adopted: d };
+    }
+    return { res, other: d };
+  }
+
+  /** Cambia la estructura de la prueba a la leída en el código de una hoja. */
+  function applySheetConfig(cfg) {
     const next = Object.assign({}, state.exam, {
       paper: cfg.paper,
       numQuestions: cfg.numQuestions,
@@ -1818,7 +1851,7 @@
       idDigits: cfg.idDigits,
       format: cfg.format,
     });
-    if (!applyStructure(next)) return;
+    if (!applyStructure(next)) return false;
     fillExamForm();
     save();
     renderKey();
@@ -1826,20 +1859,25 @@
     updateLayoutError();
     renderResultsBadge();
     const fmtLabel = FORMATS[cfg.format].label.toLowerCase();
-    toast(`Configuración cambiada: ${cfg.numQuestions} preguntas, ${cfg.numChoices} alternativas, papel ${PAPERS[cfg.paper].label.split(' ')[0]}, ${fmtLabel}. Revisa la clave.`);
+    toast(`Se configuró la prueba según la hoja: ${cfg.numQuestions} preguntas, ${cfg.numChoices} alternativas, papel ${PAPERS[cfg.paper].label.split(' ')[0]}, ${fmtLabel}.`);
+    return true;
+  }
+
+  /** Botón "Usar la configuración de esta hoja": cambia la configuración y vuelve a escanear. */
+  function useSheetConfig(cfg, file) {
+    if (!applySheetConfig(cfg)) return;
     if (file) handleFiles([file]);
   }
 
   async function readKeyFromPhoto(file) {
     const msg = $('#keyPhotoMsg');
-    const layout = getLayout();
-    if (!layout) return toast(layoutError);
+    if (!getLayout()) return toast(layoutError);
     msg.hidden = false;
     msg.className = 'alert';
     msg.textContent = 'Leyendo la hoja…';
     await nextFrame();
     try {
-      const res = OMR.scanSheet((await fileToGray(file)).gray, layout, scanOptions());
+      const { res } = scanAuto((await fileToGray(file)).gray);
       if (!res.ok) {
         msg.className = 'alert error';
         msg.textContent = res.error;
@@ -3116,6 +3154,11 @@
 
     $('#btnPrint').addEventListener('click', printSheet);
     $('#sheetForm').addEventListener('change', renderSheetPreview);
+    $('#sheetFormStyle').addEventListener('change', (e) => {
+      state.exam.formStyle = e.target.value === 'box' ? 'box' : 'bubbles';
+      save();
+      renderSheetPreview();
+    });
     $('#btnDownloadSvg').addEventListener('click', () => {
       const page = sheetPage();
       if (!page) return toast(layoutError);

@@ -682,9 +682,71 @@
    * un entorno pequeño (la hoja puede estar algo curvada); una celda dudosa o
    * un código inválido dejan la fila sin leer (index null).
    */
+  /** Oscuridad promedio sobre una circunferencia (el contorno impreso de una burbuja). */
+  function ringMean(dark, cx, cy, rad) {
+    const { width: w, height: h, data } = dark;
+    let s = 0;
+    const N = 24;
+    for (let i = 0; i < N; i++) {
+      const a = (i / N) * Math.PI * 2;
+      const x = Math.round(cx + Math.cos(a) * rad);
+      const y = Math.round(cy + Math.sin(a) * rad);
+      if (x >= 0 && y >= 0 && x < w && y < h) s += data[y * w + x];
+    }
+    return s / N;
+  }
+
+  /**
+   * Círculos "Fila A B C D" junto a la marca superior derecha (el de la fila
+   * viene impreso relleno). Sólo se acepta si hay exactamente un círculo
+   * relleno y los otros tres se ven como burbujas vacías (contorno impreso,
+   * interior claro): una hoja sin estos círculos nunca da una fila.
+   */
+  function readFormBubbles(dark, layout, ppm) {
+    const bs = layout.formBubbles;
+    if (!bs || bs.length !== 4) return { index: null, values: [] };
+    const k = layout.scale || 1;
+    const search = Math.max(2, Math.round(1.5 * k * ppm));
+    const step = Math.max(1, Math.round(search / 5));
+    let best = null;
+    for (let dy = -search; dy <= search; dy += step)
+      for (let dx = -search; dx <= search; dx += step) {
+        const total = bs.reduce((sum, b) => sum + ringMean(dark, b.x * ppm + dx, b.y * ppm + dy, b.r * ppm), 0);
+        const dist = Math.hypot(dx, dy);
+        if (!best || total > best.total + 1e-3 || (Math.abs(total - best.total) <= 1e-3 && dist < best.dist)) best = { dx, dy, total, dist };
+      }
+    const inner = bs.map((b) => diskMean(dark, b.x * ppm + best.dx, b.y * ppm + best.dy, b.r * ppm * 0.55));
+    const rings = bs.map((b) => ringMean(dark, b.x * ppm + best.dx, b.y * ppm + best.dy, b.r * ppm));
+    const round = (v) => Math.round(v * 100) / 100;
+    const values = inner.map(round);
+    const filled = inner.map((v, i) => i).filter((i) => inner[i] >= 0.55);
+    if (filled.length !== 1) return { index: null, values };
+    const f = filled[0];
+    const others = inner.filter((v, i) => i !== f);
+    // Cada círculo vacío debe mostrar su contorno: más oscuro que su interior
+    // y que el papel de alrededor (un texto o una barra no forman ese patrón).
+    const outer = bs.map((b) => ringMean(dark, b.x * ppm + best.dx, b.y * ppm + best.dy, b.r * ppm * 1.5));
+    const emptyOk =
+      others.every((v) => v < 0.3) &&
+      rings.every((r, i) => i === f || (r > 0.12 && r - inner[i] > 0.08 && r - outer[i] > 0.08));
+    if (!emptyOk || inner[f] - Math.max(...others) < 0.35) return { index: null, values };
+    return { index: f, values };
+  }
+
   function readForm(dark, layout, ppm) {
     const cells = layout.formCells || [];
     if (cells.length !== 3) return { index: 0, uncertain: false, values: [] };
+    const cellsRead = readFormCells(dark, layout, ppm);
+    const bubbles = readFormBubbles(dark, layout, ppm);
+    // Las dos lecturas deben coincidir; si una no se pudo hacer (hoja sin
+    // círculos, margen recortado…) vale la otra. Si discrepan, queda sin leer.
+    let index = cellsRead.index;
+    if (bubbles.index !== null) index = cellsRead.index === null || cellsRead.index === bubbles.index ? bubbles.index : null;
+    return { index, uncertain: index === null, values: cellsRead.values, bubbles: bubbles.values, source: bubbles.index !== null ? (cellsRead.index !== null ? 'ambos' : 'circulos') : 'celdas' };
+  }
+
+  function readFormCells(dark, layout, ppm) {
+    const cells = layout.formCells;
     const k = layout.scale || 1;
     // Un mismo corrimiento para las tres celdas (la hoja puede estar algo
     // curvada): el que mejor calza con las celdas impresas (mayor oscuridad

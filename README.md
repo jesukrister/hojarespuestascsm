@@ -217,8 +217,9 @@ nuevo** genera otra. Al usar las preguntas en la hoja de respuestas se guarda
 la clave de cada fila (visible en la pestaña Prueba). En **Hoja** se imprimen
 las hojas de todas las filas (una página por fila, o filas alternadas en la
 misma página con 2 o 4 hojas por página). La fila queda impresa en la hoja
-con un recuadro “FILA B” y con tres celdas en el margen izquierdo que el
-lector reconoce; si no puede leerla, la hoja queda “por revisar” y la fila se
+con los círculos “FILA A B C D” (el de la fila ya relleno; el estudiante no
+marca nada) o, a elección, con un recuadro “FILA B”, además de tres celdas en
+el margen izquierdo; el lector la reconoce; si no puede leerla, la hoja queda “por revisar” y la fila se
 elige a mano. En los resultados, el análisis por pregunta, por OA y las
 columnas P1, P2… del Excel usan la numeración de la fila A.
 
@@ -444,8 +445,15 @@ entregar una corrección equivocada sin avisar.
    preguntas se alinea fila por fila con los contornos impresos de las
    burbujas. Si la alineación no es confiable, la foto se rechaza.
 6. Se lee la fila (A–D) en las tres celdas del margen izquierdo, con un código
-   de paridad: una celda dudosa o un código inválido nunca dan otra fila, sino
-   que dejan la hoja por revisar. Las hojas sin celdas se leen como fila A.
-7. Se mide qué tan oscuro está el interior de cada burbuja; un umbral
+   de paridad, y en los círculos “FILA A B C D” (el de la fila viene impreso
+   relleno). Ambas lecturas deben coincidir; si una no se puede hacer vale la
+   otra, y si discrepan la hoja queda por revisar: nunca se adivina la fila.
+   Las hojas sin fila impresa se leen como fila A.
+7. Si el código de la hoja indica la misma prueba impresa en otro formato o
+   papel, se lee con el diseño de la hoja sin cambiar la configuración; si la
+   prueba aún no está configurada (sin clave ni resultados), se adopta la de la
+   hoja. Sólo una hoja de otra evaluación se rechaza (con la opción de usar su
+   configuración).
+8. Se mide qué tan oscuro está el interior de cada burbuja; un umbral
    automático (o manual) decide cuáles están marcadas, y se detectan
    omisiones, dobles marcas y marcas dudosas.

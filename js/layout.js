@@ -173,6 +173,7 @@
   }
 
   function normalizeForm(v) {
+    if (v === null || v === undefined || v === '') return null;
     const n = Math.round(Number(v));
     return Number.isFinite(n) && n >= 0 && n < FORM_CODES.length ? n : null;
   }
@@ -272,6 +273,13 @@
     const formBits = FORM_CODES[form === null ? 0 : form];
     const formPitch = 7.5 * k;
     const formCells = formBits.map((bit, i) => ({ x: sideX, y: H / 2 + (i - 1) * formPitch, size: CODE_CELL * k, bit }));
+    // Círculos "Fila A B C D" junto a la marca superior derecha: el de la fila
+    // se imprime relleno (el estudiante no marca nada). Siempre en la misma
+    // posición, para que el lector los busque aunque la hoja no los tenga.
+    const fbR = 2.1 * k;
+    const fbPitch = 5.4 * k;
+    const fbRight = W - m - markerSize / 2 - 6 * k;
+    const formBubbles = FORM_LETTERS.map((label, i) => ({ x: fbRight - fbR - (3 - i) * fbPitch, y: m, r: fbR, label }));
 
     const bits = encodeConfig(c);
     const codePitch = CODE_PITCH * k;
@@ -409,6 +417,7 @@
       sideMarks,
       codeCells,
       formCells,
+      formBubbles,
       form,
       header: {
         top: headerTop,

@@ -362,6 +362,13 @@
               <select id="sheetForm"></select>
               <small>Imprime las hojas de cada fila (la fila queda impresa y el lector la reconoce).</small>
             </label>
+            <label id="sheetFormStyleWrap" hidden>Cómo se indica la fila
+              <select id="sheetFormStyle">
+                <option value="bubbles">Círculo ya relleno (A B C D)</option>
+                <option value="box">Recuadro con la letra (FILA B)</option>
+              </select>
+              <small>El estudiante no marca nada: la fila viene impresa y el lector la reconoce en ambos casos.</small>
+            </label>
             <label>Establecimiento (opcional)
               <input id="sheetSchool" type="text" maxlength="120" placeholder="Se muestra bajo el título">
             </label>
@@ -599,7 +606,7 @@ Núcleo = Contiene el material genético</pre>
             <li>En la vista previa, usa el selector <b>Ver: Fila A / Fila B…</b> para revisar cada una. Si no te gusta la mezcla, presiona <b>🔀 Mezclar de nuevo</b>.</li>
             <li>Presiona <b>↪ Usar estas preguntas en la hoja de respuestas</b>. <b>Este paso es obligatorio</b>: así la plataforma sabe cómo corregir cada fila.</li>
             <li>Imprime las pruebas (<b>Imprimir: Todas las filas</b>) y, en la pestaña <b>Hoja</b>, las hojas de respuesta de todas las filas.</li>
-            <li>Entrega a cada estudiante la <b>prueba y la hoja de la misma fila</b>. La fila aparece impresa en ambas (“FILA B”).</li>
+            <li>Entrega a cada estudiante la <b>prueba y la hoja de la misma fila</b>. En la hoja, la fila viene impresa con el círculo ya relleno (<b>FILA Ⓐ Ⓑ ● Ⓓ</b>) o, si lo prefieres, en un recuadro “FILA B” (se elige en la pestaña Hoja). El estudiante no marca nada.</li>
           </ol>
           <p class="man-tip"><b>💡 Bueno saber:</b> al escanear, la plataforma reconoce la fila de cada hoja y la corrige con su propia clave. En los resultados, todas las preguntas se muestran con la numeración de la fila A para comparar al curso completo.</p>
           <p class="man-warn"><b>⚠️ Importante:</b> si cambias las preguntas o presionas “Mezclar de nuevo” después de imprimir, las filas cambian. Vuelve a imprimir o no cambies nada hasta terminar de corregir.</p>
@@ -695,7 +702,8 @@ Núcleo = Contiene el material genético</pre>
             <details><summary>Dice “No se encontraron las cuatro marcas negras de las esquinas”.</summary>
               <p>La foto no muestra la hoja completa o hay poca luz. Vuelve a sacarla con las cuatro esquinas visibles, sobre una mesa oscura y sin sombras.</p></details>
             <details><summary>Dice “Esta hoja corresponde a otra prueba”.</summary>
-              <p>La hoja se imprimió con otra configuración (otro número de preguntas, alternativas, dígitos, papel u hojas por página). Presiona <b>Usar la configuración de esta hoja</b> en el mensaje: la plataforma se ajusta a la hoja y la vuelve a leer. Después revisa la clave en la pestaña Prueba.</p></details>
+              <p>La hoja es de otra evaluación (otro número de preguntas, alternativas o dígitos que la prueba configurada con su clave). Si en realidad es la misma evaluación, presiona <b>Usar la configuración de esta hoja</b>: la plataforma se ajusta a la hoja y la vuelve a leer; después revisa la clave en la pestaña Prueba.</p>
+              <p>No hace falta hacer nada si solo cambia el papel o las hojas por página (por ejemplo, un cuarto de hoja impreso ampliado): la hoja se lee sola con su propio diseño. Y si todavía no configuraste la prueba (sin clave ni resultados), la plataforma toma la configuración de la primera hoja que escanees.</p></details>
             <details><summary>Dice “Las filas de respuestas no quedaron bien alineadas”.</summary>
               <p>La hoja está muy doblada o curvada. Alísala sobre una mesa y vuelve a sacar la foto. La plataforma prefiere rechazar la foto antes que corregir mal.</p></details>
             <details><summary>Una pregunta tiene un recuadro amarillo (marca dudosa).</summary>
