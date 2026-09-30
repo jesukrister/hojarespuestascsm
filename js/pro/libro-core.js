@@ -5,7 +5,7 @@
  * Libro:  { version, courses: [curso], updatedAt }
  * Curso:  { id, name, subject, year, periods (2 = semestral, 3 = trimestral),
  *           gradeMin, gradePass, gradeMax, rounding ('round' | 'trunc'),
- *           students: [{ id, n, name, rut, retired }],
+ *           students: [{ id, n, name, rut, retired, pie?, exigencia? }],
  *           evaluations: [evaluación], createdAt, updatedAt }
  * Evaluación: { id, title, date ('aaaa-mm-dd'), period, weight, kind ('escaneada' | 'manual'),
  *           grades: { idEstudiante: { g, pts, max, pct, ans, oa, edited, orig, at } },
@@ -156,7 +156,14 @@
       const n = parseInt(s.n, 10);
       if (!(n >= 1 && n <= 999)) continue;
       ids.add(s.id);
-      c.students.push({ id: s.id, n, name: str(s.name, 120), rut: str(s.rut, 20), retired: s.retired === true });
+      const st = { id: s.id, n, name: str(s.name, 120), rut: str(s.rut, 20), retired: s.retired === true };
+      // Estudiante PIE (Decreto 83), con su propia exigencia si la tiene.
+      if (s.pie === true) {
+        st.pie = true;
+        const ex = Math.round(num(s.exigencia, 0, 0, 99));
+        if (ex >= 1) st.exigencia = ex;
+      }
+      c.students.push(st);
     }
     c.students.sort((a, b) => a.n - b.n);
     const evIds = new Set();

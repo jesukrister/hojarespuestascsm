@@ -31,6 +31,9 @@ window.MANUAL_VIDEOS = {
   tickets: '', //     10. Tickets de salida
   nombres: '', //     11. Hojas con nombre
   lote: '', //        12. PDF y varias hojas por foto
+  calidad: '', //     13. Calidad de las preguntas
+  pie: '', //         14. Estudiantes PIE y versión adecuada
+  utp: '', //         15. Informe para UTP
 };
 
 // true: donde todavía no hay video se muestra el aviso "Video próximamente".

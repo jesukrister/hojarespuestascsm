@@ -63,6 +63,7 @@
       <select id="pnForms"></select>
       <small>Cada estudiante recibe la prueba de la fila impresa en su hoja.</small>
     </label>
+    <label id="pnPieWrap" class="check pn-pie" hidden><input type="checkbox" id="pnPie" checked> <span>Hoja de la versión PIE para los estudiantes PIE <small id="pnPieInfo" class="muted"></small></span></label>
   </div>
   <div id="pnPick" class="pn-pick" hidden></div>
   <p id="pnInfo" class="muted small"></p>
@@ -84,6 +85,82 @@
     <button type="button" class="btn ghost small" id="proReinforceCopy">📋 Copiar la lista</button>
   </div>
 </details>
+
+<!-- @@ resultados-analisis -->
+<details id="proQuality" class="card pro-quality" open hidden>
+  <summary><h2>🔬 Calidad de las preguntas</h2><span class="muted small">discriminación, distractores y preguntas para anular</span></summary>
+  <div id="pqSummary" class="stats pro-stats"></div>
+  <p id="pqNote" class="alert" hidden></p>
+  <div class="pq-bar">
+    <label class="inline-select">Mostrar
+      <select id="pqFilter">
+        <option value="review">Sólo las preguntas para revisar o mejorar</option>
+        <option value="all">Todas las preguntas</option>
+      </select>
+    </label>
+    <button type="button" class="btn ghost small" id="pqCopy">📋 Copiar la tabla</button>
+  </div>
+  <div class="table-wrap"><table id="pqTable" class="item-table pq-table"></table></div>
+  <p id="pqEmpty" class="pq-empty" hidden></p>
+  <details class="tips-box">
+    <summary>¿Qué significa cada índice?</summary>
+    <ul class="tips">
+      <li><b>Acierto (dificultad):</b> % de estudiantes que respondió bien. Lo ideal es que la mayoría de las preguntas esté entre 30% y 85%.</li>
+      <li><b>Discriminación (D):</b> % de acierto del 27% de estudiantes con mejor puntaje menos el del 27% con menor puntaje. 0,40 o más: muy buena · 0,30: buena · 0,20: regular · bajo 0,20: deficiente · negativa: la responden mejor los de menor puntaje (revisar).</li>
+      <li><b>Respuestas:</b> % que eligió cada alternativa. En verde la clave; en rojo, un distractor que eligieron más que la clave; tachado, uno que nadie eligió (no aporta: conviene cambiarlo).</li>
+      <li><b>Confiabilidad (KR-20):</b> qué tan consistente es la prueba en su conjunto. 0,80 o más es alta; entre 0,60 y 0,80 es lo habitual en pruebas de aula; bajo 0,60 conviene revisar varias preguntas.</li>
+      <li><b>Anular:</b> la pregunta deja de contar para todos y el puntaje máximo baja. <b>Cambiar clave:</b> úsalo sólo si la clave estaba equivocada. Ambas cosas recalculan las notas y se deshacen con <b>Restaurar</b>.</li>
+    </ul>
+  </details>
+</details>
+
+<!-- @@ escala -->
+<div class="pro-pie-scale">
+  <label>Exigencia para estudiantes PIE (%)
+    <input id="pieExigencia" type="number" min="1" max="99" step="1" inputmode="numeric">
+    <small>Se usa con los estudiantes marcados PIE en su curso (Cursos → Estudiantes) y con las hojas de la versión PIE. Un estudiante puede tener su propia exigencia.</small>
+  </label>
+</div>
+
+<!-- @@ evaluacion -->
+<details class="card pro-pie" id="proPieCard">
+  <summary><h2>🧩 Versión adecuada (PIE · Decreto 83)</h2><span id="piSummary" class="muted small"></span></summary>
+  <p class="muted small">Para los estudiantes con necesidades educativas especiales: la misma prueba con <b>letra más grande</b> y <b>una alternativa incorrecta menos</b> en cada pregunta (tú eliges cuál). Tiene su propia hoja de respuestas, que el lector reconoce sola y corrige con la exigencia PIE (pestaña Prueba).</p>
+  <p id="piNote" class="alert warn" hidden></p>
+  <div class="form-grid pi-options">
+    <label>Tamaño de letra
+      <select id="piFont">
+        <option value="12">12 pt</option>
+        <option value="13">13 pt</option>
+        <option value="14">14 pt</option>
+        <option value="16">16 pt</option>
+        <option value="18">18 pt</option>
+      </select>
+    </label>
+    <div class="pi-checks">
+      <label class="check"><input type="checkbox" id="piOneCol"> Una alternativa por línea</label>
+      <label class="check"><input type="checkbox" id="piLabel"> Indicar «Versión adecuada» en la prueba y en la hoja</label>
+    </div>
+  </div>
+  <div class="pi-head">
+    <h3>Alternativa que se quita en cada pregunta</h3>
+    <div class="actions">
+      <button type="button" class="btn secondary small" id="piRandom">🎲 Elegir al azar las que faltan</button>
+      <button type="button" class="btn ghost small" id="piClear">Limpiar</button>
+    </div>
+  </div>
+  <div class="table-wrap pi-wrap"><table id="piTable" class="pi-table"></table></div>
+  <p id="piStudents" class="muted small"></p>
+  <div class="actions">
+    <button type="button" class="btn primary" id="piPrintTest">🖨️ Imprimir la prueba PIE</button>
+    <button type="button" class="btn secondary" id="piPrintSheet">🖨️ Hojas de respuesta PIE</button>
+    <button type="button" class="btn ghost" id="piPreviewBtn">👁 Vista previa</button>
+  </div>
+  <div id="piPreview" class="doc-preview-wrap pi-preview" hidden><div id="piPreviewDoc" class="doc-preview"></div></div>
+</details>
+
+<!-- @@ resultados-acciones -->
+<button type="button" class="btn secondary" id="proReportTest">📄 Informe para UTP</button>
 
 <!-- @@ roster -->
 <p id="proRosterNote" class="alert" hidden></p>
@@ -164,6 +241,7 @@
           <button type="button" class="btn secondary" id="proAddManual">＋ Nota manual (trabajo, disertación…)</button>
           <button type="button" class="btn ghost" id="proCopyAverages">📋 Copiar promedios</button>
           <button type="button" class="btn ghost" id="proExcel">⬇ Excel del curso</button>
+          <button type="button" class="btn ghost" id="proReportCourse">📄 Informe del curso (UTP)</button>
         </div>
       </div>
 
@@ -178,7 +256,7 @@
       </div>
 
       <div id="proViewEstudiantes" class="pro-view" hidden>
-        <p class="muted small">El <b>N° de lista</b> es el que el estudiante marca en su hoja de respuestas. Si un estudiante se retira, márcalo como retirado en lugar de borrarlo, para no cambiar la numeración.</p>
+        <p class="muted small">El <b>N° de lista</b> es el que el estudiante marca en su hoja de respuestas. Si un estudiante se retira, márcalo como retirado en lugar de borrarlo, para no cambiar la numeración. Marca <b>PIE</b> a los estudiantes del Programa de Integración: su nota se calcula con la exigencia PIE de cada prueba (o con la suya, si la escribes) y reciben la hoja de la versión adecuada.</p>
         <div class="table-wrap">
           <table id="proStudents" class="pro-students"></table>
         </div>
@@ -213,6 +291,9 @@
 <button type="button" data-man-go="tickets"><b>10</b>Tickets de salida</button>
 <button type="button" data-man-go="nombres"><b>11</b>Hojas con nombre</button>
 <button type="button" data-man-go="lote"><b>12</b>PDF y varias hojas por foto</button>
+<button type="button" data-man-go="calidad"><b>13</b>Calidad de las preguntas</button>
+<button type="button" data-man-go="pie"><b>14</b>Estudiantes PIE</button>
+<button type="button" data-man-go="utp"><b>15</b>Informe para UTP</button>
 
 <!-- @@ manual -->
 <!-- Versión Pro -->
@@ -316,6 +397,58 @@
     <li>Para que funcione, las hojas no deben taparse entre sí: se deben ver completas sus cuatro esquinas y sus marcas laterales.</li>
   </ul>
   <p class="man-tip"><b>💡 Consejo:</b> en la fotocopiadora, escanea en blanco y negro o escala de grises a 150–300 ppp.</p>
+</article>
+
+<article class="card man-section" id="man-calidad" data-man="calidad">
+  <h2><span class="man-num">13</span>Calidad de las preguntas: discriminación y preguntas para anular</h2>
+  <div class="man-video" data-video="calidad"></div>
+  <p>En <b>Resultados</b>, el recuadro <b>🔬 Calidad de las preguntas</b> revisa cada pregunta de la prueba con los resultados del curso y te sugiere qué hacer con ella.</p>
+  <ul class="man-list">
+    <li><b>Acierto:</b> % de estudiantes que la respondió bien (su dificultad).</li>
+    <li><b>Discriminación:</b> compara a los estudiantes de mejor puntaje con los de menor puntaje. Una buena pregunta la responden bien los que saben más (0,30 o más). Si es <b>negativa</b>, la respondieron mejor los de menor puntaje: suele estar ambigua o con la clave equivocada.</li>
+    <li><b>Respuestas:</b> % que eligió cada alternativa. En rojo, una alternativa incorrecta que eligieron más que la clave; tachada, una que nadie eligió (no aporta: conviene cambiarla).</li>
+    <li><b>Confiabilidad (KR-20):</b> qué tan consistente es la prueba. En pruebas de aula lo habitual es entre 0,60 y 0,80.</li>
+  </ul>
+  <h3>Anular una pregunta o corregir su clave</h3>
+  <ol class="man-steps">
+    <li>Elige <b>Mostrar: sólo las preguntas para revisar o mejorar</b> y lee la sugerencia de cada una.</li>
+    <li>Si la clave estaba mal, presiona <b>Cambiar clave a…</b>. Si la pregunta tenía un error y quieres que no cuente, presiona <b>Anular</b>: deja de contar para todos y el puntaje máximo baja.</li>
+    <li>Las notas se recalculan al instante. Si ya las guardaste en el libro de notas, vuelve a presionar <b>Actualizar notas en el libro</b>.</li>
+    <li>Para deshacerlo, presiona <b>↺ Restaurar</b>.</li>
+  </ol>
+  <p class="man-tip"><b>💡 Bueno saber:</b> con menos de 10 hojas los índices no son confiables: sólo se muestran el acierto y un aviso cuando muchos eligieron la misma alternativa incorrecta. Con <b>📋 Copiar la tabla</b> la pegas en Excel.</p>
+</article>
+
+<article class="card man-section" id="man-pie" data-man="pie">
+  <h2><span class="man-num">14</span>Estudiantes PIE y versión adecuada (Decreto 83)</h2>
+  <div class="man-video" data-video="pie"></div>
+  <p>Para los estudiantes del Programa de Integración Escolar puedes usar otra <b>exigencia</b> para calcular su nota y darles una <b>versión adecuada</b> de la prueba: letra más grande y una alternativa incorrecta menos en cada pregunta.</p>
+  <h3>Exigencia PIE</h3>
+  <ol class="man-steps">
+    <li>En <b>Cursos → Estudiantes</b>, marca la casilla <b>PIE</b> de cada estudiante. Si alguno tiene una exigencia distinta (por ejemplo, según su PACI), escríbela en su fila.</li>
+    <li>En <b>Prueba → Puntaje y nota</b>, revisa la <b>exigencia para estudiantes PIE</b> (50% por omisión).</li>
+    <li>Vincula la prueba al curso. En <b>Resultados</b> sus notas se calculan con su exigencia y llevan la etiqueta <span class="tag pie">PIE</span>.</li>
+  </ol>
+  <h3>Versión adecuada de la prueba</h3>
+  <ol class="man-steps">
+    <li>En <b>Evaluación</b>, abre <b>🧩 Versión adecuada (PIE)</b>.</li>
+    <li>En cada pregunta, elige qué <b>alternativa incorrecta se quita</b> (o usa <b>🎲 Elegir al azar las que faltan</b> y revísalas). Elige también el tamaño de letra.</li>
+    <li>Presiona <b>🖨️ Imprimir la prueba PIE</b> y <b>🖨️ Hojas de respuesta PIE</b>. En la pestaña <b>Hoja</b>, las <b>hojas con nombre</b> ya les imprimen la hoja PIE a los estudiantes PIE.</li>
+    <li>Escanea sus hojas junto con las demás: el lector reconoce la hoja PIE y la corrige con su clave.</li>
+  </ol>
+  <p class="man-warn"><b>⚠️ Importante:</b> si cambias las alternativas que se quitan después de imprimir, vuelve a imprimir la versión PIE (las hojas ya corregidas mantienen la versión con que se imprimieron). Sin la evaluación escrita en la pestaña Evaluación, se imprimen sólo las hojas PIE: adecua tu prueba quitando las alternativas elegidas.</p>
+</article>
+
+<article class="card man-section" id="man-utp" data-man="utp">
+  <h2><span class="man-num">15</span>Informe para UTP</h2>
+  <div class="man-video" data-video="utp"></div>
+  <p>Un informe listo para entregar a la Unidad Técnico-Pedagógica, que puedes imprimir o <b>guardar en PDF</b> para enviarlo por correo.</p>
+  <ul class="man-list">
+    <li><b>De una prueba:</b> en <b>Resultados</b>, presiona <b>📄 Informe para UTP</b>. Incluye el resumen (promedio, aprobación, logro), la distribución de notas, el logro por OA y por pregunta, los estudiantes que requieren apoyo con su OA más descendido, los estudiantes PIE, la calidad de la prueba y sugerencias.</li>
+    <li><b>De un curso:</b> en <b>Cursos</b>, presiona <b>📄 Informe del curso (UTP)</b> y elige el semestre, trimestre o el año. Incluye el promedio de cada evaluación, la distribución de promedios, el logro por OA acumulado, los estudiantes en riesgo (bajo 4,0 y limítrofes) y los estudiantes PIE.</li>
+    <li>Escribe tus <b>observaciones y acciones remediales</b> en el cuadro de arriba: se imprimen al final, junto a los espacios para firmar.</li>
+  </ul>
+  <p class="man-tip"><b>💡 Consejo:</b> las sugerencias se generan con los resultados; revísalas y compleméntalas con lo que sabes de tu curso.</p>
 </article>
 
 <!-- @@ dialogs -->
@@ -492,6 +625,30 @@
   </div>
 </dialog>
 
+<dialog id="proReportDialog" class="el-dialog pro-dialog pro-report-dialog" aria-labelledby="proReportTitle">
+  <div class="el-head">
+    <h2 id="proReportTitle">📄 Informe para UTP</h2>
+    <button type="button" class="btn ghost small" data-pro-close aria-label="Cerrar">✕</button>
+  </div>
+  <div class="pro-dialog-body">
+    <div class="rep-options">
+      <label id="rpPeriodWrap" class="inline-select" hidden>Periodo
+        <select id="rpPeriod"></select>
+      </label>
+      <label class="rep-notes-field">Observaciones y acciones remediales (se imprimen al final del informe)
+        <textarea id="rpNotes" rows="3" placeholder="Ej.: El 15 de junio se hará una clase de retroalimentación del OA 3 y una evaluación remedial para quienes obtuvieron nota bajo 4,0."></textarea>
+      </label>
+    </div>
+    <div class="rep-preview"><article id="rpPaper" class="rep-paper"></article></div>
+  </div>
+  <div class="el-foot">
+    <span class="muted small">Al imprimir puedes elegir «Guardar como PDF» para enviarlo por correo.</span>
+    <span class="spacer"></span>
+    <button type="button" class="btn ghost" data-pro-close>Cerrar</button>
+    <button type="button" class="btn primary" id="rpPrint">🖨️ Imprimir o guardar PDF</button>
+  </div>
+</dialog>
+
 <!-- @@ scripts -->
 <script src="js/pro/libro-core.js"></script>
 <script src="js/pro/respaldo-core.js"></script>
@@ -501,3 +658,8 @@
 <script src="js/pro/desarrollo.js"></script>
 <script src="js/pro/tickets.js"></script>
 <script src="js/pro/nombres.js"></script>
+<script src="js/pro/analisis-core.js"></script>
+<script src="js/pro/analisis.js"></script>
+<script src="js/pro/pie.js"></script>
+<script src="js/pro/informe-core.js"></script>
+<script src="js/pro/informe.js"></script>

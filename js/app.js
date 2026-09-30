@@ -101,6 +101,7 @@
 
   function sanitizeExam(raw) {
     const base = defaultExam();
+    if (PRO) base.pie = sanitizePie(null, base.numQuestions, base.numChoices);
     if (!raw || typeof raw !== 'object') return base;
     const structure = normalizeConfig(raw);
     const exam = Object.assign(base, structure);
@@ -123,9 +124,32 @@
     exam.doc = sanitizeDoc(raw.doc);
     exam.forms = sanitizeForms(raw.forms, exam.numQuestions, exam.numChoices);
     exam.dev = PRO ? SheetLayout.normalizeDev(raw.dev) : [];
+    if (PRO) exam.pie = sanitizePie(raw.pie, exam.numQuestions, exam.numChoices);
     // Datos de la versión Pro (curso y evaluación del libro de notas vinculados).
     if (raw.pro && typeof raw.pro === 'object') exam.pro = JSON.parse(JSON.stringify(raw.pro));
     return exam;
+  }
+
+  /**
+   * Versión Pro: versión adecuada (PIE) de la prueba. remove[q] = alternativa
+   * (de la fila A) que no aparece en la versión PIE de la pregunta q; la hoja
+   * PIE tiene una alternativa menos. exigencia: % para los estudiantes PIE.
+   */
+  function sanitizePie(raw, n, c) {
+    const p = raw && typeof raw === 'object' ? raw : {};
+    const num = (v, min, max, fallback) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback);
+    const remove = [];
+    for (let q = 0; q < n; q++) {
+      const v = Array.isArray(p.remove) ? p.remove[q] : null;
+      remove.push(Number.isInteger(v) && v >= 0 && v < c ? v : null);
+    }
+    return {
+      remove,
+      exigencia: num(p.exigencia, 1, 99, 50),
+      fontSize: num(p.fontSize, 10, 20, 14),
+      oneColumn: p.oneColumn !== false,
+      label: p.label !== false,
+    };
   }
 
   /**
@@ -548,6 +572,7 @@
     Object.assign(cur, normalizeConfig(next));
     cur.key = fitKey(cur.key, cur.numQuestions, cur.numChoices);
     cur.forms = sanitizeForms(cur.forms, cur.numQuestions, cur.numChoices);
+    if (PRO) cur.pie = sanitizePie(cur.pie, cur.numQuestions, cur.numChoices);
     return true;
   }
 
@@ -658,6 +683,24 @@
       formStyle: state.exam.formStyle,
       fill,
     };
+  }
+
+  /** Versión Pro: ¿la versión PIE está lista (una alternativa elegida para quitar en cada pregunta)? */
+  function pieReady() {
+    const p = state.exam.pie;
+    return !!(PRO && p && state.exam.numChoices >= 3 && p.remove.length === state.exam.numQuestions && p.remove.every((v) => v !== null));
+  }
+
+  /** Versión Pro: hoja de la versión PIE (una alternativa menos y la marca PIE); over cambia papel o formato. */
+  function pieLayout(over) {
+    if (!pieReady()) return null;
+    try {
+      return computeLayout(
+        Object.assign({}, state.exam, { fields: state.exam.sheetFields, numChoices: state.exam.numChoices - 1, pie: true }, over || {})
+      );
+    } catch (e) {
+      return null;
+    }
   }
 
   /** Hoja de una fila (con la fila impresa si la prueba tiene filas). */
@@ -1395,6 +1438,49 @@
     window.print();
   }
 
+  /**
+   * Versión Pro: la fila A de la evaluación con cambios (versión adecuada PIE).
+   * alter(pregunta, i) cambia la i-ésima pregunta de alternativas; fmt cambia el formato.
+   * null si la evaluación está vacía.
+   */
+  function docVariantHTML(alter, fmtOver, tag) {
+    renderDoc();
+    const form = docForms[0];
+    if (!form) return null;
+    let mc = -1;
+    const questions = form.questions.map((q) => (q.type === 'mc' ? alter(q, ++mc) : q));
+    const byQuestion = matchElements(docQuestions).byQuestion;
+    return TestDoc.renderTestHTML(questions, Object.assign(docFormat(), fmtOver || {}), {
+      maxScore: docMaxScore(),
+      intro: docParsed.intro,
+      elements: form.source.map((i) => byQuestion[i] || []),
+      sections: docParsed.sections,
+      versionTag: tag || '',
+    });
+  }
+
+  async function printDocVariant(alter, fmtOver, tag) {
+    await mathBeforePrint();
+    const html = docVariantHTML(alter, fmtOver, tag);
+    if (!html) return false;
+    const paper = PAPERS[state.exam.doc.format.paper] || PAPERS.carta;
+    setPageStyle(
+      `@page { size: ${paper.width}mm ${paper.height}mm; margin: 15mm 15mm 18mm; ` +
+        `@bottom-right { content: "Página " counter(page) " de " counter(pages); font: 9pt Arial, sans-serif; color: #555; } }`
+    );
+    $('#printArea').className = 'print-area print-doc';
+    $('#printArea').innerHTML = `<div class="print-form">${html}</div>`;
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    window.print();
+    return true;
+  }
+
+  /** Versión Pro: preguntas de alternativas de la evaluación (en el orden de la fila A). */
+  function docMcQuestions() {
+    renderDoc();
+    return docQuestions.filter((q) => q.type === 'mc');
+  }
+
   /** Pauta de respuestas de todas las filas. */
   async function printAnswerKey() {
     await mathBeforePrint();
@@ -1751,7 +1837,7 @@
     return out;
   }
 
-  function createResult(res, fileName) {
+  function createResult(res, fileName, pie) {
     const record = {
       id: uid(),
       fileName,
@@ -1769,6 +1855,12 @@
     // Casillas de desarrollo (las que la hoja no tenga quedan sin puntaje).
     if (state.exam.dev.length) {
       record.dev = state.exam.dev.map((_, i) => (res.dev && res.dev[i] ? { marked: res.dev[i].marked, uncertain: res.dev[i].uncertain } : null));
+    }
+    // Hoja de la versión PIE: se guarda qué alternativa se quitó en cada pregunta (así se imprimió).
+    if (PRO && pie && pieReady()) {
+      record.pie = true;
+      record.pieRemove = state.exam.pie.remove.slice();
+      record.form = 0;
     }
     return record;
   }
@@ -1831,8 +1923,8 @@
   }
 
   /** Guarda una hoja leída como resultado y la muestra en la cola. */
-  async function addScanned(res, photoCanvas, name, item) {
-    const record = createResult(res, name);
+  async function addScanned(res, photoCanvas, name, item, pie) {
+    const record = createResult(res, name, pie);
     const view = await makeView(res, photoCanvas);
     state.results.push(record);
     images.set(record.id, view);
@@ -1840,7 +1932,7 @@
     save();
     const g = grade(record);
     const who = record.code ? `Código ${record.code}` : name;
-    item.ok(`${who} · ${g.correct}/${g.items.length - g.excluded} correctas · nota ${fmt(g.grade, 1)}`, record.id);
+    item.ok(`${who}${record.pie ? ' (PIE)' : ''} · ${g.correct}/${g.items.length - g.excluded} correctas · nota ${fmt(g.grade, 1)}`, record.id);
     renderDetail($('#scanDetail'), record.id);
   }
 
@@ -1879,27 +1971,55 @@
     const auto = scanAuto(gray);
     let res = auto.res;
     let layout = auto.layout || getLayout();
+    // La otra versión de la hoja (normal o PIE), en el mismo papel y formato:
+    // en la versión Pro pueden venir juntas en una misma foto o página.
+    const otherKind = (base) => {
+      if (!PRO || !base) return [];
+      const over = { paper: base.config.paper, format: base.config.format };
+      let alt = null;
+      if (base.pie) {
+        try {
+          alt = computeLayout(Object.assign({}, state.exam, { fields: state.exam.sheetFields }, over));
+        } catch (e) {
+          alt = null;
+        }
+      } else alt = pieLayout(over);
+      return alt ? [alt] : [];
+    };
     if (!res.ok && PRO && !auto.other && layout) {
-      const many = OMR.scanSheet(gray, layout, Object.assign(scanOptions(), { many: true }));
-      if (!many.notFound) res = many;
+      for (const cand of [layout].concat(otherKind(layout))) {
+        const many = OMR.scanSheet(gray, cand, Object.assign(scanOptions(), { many: true }));
+        if (many.notFound) continue;
+        res = many;
+        layout = cand;
+        break;
+      }
     }
-    const found = [res];
+    const found = [{ res, layout }];
     if (PRO && layout && res.corners && (res.ok || res.decoded)) {
+      const kinds = [layout].concat(otherKind(layout));
       let work = gray;
-      let last = res;
+      let last = found[0];
       for (let i = 0; i < 40; i++) {
-        work = OMR.eraseSheet(work, layout, last.corners);
+        work = OMR.eraseSheet(work, last.layout, last.res.corners);
         await nextFrame();
-        const next = OMR.scanSheet(work, layout, Object.assign(scanOptions(), { many: true }));
-        if (next.notFound) break;
+        let next = null;
+        for (const k of kinds) {
+          const r = OMR.scanSheet(work, k, Object.assign(scanOptions(), { many: true }));
+          if (!r.notFound) {
+            next = { res: r, layout: k };
+            break;
+          }
+        }
+        if (!next) break;
         found.push(next);
-        if (!next.corners) break;
+        if (!next.res.corners) break;
         last = next;
       }
     }
     const multi = found.length > 1;
     for (let i = 0; i < found.length; i++) {
-      const r = found[i];
+      const { res: r, layout: lay } = found[i];
       const label = multi ? `${name} · hoja ${i + 1} de ${found.length}` : name;
       const it = i === 0 ? item : queueItem(label);
       if (!r.ok) {
@@ -1909,7 +2029,8 @@
         it.error(`${label}: ${r.error}`, other ? { label: 'Usar la configuración de esta hoja', run: async () => useSheetConfig(other, await getFile()) } : transcribe);
         continue;
       }
-      await addScanned(r, multi && r.corners ? cropSheet(canvas, layout, r.corners) : canvas, label, it);
+      // Una hoja leída con el diseño PIE es de la versión PIE (así se corrige).
+      await addScanned(r, multi && r.corners ? cropSheet(canvas, lay, r.corners) : canvas, label, it, !!(lay && lay.pie));
     }
   }
 
@@ -1987,6 +2108,27 @@
     if (!layout) return { res: { ok: false, error: layoutError } };
     const res = OMR.scanSheet(gray, layout, scanOptions());
     const d = res.decoded;
+    // Versión Pro: hoja de la versión PIE (una alternativa menos y su marca).
+    if (PRO && !res.ok && d && d.pie !== false) {
+      const e = state.exam;
+      const sameTest = d.numQuestions === e.numQuestions && d.numChoices === e.numChoices - 1 && d.idDigits === e.idDigits;
+      if (sameTest && pieReady()) {
+        const pl = pieLayout({ paper: d.paper, format: d.format });
+        if (pl) {
+          const res2 = OMR.scanSheet(gray, pl, scanOptions());
+          if (res2.ok || d.pie) return { res: res2, layout: pl, pie: res2.ok };
+        }
+      } else if (d.pie) {
+        return {
+          res: Object.assign({}, res, {
+            error: sameTest
+              ? 'Esta hoja es de la versión PIE de la prueba, pero falta elegir la alternativa que se quita en cada pregunta (pestaña Evaluación → Versión PIE).'
+              : res.error,
+          }),
+          layout,
+        };
+      }
+    }
     if (!res.ok && res.devMismatch && d && d.devCount < state.exam.dev.length) {
       const alt = computeLayout(Object.assign({}, state.exam, { dev: state.exam.dev.slice(0, d.devCount), fields: state.exam.sheetFields }));
       const res2 = OMR.scanSheet(gray, alt, scanOptions());
@@ -2070,8 +2212,13 @@
     $('#trName').placeholder = 'Nombre del estudiante';
     $('#trCodeWrap').hidden = e.idDigits === 0;
     $('#trCode').placeholder = e.idDigits ? `${e.idDigits} dígito(s)` : '';
-    $('#trFormWrap').hidden = !e.forms;
-    if (e.forms) $('#trForm').innerHTML = e.forms.maps.map((_, i) => `<option value="${i}">Fila ${formLetter(i)}</option>`).join('');
+    // Versión Pro: también se puede transcribir una hoja de la versión PIE.
+    const pieOk = PRO && pieReady();
+    $('#trFormWrap').hidden = !e.forms && !pieOk;
+    $('#trFormLabel').textContent = e.forms ? 'Fila' : 'Versión';
+    const formOpts = e.forms ? e.forms.maps.map((_, i) => `<option value="${i}">Fila ${formLetter(i)}</option>`) : pieOk ? ['<option value="0">Normal</option>'] : [];
+    if (pieOk) formOpts.push('<option value="pie">Versión PIE (una alternativa menos)</option>');
+    if (formOpts.length) $('#trForm').innerHTML = formOpts.join('');
     $('#trPhoto').value = '';
     setTranscribePhoto(photoFile || null);
     renderTranscribeGrid();
@@ -2087,6 +2234,15 @@
     p.textContent = file ? `Foto adjunta: ${file.name || 'foto'}` : '';
   }
 
+  /** Transcripción de una hoja de la versión PIE (versión Pro): una alternativa menos. */
+  function trIsPie() {
+    return PRO && $('#trForm').value === 'pie' && pieReady();
+  }
+
+  function trChoices() {
+    return state.exam.numChoices - (trIsPie() ? 1 : 0);
+  }
+
   /** Una letra por pregunta: A, B… ; "-" en blanco; "*" doble marca. */
   function transcribeText() {
     const chars = TR.answers.map((m) => (m.length === 0 ? '-' : m.length > 1 ? '*' : CHOICE_LABELS[m[0]]));
@@ -2096,7 +2252,8 @@
   }
 
   function parseTranscribeText(text) {
-    const { numQuestions: n, numChoices: c } = state.exam;
+    const n = state.exam.numQuestions;
+    const c = trChoices();
     const out = [];
     for (const ch of String(text).toUpperCase()) {
       if (out.length >= n) break;
@@ -2111,7 +2268,7 @@
   }
 
   function renderTranscribeGrid(skipText) {
-    const c = state.exam.numChoices;
+    const c = trChoices();
     const html = TR.answers.map((m, q) => {
       const cls = m.length === 0 ? ' unset' : m.length > 1 ? ' multi' : '';
       let row = `<div class="key-row${cls}"><span class="qn">${q + 1}</span>`;
@@ -2134,8 +2291,9 @@
   /** Hoja de respuestas rellenada con lo transcrito (mismo diseño de la prueba). */
   function transcribedSheet() {
     const e = state.exam;
-    const form = e.forms ? Number($('#trForm').value) || 0 : null;
-    const layout = layoutForForm(form);
+    const pie = trIsPie();
+    const form = !pie && e.forms ? Number($('#trForm').value) || 0 : null;
+    const layout = pie ? pieLayout() : layoutForForm(form);
     const digits = $('#trCode').value.replace(/\D/g, '').slice(0, e.idDigits);
     const id = [];
     for (let d = 0; d < e.idDigits; d++) id.push(d < digits.length ? Number(digits[d]) : null);
@@ -2145,7 +2303,7 @@
     const opts = Object.assign(sheetOptions({ answers: TR.answers, id, dev: TR.dev, fields: { Nombre: name } }), {
       footerNote: `Hoja transcrita por el docente (${p2(d.getDate())}-${p2(d.getMonth() + 1)}-${d.getFullYear()})`,
     });
-    return { layout, svg: SheetRenderer.renderSVG(layout, opts), id, form };
+    return { layout, svg: SheetRenderer.renderSVG(layout, opts), id, form, pie };
   }
 
   function printTranscribed() {
@@ -2161,7 +2319,7 @@
   async function addTranscribed() {
     const e = state.exam;
     if (!getLayout()) return toast(layoutError);
-    const { layout, svg, id, form } = transcribedSheet();
+    const { layout, svg, id, form, pie } = transcribedSheet();
     if (e.idDigits && id.some((v) => v === null) && !confirm('Falta el N° de lista o código del estudiante. ¿Agregar la hoja de todos modos? (Podrás completarlo después en Resultados).')) return;
     if (TR.answers.every((m) => m.length === 0) && !confirm('No transcribiste ninguna respuesta. ¿Agregar la hoja de todos modos?')) return;
     const btn = $('#trAdd');
@@ -2215,6 +2373,10 @@
         warnings: ['Hoja transcrita por el docente a partir de la hoja original.'],
       };
       if (e.dev.length) record.dev = e.dev.map((_, i) => ({ marked: TR.dev[i] === null ? [] : [TR.dev[i]], uncertain: false }));
+      if (pie) {
+        record.pie = true;
+        record.pieRemove = e.pie.remove.slice();
+      }
       state.results.push(record);
       images.set(record.id, view);
       persistView(record.id, view);
@@ -2243,10 +2405,11 @@
     msg.textContent = 'Leyendo la hoja…';
     await nextFrame();
     try {
-      const { res } = scanAuto((await fileToGray(file)).gray);
-      if (!res.ok) {
+      const auto = scanAuto((await fileToGray(file)).gray);
+      const res = auto.res;
+      if (!res.ok || auto.pie) {
         msg.className = 'alert error';
-        msg.textContent = res.error;
+        msg.textContent = res.ok ? 'Es una hoja de la versión PIE: para cargar la clave usa una hoja de la versión normal.' : res.error;
         return;
       }
       let key = res.answers.map((a) => (a.marked.length === 1 ? a.marked[0] : null));
@@ -2281,10 +2444,30 @@
 
   /** Mapa de la fila de un resultado (null = fila A u orden original). */
   function formMap(r) {
+    if (r && r.pie) return pieMapOf(r.pieRemove);
     const f = state.exam.forms;
     if (!f || !r) return null;
     const i = r.form;
     return Number.isInteger(i) && i > 0 && i < f.maps.length ? f.maps[i] : null;
+  }
+
+  /**
+   * Versión PIE (Pro): las preguntas van en el orden de la fila A y cada una
+   * tiene una alternativa menos (la que se quitó al imprimirla).
+   */
+  function pieMapOf(remove) {
+    const n = state.exam.numQuestions;
+    const c = state.exam.numChoices;
+    if (!Array.isArray(remove) || remove.length !== n) return null;
+    const order = [];
+    const perms = [];
+    for (let q = 0; q < n; q++) {
+      order.push(q);
+      const p = [];
+      for (let k = 0; k < c; k++) if (k !== remove[q]) p.push(k);
+      perms.push(p.slice(0, c - 1));
+    }
+    return { order, perms };
   }
 
   /** Clave en el orden de la hoja de una fila. */
@@ -2312,14 +2495,35 @@
     return d && d.length ? { items: d, marks: r.dev || [] } : undefined;
   }
 
+  // Versión Pro: reglas por estudiante (p. ej. exigencia distinta para los estudiantes PIE).
+  let studentRule = null;
+  function ruleFor(r) {
+    if (!studentRule || !r) return null;
+    try {
+      return studentRule(r) || null;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  }
+
+  function scoringFor(r) {
+    const rule = ruleFor(r);
+    return rule && rule.exigencia ? Object.assign({}, state.exam.scoring, { exigencia: rule.exigencia }) : state.exam.scoring;
+  }
+
   /** Corrección en el orden de la hoja del estudiante (su fila). */
   function grade(r) {
-    return Grading.gradeAnswers(r.answers, keyForForm(formMap(r)), state.exam.scoring, devSpec(r));
+    return Grading.gradeAnswers(r.answers, keyForForm(formMap(r)), scoringFor(r), devSpec(r));
   }
 
   /** Corrección en el orden de la fila A (mismo puntaje; para OA y análisis). */
   function gradeCanon(r) {
-    return formMap(r) ? Grading.gradeAnswers(canonAnswers(r), state.exam.key, state.exam.scoring, devSpec(r)) : grade(r);
+    if (!formMap(r)) return grade(r);
+    let key = state.exam.key;
+    // Versión PIE: si la clave es justo la alternativa que se quitó, la pregunta no cuenta para ese estudiante.
+    if (r.pie) key = key.map((k, q) => (k !== null && r.pieRemove[q] === k ? null : k));
+    return Grading.gradeAnswers(canonAnswers(r), key, scoringFor(r), devSpec(r));
   }
 
   /** Casillas de desarrollo sin puntaje claro (sin marcar, dobles o dudosas) y no corregidas a mano. */
@@ -2332,7 +2536,7 @@
 
   /** Fila sin leer (las hojas guardadas antes de existir las filas cuentan como fila A). */
   function formUnknown(r) {
-    if (!state.exam.forms || r.form === undefined) return false;
+    if (!state.exam.forms || r.form === undefined || r.pie) return false;
     return !(Number.isInteger(r.form) && r.form >= 0 && r.form < state.exam.forms.maps.length);
   }
 
@@ -2379,7 +2583,7 @@
     const g = grade(r);
     const fm = formMap(r);
     const sc = state.exam.scoring;
-    const c = state.exam.numChoices;
+    const c = state.exam.numChoices - (r.pie ? 1 : 0);
     const failed = g.grade !== null && g.grade < sc.gradePass;
     const view = images.get(r.id);
     const name = displayName(r);
@@ -2395,7 +2599,7 @@
         const st = STATUS[it.status];
         const keyTxt = it.key === null ? 'sin clave' : `clave ${CHOICE_LABELS[it.key]}`;
         const unc = a.uncertain && !a.edited;
-        const origNote = fm ? ` · pregunta ${fm.order[q] + 1} de la fila A` : '';
+        const origNote = fm && !r.pie ? ` · pregunta ${fm.order[q] + 1} de la fila A` : '';
         return (
           `<div class="ans ${it.status}${unc ? ' uncertain' : ''}" title="${esc(st.label + (unc ? ' · marca dudosa, revisar' : '') + origNote)}">` +
           `<span class="qn">${q + 1}</span>` +
@@ -2430,6 +2634,11 @@
       alerts.push('No se pudo leer completo el código del estudiante: complétalo manualmente.');
     }
     if (formUnknown(r)) alerts.push('No se pudo leer la fila de la hoja (A, B, C o D): elígela arriba para corregir con la clave correcta.');
+    if (r.pie) {
+      const lost = state.exam.key.map((k, q) => (k !== null && r.pieRemove[q] === k ? q + 1 : null)).filter(Boolean);
+      if (lost.length) alerts.push(`La clave de la(s) pregunta(s) ${lost.join(', ')} es la alternativa que se quitó en la versión PIE: no cuentan para este estudiante.`);
+    }
+    const rule = ruleFor(r);
     const unc = r.answers.filter((a) => a.uncertain && !a.edited).length;
     if (unc) alerts.push(`${unc} pregunta(s) con marcas dudosas (recuadro amarillo): revísalas y corrige si es necesario.`);
     for (const w of r.warnings || []) alerts.push(w);
@@ -2448,8 +2657,10 @@
           <div class="who">
             <label class="code">Código<input type="text" data-field="code" value="${esc(r.code || '')}" inputmode="numeric" autocomplete="off"></label>
             <label>Nombre<input type="text" data-field="name" value="${esc(r.name || '')}" placeholder="${esc(rosterName(r.code) || 'Nombre del estudiante')}" autocomplete="off"></label>
+            ${r.pie ? '<span class="tag pie detail-tag" title="Hoja de la versión adecuada: una alternativa menos por pregunta">Versión PIE</span>' : ''}
+            ${rule && rule.exigencia && rule.exigencia !== sc.exigencia ? `<span class="tag pie detail-tag" title="${esc(rule.title || '')}">Exigencia ${rule.exigencia}%</span>` : ''}
             ${
-              state.exam.forms
+              state.exam.forms && !r.pie
                 ? `<label class="form-pick">Fila<select data-field="form">${formUnknown(r) ? '<option value="" selected>?</option>' : ''}${state.exam.forms.maps
                     .map((_, i) => `<option value="${i}"${r.form === i ? ' selected' : ''}>${formLetter(i)}</option>`)
                     .join('')}</select></label>`
@@ -2655,6 +2866,7 @@
       if (selectedResultId === r.id) selectedResultId = null;
       renderResultsBadge();
       if (!$('#tab-resultados').hidden) renderResults();
+      else emit('results');
       return;
     } else {
       return;
@@ -2663,6 +2875,7 @@
     renderDetail(container, r.id);
     renderResultsBadge();
     if (!$('#tab-resultados').hidden) renderResultsTable();
+    emit('results');
   }
 
   /* ------------------------------------------------------------------ */
@@ -2723,7 +2936,9 @@
         if (needsReview(r)) tags.push('<span class="tag warn">revisar</span>');
         if (r.code && codeCount[r.code] > 1) tags.push('<span class="tag bad">código repetido</span>');
         if (r.transcribed) tags.push('<span class="tag form">transcrita</span>');
-        if (state.exam.forms) tags.push(`<span class="tag form">Fila ${formUnknown(r) ? '?' : formLetter(r.form || 0)}</span>`);
+        if (state.exam.forms && !r.pie) tags.push(`<span class="tag form">Fila ${formUnknown(r) ? '?' : formLetter(r.form || 0)}</span>`);
+        const rule = ruleFor(r);
+        if (r.pie || (rule && rule.tag)) tags.push(`<span class="tag pie" title="${esc((rule && rule.title) || 'Versión PIE')}">${esc((rule && rule.tag) || 'PIE')}</span>`);
         const gradeCls = g.grade === null ? '' : g.grade >= sc.gradePass ? 'grade-pass' : 'grade-fail';
         return `<tr data-id="${esc(r.id)}"${r.id === selectedResultId ? ' class="selected"' : ''}>
           <td class="num">${i + 1}</td>
@@ -2819,6 +3034,24 @@
       '</tbody>';
   }
 
+  /** Columna de la fila (o de la versión PIE) al exportar: null si no hace falta. */
+  function versionHeader() {
+    if (state.exam.forms) return 'Fila';
+    return state.results.some((r) => r.pie) ? 'Versión' : null;
+  }
+
+  function versionText(r) {
+    if (r.pie) return 'PIE';
+    if (!state.exam.forms) return '';
+    return formUnknown(r) ? '?' : formLetter(r.form || 0);
+  }
+
+  /** Columna de exigencia al exportar: sólo si algún estudiante tiene una exigencia distinta (PIE). */
+  function exigenciaColumn(rows) {
+    const base = state.exam.scoring.exigencia;
+    return rows.some(({ r }) => scoringFor(r).exigencia !== base);
+  }
+
   function exportCsv() {
     const sep = ';';
     const n = state.exam.numQuestions;
@@ -2830,9 +3063,13 @@
     const qCols = [];
     for (let q = 1; q <= n; q++) qCols.push('P' + q);
     const lines = [];
+    const version = versionHeader();
+    const rows = sortedResults();
+    const exig = exigenciaColumn(rows);
     lines.push(
       ['N°', 'Código', 'Nombre', 'Archivo', 'Correctas', 'Incorrectas', 'Omitidas', 'Dobles marcas', 'Puntaje', 'Puntaje máximo', '% logro', 'Nota']
-        .concat(state.exam.forms ? ['Fila'] : [])
+        .concat(exig ? ['Exigencia (%)'] : [])
+        .concat(version ? [version] : [])
         .concat(currentObjectives().objectives.map((o) => `% ${o.name}`))
         .concat(state.exam.dev.map((d) => `${d.label} (máx ${d.max})`))
         .concat(qCols)
@@ -2841,17 +3078,19 @@
     );
     lines.push(
       ['', '', state.exam.forms ? 'CLAVE (fila A)' : 'CLAVE', '', '', '', '', '', '', '', '', '']
-        .concat(state.exam.forms ? [''] : [])
+        .concat(exig ? [''] : [])
+        .concat(version ? [''] : [])
         .concat(currentObjectives().objectives.map(() => ''))
         .concat(state.exam.dev.map(() => ''))
         .concat(state.exam.key.map((k) => (k === null ? '' : CHOICE_LABELS[k])))
         .map(cell)
         .join(sep)
     );
-    sortedResults().forEach(({ r, g }, i) => {
+    rows.forEach(({ r, g }, i) => {
       lines.push(
         [i + 1, r.code || '', displayName(r), r.fileName, g.correct, g.wrong, g.blank, g.multiple, dec(g.score, 2), dec(g.maxScore, 2), dec(g.percent, 1), dec(g.grade, 1)]
-          .concat(state.exam.forms ? [formUnknown(r) ? '?' : formLetter(r.form || 0)] : [])
+          .concat(exig ? [scoringFor(r).exigencia] : [])
+          .concat(version ? [versionText(r)] : [])
           .concat(oaResults(g).map((o) => dec(o.percent, 1)))
           .concat((g.dev || []).map((d) => (d.status === 'scored' ? d.points : '')))
           .concat(canonAnswers(r).map((a) => letters(a.marked)))
@@ -2944,7 +3183,7 @@
     lines.push({ text: state.exam.title || 'Prueba', font: font(34, 700), color: '#1c2430' });
     if (state.exam.subtitle) lines.push({ text: state.exam.subtitle, font: font(22), color: '#5d6877' });
     lines.push({
-      text: `Estudiante: ${displayName(r) || '—'}     Código: ${r.code || '—'}${state.exam.forms ? `     Fila: ${formUnknown(r) ? '?' : formLetter(r.form || 0)}` : ''}`,
+      text: `Estudiante: ${displayName(r) || '—'}     Código: ${r.code || '—'}${r.pie ? '     Versión PIE' : state.exam.forms ? `     Fila: ${formUnknown(r) ? '?' : formLetter(r.form || 0)}` : ''}${scoringFor(r).exigencia !== sc.exigencia ? `     Exigencia: ${scoringFor(r).exigencia}%` : ''}`,
       font: font(24, 700),
       color: '#1c2430',
       gapBefore: 10,
@@ -3094,8 +3333,10 @@
       'N°', 'Código', 'Nombre', 'Correctas', 'Incorrectas', 'Omitidas', 'Dobles marcas', 'Puntaje',
       'Puntaje máximo', '% logro', 'Nota',
     ];
-    const withForms = !!exam.forms;
-    if (withForms) head.push('Fila');
+    const version = versionHeader();
+    const exig = exigenciaColumn(rows);
+    if (exig) head.push('Exigencia (%)');
+    if (version) head.push(version);
     const objectives = currentObjectives().objectives;
     for (const o of objectives) head.push(`% ${o.name}`);
     for (const d of exam.dev) head.push(`${d.label} (máx ${d.max})`);
@@ -3117,7 +3358,8 @@
       {
         v:
           'Los hipervínculos abren las imágenes guardadas junto a este archivo (carpetas hojas_corregidas y fotos_originales).' +
-          (withForms ? ' Las respuestas P1, P2… están en el orden de la fila A (cada fila se corrigió con su propia clave).' : ''),
+          (exam.forms ? ' Las respuestas P1, P2… están en el orden de la fila A (cada fila se corrigió con su propia clave).' : '') +
+          (rows.some(({ r }) => r.pie) ? ' Las hojas PIE (versión adecuada, con una alternativa menos) se corrigieron con su propia clave; sus respuestas se muestran con las letras de la prueba original.' : ''),
         s: 'muted',
       },
     ]);
@@ -3149,7 +3391,8 @@
         g.maxScore,
         { v: g.percent, s: 'dec1' },
         g.grade === null ? '' : { v: g.grade, s: g.grade >= sc.gradePass ? 'ok' : 'bad' },
-        ...(withForms ? [formUnknown(r) ? '?' : formLetter(r.form || 0)] : []),
+        ...(exig ? [scoringFor(r).exigencia] : []),
+        ...(version ? [versionText(r)] : []),
         ...oaResults(g).map((o) => (o.percent === null ? '' : { v: o.percent, s: 'lvl' + o.level })),
         ...(g.dev || []).map((d) => (d.status === 'scored' ? d.points : { v: 'sin puntaje', s: 'bad' })),
         status,
@@ -3167,7 +3410,8 @@
     const headerRow = 4;
     const lastCol = Xlsx.colName(head.length - 1);
     const cols = [5, 10, 28, 10, 11, 10, 9, 9, 10, 9, 7]
-      .concat(withForms ? [6] : [])
+      .concat(exig ? [10] : [])
+      .concat(version ? [8] : [])
       .concat(objectives.map((o) => Math.max(9, Math.min(24, o.name.length + 4))))
       .concat(exam.dev.map(() => 11))
       .concat([16, 20, 18, 22])
@@ -3682,6 +3926,12 @@
       $('#trName').placeholder = rosterName(e.target.value) || 'Nombre del estudiante';
     });
     $('#trPhoto').addEventListener('change', (e) => setTranscribePhoto(e.target.files[0] || null));
+    // Al cambiar a la versión PIE (o volver) se descartan las alternativas que esa hoja no tiene.
+    $('#trForm').addEventListener('change', () => {
+      const c = trChoices();
+      TR.answers = TR.answers.map((m) => m.filter((k) => k < c));
+      renderTranscribeGrid();
+    });
     $('#trDev').addEventListener('change', (e) => {
       const sel = e.target.closest('[data-trdev]');
       if (sel) TR.dev[Number(sel.dataset.trdev)] = sel.value === '' ? null : Number(sel.value);
@@ -3868,6 +4118,17 @@
       docDevCandidates,
       getLayout,
       layoutForForm,
+      pieLayout,
+      pieReady,
+      sanitizePie,
+      setStudentRule(fn) {
+        studentRule = typeof fn === 'function' ? fn : null;
+      },
+      ruleFor,
+      scoringFor,
+      docVariantHTML,
+      printDocVariant,
+      docMcQuestions,
       sheetOptions,
       setPageStyle,
       fileToGray,

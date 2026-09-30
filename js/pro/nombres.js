@@ -14,11 +14,11 @@
   const EXAM_LIST = '__exam';
   const picked = new Set();
 
-  /** Estudiantes de la lista elegida: [{ key, n, name }]. */
+  /** Estudiantes de la lista elegida: [{ key, n, name, pie }]. */
   function students() {
     const src = $('#pnSource').value;
     const c = Pro.course(src);
-    if (c) return L.activeStudents(c).map((s) => ({ key: s.id, n: s.n, name: s.name }));
+    if (c) return L.activeStudents(c).map((s) => ({ key: s.id, n: s.n, name: s.name, pie: !!s.pie }));
     return state.exam.roster
       .split(/\r?\n/)
       .map((name, i) => ({ key: 'n' + (i + 1), n: i + 1, name: name.trim() }))
@@ -39,8 +39,14 @@
     return state.exam.forms ? state.exam.forms.maps.length : 0;
   }
 
-  /** Fila de cada estudiante: alternada según el N° de lista o una fija. */
+  /** ¿Este estudiante recibe la hoja de la versión PIE? */
+  function usesPie(s) {
+    return !!s.pie && app.pieReady() && $('#pnPie').checked;
+  }
+
+  /** Fila de cada estudiante: alternada según el N° de lista o una fija (la hoja PIE no tiene fila). */
   function formOf(s) {
+    if (usesPie(s)) return null;
     const count = formsCount();
     if (!count) return null;
     const mode = $('#pnForms').value;
@@ -73,7 +79,6 @@
     renderSources();
     const count = formsCount();
     $('#pnFormWrap').hidden = !count;
-    $('#pnList').hidden = !count;
     if (count) {
       const prev = $('#pnForms').value;
       const letters = state.exam.forms.maps.map((_, i) => SheetLayout.FORM_LETTERS[i]);
@@ -93,7 +98,16 @@
         )
         .join('');
     }
+    const withPie = all.filter((s) => s.pie);
+    $('#pnPieWrap').hidden = !withPie.length;
+    $('#pnPie').disabled = !app.pieReady();
+    $('#pnPieInfo').textContent = !withPie.length
+      ? ''
+      : app.pieReady()
+        ? `(${withPie.length}: ${withPie.map((s) => s.name || 'N° ' + s.n).join(', ')})`
+        : '(primero prepara la versión PIE en la pestaña Evaluación)';
     const list = chosen();
+    $('#pnList').hidden = !count && !list.some(usesPie);
     const fmt = SheetLayout.FORMATS[state.exam.format];
     const pages = Math.ceil(list.length / fmt.perPage);
     $('#pnInfo').textContent = list.length
@@ -112,10 +126,12 @@
     const list = chosen();
     const perPage = SheetLayout.FORMATS[state.exam.format].perPage;
     const curso = courseName();
-    const pieces = list.map((s) => ({
-      layout: app.layoutForForm(formOf(s)),
-      opts: app.sheetOptions({ id: idDigitsOf(s.n), fields: { Nombre: s.name, Curso: curso } }),
-    }));
+    const pieces = list.map((s) => {
+      const fill = { id: idDigitsOf(s.n), fields: { Nombre: s.name, Curso: curso } };
+      return usesPie(s)
+        ? { layout: app.pieLayout(), opts: Pro.pieSheetOptions ? Pro.pieSheetOptions(fill) : app.sheetOptions(fill) }
+        : { layout: app.layoutForForm(formOf(s)), opts: app.sheetOptions(fill) };
+    });
     const pages = [];
     for (let i = 0; i < pieces.length; i += perPage) {
       const chunk = pieces.slice(i, i + perPage);
@@ -126,12 +142,12 @@
 
   function repartoHtml() {
     const rows = chosen()
-      .map((s) => `<tr><td>${s.n}</td><td>${esc(s.name)}</td><td><b>${SheetLayout.FORM_LETTERS[formOf(s)]}</b></td></tr>`)
+      .map((s) => `<tr><td>${s.n}</td><td>${esc(s.name)}</td><td><b>${usesPie(s) ? 'PIE' : formsCount() ? SheetLayout.FORM_LETTERS[formOf(s)] : 'Normal'}</b></td></tr>`)
       .join('');
     return `<div class="print-page print-reparto">
       <h2>Reparto de filas · ${esc(state.exam.title || 'Prueba')}</h2>
       <p>${esc(courseName() || '')}</p>
-      <table><thead><tr><th>N°</th><th>Estudiante</th><th>Fila</th></tr></thead><tbody>${rows}</tbody></table>
+      <table><thead><tr><th>N°</th><th>Estudiante</th><th>${formsCount() ? 'Fila' : 'Versión'}</th></tr></thead><tbody>${rows}</tbody></table>
     </div>`;
   }
 
@@ -142,7 +158,7 @@
     app.setPageStyle(`@page { size: ${tiling.width}mm ${tiling.height}mm; margin: 0; }`);
     const area = $('#printArea');
     area.className = 'print-area';
-    area.innerHTML = pages.map((p) => `<div class="print-page">${p.svg}</div>`).join('') + (formsCount() ? repartoHtml() : '');
+    area.innerHTML = pages.map((p) => `<div class="print-page">${p.svg}</div>`).join('') + (formsCount() || chosen().some(usesPie) ? repartoHtml() : '');
     window.print();
   }
 
@@ -167,6 +183,7 @@
     render();
   });
   $('#pnForms').addEventListener('change', render);
+  $('#pnPie').addEventListener('change', render);
   $('#pnPick').addEventListener('change', (e) => {
     const cb = e.target.closest('input[data-key]');
     if (!cb) return;

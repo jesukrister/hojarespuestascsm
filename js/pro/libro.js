@@ -631,14 +631,21 @@
         <td><input class="n" type="number" min="1" max="999" step="1" value="${s.n}" data-f="n" aria-label="N° de lista"></td>
         <td><input class="name" type="text" maxlength="120" value="${esc(s.name)}" data-f="name" aria-label="Nombre"></td>
         <td><input class="rut" type="text" maxlength="14" value="${esc(s.rut)}" data-f="rut" placeholder="12.345.678-9" aria-label="RUT"></td>
+        <td class="center"><input type="checkbox" data-f="pie"${s.pie ? ' checked' : ''} aria-label="Estudiante PIE"></td>
+        <td class="pie-ex"><span class="with-unit"><input class="ex" type="number" min="1" max="99" step="1" value="${s.exigencia || ''}" data-f="exigencia" placeholder="${esc(String(pieExigencia()))}"${s.pie ? '' : ' disabled'} aria-label="Exigencia PIE (%)" title="Vacío = la exigencia PIE de cada prueba"><span>%</span></span></td>
         <td class="center"><input type="checkbox" data-f="retired"${s.retired ? ' checked' : ''} aria-label="Retirado"></td>
         <td><button type="button" class="btn ghost small danger" data-del title="Eliminar de la lista" aria-label="Eliminar">✕</button></td>
       </tr>`
       )
       .join('');
-    $('#proStudents').innerHTML = `<thead><tr><th>N°</th><th>Nombre</th><th>RUT (opcional)</th><th class="center">Retirado</th><th></th></tr></thead><tbody>${
-      rows || '<tr><td colspan="5" class="muted small">Sin estudiantes: agrega uno o pega la lista.</td></tr>'
+    $('#proStudents').innerHTML = `<thead><tr><th>N°</th><th>Nombre</th><th>RUT (opcional)</th><th class="center" title="Programa de Integración Escolar (Decreto 83)">PIE</th><th title="Exigencia para calcular su nota (vacío = la exigencia PIE de la prueba)">Exigencia PIE</th><th class="center">Retirado</th><th></th></tr></thead><tbody>${
+      rows || '<tr><td colspan="7" class="muted small">Sin estudiantes: agrega uno o pega la lista.</td></tr>'
     }</tbody>`;
+  }
+
+  /** Exigencia PIE de la prueba actual (la que usan los estudiantes PIE sin exigencia propia). */
+  function pieExigencia() {
+    return state.exam.pie && state.exam.pie.exigencia ? state.exam.pie.exigencia : 50;
   }
 
   function studentsChanged(c) {
@@ -680,6 +687,24 @@
       else if (r && !r.valid) app.toast(`Revisa el RUT ${r.rut}: el dígito verificador no coincide.`);
       s.rut = r ? r.rut : t;
       e.target.value = s.rut;
+      studentsChanged(c);
+    } else if (f === 'pie') {
+      s.pie = e.target.checked;
+      if (!s.pie) delete s.exigencia;
+      const ex = tr.querySelector('input[data-f="exigencia"]');
+      ex.disabled = !s.pie;
+      if (!s.pie) ex.value = '';
+      if (!s.pie) delete s.pie;
+      studentsChanged(c);
+    } else if (f === 'exigencia') {
+      const t = e.target.value.trim();
+      const v = Math.round(parseFloat(t.replace(',', '.')));
+      if (!t) delete s.exigencia;
+      else if (v >= 1 && v <= 99) s.exigencia = v;
+      else {
+        e.target.value = s.exigencia || '';
+        return app.toast('La exigencia debe ser un porcentaje entre 1 y 99 (o vacío para usar la de la prueba).');
+      }
       studentsChanged(c);
     } else if (f === 'retired') {
       s.retired = e.target.checked;

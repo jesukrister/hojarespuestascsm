@@ -122,6 +122,31 @@ pestañas, manual…) es el mismo código, así que las mejoras llegan a las dos
   [pdf.js](https://mozilla.github.io/pdf.js/), incluido en `vendor/pdf` y
   cargado sólo al usarse) y cada página se lee como una foto; en una foto o
   página con varias hojas (tickets, medias hojas) se leen todas.
+- **Calidad de las preguntas** (en *Resultados*): dificultad (% de acierto),
+  **discriminación** (27 % de mejor puntaje menos 27 % más bajo, y
+  punto-biserial corregida), respuestas por alternativa en cada grupo,
+  **confiabilidad KR-20** y una sugerencia por pregunta: revisar la clave (los
+  mejores eligieron otra alternativa, o la mayoría eligió el mismo distractor),
+  discriminación negativa, considerar anularla, distractores que nadie eligió,
+  preguntas muy omitidas. **Anular** una pregunta (deja de contar y baja el
+  puntaje máximo) o **cambiar su clave** recalcula las notas; ambas cosas se
+  deshacen con *Restaurar*. Con menos de 10 hojas sólo se muestran el acierto y
+  los avisos de clave.
+- **Estudiantes PIE (Decreto 83)**: en *Cursos → Estudiantes* se marca a los
+  estudiantes PIE, cuya nota se calcula con la **exigencia PIE** de la prueba
+  (50 % por omisión, en *Prueba → Puntaje y nota*) o con una propia. En
+  *Evaluación*, la **versión adecuada** imprime la prueba con letra más grande
+  (una alternativa por línea) y **una alternativa incorrecta menos** en cada
+  pregunta, elegida a mano (o al azar las que falten), y su propia hoja de
+  respuestas con una alternativa menos y una marca que el lector reconoce: se
+  corrige con su clave, también mezclada con hojas normales en una foto o PDF.
+  Las hojas con nombre les dan la hoja PIE a los estudiantes PIE.
+- **Informe para UTP**: desde *Resultados* (de una prueba) o *Cursos* (de un
+  curso en un semestre, trimestre o el año), un informe para imprimir o
+  guardar en PDF con el resumen, la distribución de notas, el logro por OA y
+  por pregunta, los estudiantes que requieren apoyo (con su OA más
+  descendido), los estudiantes PIE, la calidad del instrumento, sugerencias,
+  las observaciones del docente y espacio para firmas.
 
 `pro.html` se genera a partir de `index.html` y de las partes de
 `pro/partes.html` (`npm run build:pro`); `npm test` avisa si quedó
@@ -480,6 +505,9 @@ entregar una corrección equivocada sin avisar.
 | `js/pro/libro-core.js`, `js/pro/libro.js` | Cursos y libro de notas (lógica y pantalla) |
 | `js/pro/respaldo-core.js`, `js/pro/respaldo.js`, `js/pro/comun.js` | Respaldo completo y utilidades de la versión Pro |
 | `js/pro/desarrollo.js`, `js/pro/tickets.js`, `js/pro/nombres.js` | Casillas de desarrollo, tickets de salida y “Para reforzar”, hojas con nombre |
+| `js/pro/analisis-core.js`, `js/pro/analisis.js` | Calidad de las preguntas (discriminación, distractores, KR-20, anular) |
+| `js/pro/pie.js` | Estudiantes PIE: exigencia propia y versión adecuada de la prueba y de la hoja |
+| `js/pro/informe-core.js`, `js/pro/informe.js` | Informe para UTP (cálculos, gráficos SVG y pantalla) |
 | `vendor/pdf/` | pdf.js (lectura de PDF en la versión Pro; en Android sólo va en la app Pro) |
 | `js/app.js` | Lógica de la interfaz y almacenamiento |
 | `js/manual-videos.js` | Enlaces de los videos del manual |
@@ -541,3 +569,9 @@ entregar una corrección equivocada sin avisar.
     únicamente si su código dice que es exactamente esta prueba y tiene sus
     marcas laterales; si la lectura no pasa los controles, se prueba el
     siguiente (dos hojas vecinas pueden formar un cuadrilátero engañoso).
+11. Versión PIE (versión Pro): la hoja de la versión adecuada tiene una
+    alternativa menos y dos celdas negras más en los extremos del código (una
+    sola negra no es válida). Cada celda se compara con el papel justo encima
+    y debajo de ella. Una hoja PIE se lee con su propio diseño y se corrige con
+    su clave (las alternativas se llevan a las de la prueba original); una hoja
+    PIE nunca se acepta como normal ni al revés.

@@ -16,6 +16,9 @@
  * desarrollo con burbujas 0, 1, 2… donde el docente marca el puntaje obtenido.
  * Cuántas hay queda impreso en un código extra junto al código de
  * configuración, para que una hoja nunca se lea con otra cantidad.
+ *
+ * Versión PIE (opcional): la hoja de la versión adecuada de una prueba tiene
+ * una alternativa menos y dos celdas negras más en los extremos del código.
  */
 (function (root, factory) {
   const api = factory();
@@ -127,6 +130,21 @@
     if (!bits || bits.length !== EXT_BITS) return null;
     if ((bits[0] ^ bits[1] ^ bits[2]) !== bits[3]) return null;
     return bits[0] | (bits[1] << 1) | (bits[2] << 2);
+  }
+
+  /* ---------- Marca de la versión adecuada (PIE) ----------
+   * Dos celdas en los extremos del código, una a cada lado: las dos negras
+   * indican la hoja de la versión PIE. Las demás hojas no las imprimen (y se
+   * leen como normales); una sola negra no es válida.
+   */
+  const PIE_POSITIONS = [-3, CODE_BITS + 2];
+
+  /** true = hoja PIE, false = normal, null = no se sabe (una celda negra y otra blanca). */
+  function decodePie(bits) {
+    if (!bits || bits.length !== PIE_POSITIONS.length) return null;
+    if (bits.every((b) => b === 1)) return true;
+    if (bits.every((b) => b === 0)) return false;
+    return null;
   }
 
   /** Campos de escritura del encabezado (no afectan la lectura). */
@@ -348,6 +366,8 @@
     const dev = normalizeDev(cfg && cfg.dev);
     const extBits = encodeExt(dev.length);
     const extCells = [-2, -1, CODE_BITS, CODE_BITS + 1].map((pos, i) => ({ x: codeStart + pos * codePitch, y: H - m, size: CODE_CELL * k, bit: extBits[i] }));
+    const pie = !!cfg && cfg.pie === true;
+    const pieCells = PIE_POSITIONS.map((pos) => ({ x: codeStart + pos * codePitch, y: H - m, size: CODE_CELL * k, bit: pie ? 1 : 0 }));
 
     // Margen del contenido. En el ticket se deja más espacio para que el texto
     // y el recuadro del N° de lista no toquen las marcas laterales.
@@ -511,6 +531,8 @@
       sideMarks,
       codeCells,
       extCells,
+      pie,
+      pieCells,
       formCells,
       formBubbles,
       form,
@@ -541,6 +563,7 @@
     CHOICE_LABELS,
     CODE_BITS,
     EXT_BITS,
+    PIE_POSITIONS,
     FORM_CODES,
     FORM_LETTERS,
     decodeForm,
@@ -552,6 +575,7 @@
     decodeConfig,
     encodeExt,
     decodeExt,
+    decodePie,
     sameStructure,
     pieceSize,
     pageTiling,

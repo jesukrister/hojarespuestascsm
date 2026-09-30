@@ -1376,6 +1376,7 @@
     if (meta.length) out.push(`<div class="td-meta">${meta.map(esc).join(' &nbsp;·&nbsp; ')}</div>`);
     out.push('</div>');
     if (info.formLabel) out.push(`<div class="td-formtag">Fila<b>${esc(info.formLabel)}</b></div>`);
+    else if (info.versionTag) out.push(`<div class="td-version">${esc(info.versionTag)}</div>`);
     out.push('</header>');
     out.push(`<h1 class="td-title">${esc(f.title || 'Evaluación')}</h1>`);
 
@@ -1582,6 +1583,7 @@
 .td-math-raw { font-family: "Cambria Math", "STIX Two Math", serif; background: #f2f2f2; padding: 0 0.3em; border-radius: 0.2em; }
 .td-formtag { margin-left: auto; border: 0.5mm solid #000; border-radius: 1.5mm; padding: 1mm 3mm; text-align: center; font-size: 0.8em; line-height: 1.1; text-transform: uppercase; }
 .td-formtag b { display: block; font-size: 2em; }
+.td-version { margin-left: auto; align-self: flex-start; font-size: 0.7em; color: #444; border: 0.3mm solid #999; border-radius: 1mm; padding: 0.6mm 2mm; white-space: nowrap; }
 .td-blank { display: inline-block; border-bottom: 0.3mm solid #000; height: 1em; margin: 0 1mm; vertical-align: baseline; }
 .td-bank { display: flex; flex-wrap: wrap; justify-content: center; gap: 1mm 7mm; border: 0.3mm solid #000; border-radius: 1mm; padding: 2mm 4mm; margin: 0 0 3mm; font-weight: bold; break-inside: avoid; }
 .td-order { list-style: none; margin: 1.5mm 0 0 8mm; padding: 0; }

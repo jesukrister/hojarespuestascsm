@@ -411,14 +411,29 @@
     // Un código borroso no se usa (evita coincidencias por azar del control).
     const clarity = Math.min(...contrasts.map((c) => Math.abs(c - 0.35)));
     const decoded = clarity >= 0.08 ? SheetLayout.decodeConfig(bits) : null;
-    // Código extra: cantidad de casillas de desarrollo (null si no se lee con claridad).
+    // Códigos extra: cantidad de casillas de desarrollo y marca de la versión
+    // PIE (null si no se leen con claridad).
     if (decoded) {
-      const ext = (layout.extCells || []).map((cell) => {
+      const contrastsOf = (cells) =>
+        (cells || []).map((cell) => {
+          const v = sampleSheetPatch(img, H, cell.x, cell.y, cell.size * 0.5);
+          return codeWhite > 1 ? 1 - v / codeWhite : 0;
+        });
+      const clear = (cs) => cs.length > 0 && Math.min(...cs.map((c) => Math.abs(c - 0.35))) >= 0.08;
+      const ext = contrastsOf(layout.extCells);
+      decoded.devCount = ext.length === SheetLayout.EXT_BITS && clear(ext) ? SheetLayout.decodeExt(ext.map((c) => (c > 0.35 ? 1 : 0))) : null;
+      // La marca PIE está en los extremos del código, donde la luz puede ser
+      // distinta que en el centro: cada celda se compara con el papel justo
+      // encima y debajo de ella.
+      const pie = (layout.pieCells || []).map((cell) => {
+        const white = Math.max(
+          sampleSheetPatch(img, H, cell.x, cell.y - 4.5 * k, 1.5 * k),
+          sampleSheetPatch(img, H, cell.x, cell.y + 4 * k, 1.5 * k)
+        );
         const v = sampleSheetPatch(img, H, cell.x, cell.y, cell.size * 0.5);
-        return codeWhite > 1 ? 1 - v / codeWhite : 0;
+        return white > 1 ? 1 - v / white : 0;
       });
-      const extClear = ext.length === SheetLayout.EXT_BITS && Math.min(...ext.map((c) => Math.abs(c - 0.35))) >= 0.08;
-      decoded.devCount = extClear ? SheetLayout.decodeExt(ext.map((c) => (c > 0.35 ? 1 : 0))) : null;
+      decoded.pie = pie.length && clear(pie) ? SheetLayout.decodePie(pie.map((c) => (c > 0.35 ? 1 : 0))) : null;
     }
     return { orientContrast, bits, decoded, clarity };
   }
@@ -834,7 +849,8 @@
     const isThisTest = (ev) =>
       ev.decoded &&
       SheetLayout.sameStructure(ev.decoded, layout.config) &&
-      (ev.decoded.devCount === null || ev.decoded.devCount === undefined || ev.decoded.devCount === (layout.devRows || []).length);
+      (ev.decoded.devCount === null || ev.decoded.devCount === undefined || ev.decoded.devCount === (layout.devRows || []).length) &&
+      (ev.decoded.pie === null || ev.decoded.pie === undefined || ev.decoded.pie === !!layout.pie);
     const candidates = [];
     for (const q of found.quads) {
       let qBest = null;
@@ -943,6 +959,26 @@
           : `Esta hoja tiene ${decoded.devCount} casilla(s) de desarrollo, pero la prueba configurada no tiene (se configuran en la versión Pro).`,
       };
     }
+    // Versión PIE: la hoja dice si es la versión adecuada (con una alternativa menos).
+    if (decoded && decoded.pie === true && !layout.pie) {
+      return {
+        ok: false,
+        corners: d,
+        decoded,
+        pieMismatch: true,
+        error: 'Esta hoja es de la versión PIE (adecuada) de una prueba, con una alternativa menos. Revise la configuración de la prueba.',
+      };
+    }
+    if (decoded && decoded.pie === false && layout.pie) {
+      return {
+        ok: false,
+        corners: d,
+        decoded,
+        pieMismatch: true,
+        error: `Esta hoja no es de la versión PIE: corresponde a otra prueba con ${decoded.numChoices} alternativas.`,
+      };
+    }
+    if (decoded && layout.pie && decoded.pie !== true) warnings.push('No se pudo verificar la marca PIE de la hoja: revise que sea de la versión adecuada.');
     if (!decoded) warnings.push('No se pudo verificar el código de la hoja; revise que corresponda a esta prueba.');
 
     // Lectura con un conjunto de marcas laterales. Si una marca lateral falta

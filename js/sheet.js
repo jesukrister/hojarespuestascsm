@@ -56,8 +56,8 @@
       out.push(`<rect x="${n(sm.x - sm.size / 2)}" y="${n(sm.y - sm.size / 2)}" width="${n(sm.size)}" height="${n(sm.size)}" fill="#000"/>`);
     }
 
-    // Código de configuración (y el extra con la cantidad de casillas de desarrollo).
-    for (const cell of layout.codeCells.concat(layout.extCells || [])) {
+    // Código de configuración (y los extras: cantidad de casillas de desarrollo y marca PIE).
+    for (const cell of layout.codeCells.concat(layout.extCells || [], layout.pieCells || [])) {
       if (!cell.bit) continue;
       out.push(
         `<rect x="${n(cell.x - cell.size / 2)}" y="${n(cell.y - cell.size / 2)}" width="${n(cell.size)}" height="${n(cell.size)}" fill="#000"/>`

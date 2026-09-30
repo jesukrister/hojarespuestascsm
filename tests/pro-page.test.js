@@ -21,7 +21,11 @@ test('la versión Pro tiene sus partes', () => {
   const html = read('pro.html');
   assert.match(html, /<html lang="es" data-edition="pro">/);
   assert.match(html, /<title>Lector de Hojas de Respuesta Pro<\/title>/);
-  for (const needle of ['data-tab="cursos"', 'id="tab-cursos"', 'id="proBookBox"', 'id="proExamCourse"', 'id="man-cursos"', 'src="js/pro/libro.js"', 'href="css/pro.css"']) {
+  for (const needle of [
+    'data-tab="cursos"', 'id="tab-cursos"', 'id="proBookBox"', 'id="proExamCourse"', 'id="man-cursos"', 'src="js/pro/libro.js"', 'href="css/pro.css"',
+    'id="proQuality"', 'id="proPieCard"', 'id="pieExigencia"', 'id="proReportDialog"', 'id="proReportTest"', 'id="proReportCourse"',
+    'id="man-calidad"', 'id="man-pie"', 'id="man-utp"', 'src="js/pro/pie.js"', 'src="js/pro/informe.js"',
+  ]) {
     assert.ok(html.includes(needle), needle);
   }
   // Todas las partes se insertaron y no quedan puntos de inserción sin usar de esas partes.
