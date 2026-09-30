@@ -6,8 +6,9 @@
   "scripts": {
     "test": "node --test \"tests/*.test.js\"",
     "start": "npx --yes serve .",
-    "build:www": "node scripts/build-www.mjs",
-    "android:sync": "node scripts/build-www.mjs && npx cap sync android"
+    "build:www": "node scripts/build-pro.js && node scripts/build-www.mjs",
+    "android:sync": "npm run build:www && npx cap sync android",
+    "build:pro": "node scripts/build-pro.js"
   },
   "engines": {
     "node": ">=20"

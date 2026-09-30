@@ -78,6 +78,38 @@ cualquier hosting de archivos estáticos.
   con un espacio para un video en cada parte, buscador, enlaces “¿Cómo se usa
   esta pestaña?” en cada pestaña y versión para imprimir.
 
+## Versión Pro
+
+La **versión Pro** (`pro.html`, y en Android la app *Lector Hojas Pro*) tiene
+todo lo anterior más herramientas para llevar los cursos. Es gratuita, se
+publica junto a la normal y **no la cambia**: son dos páginas (y dos apps)
+distintas, con sus datos guardados por separado. Todo lo común (lector,
+pestañas, manual…) es el mismo código, así que las mejoras llegan a las dos.
+
+- **Cursos y libro de notas** (pestaña *Cursos*): cada curso tiene su lista
+  (N° de lista, nombre y RUT, pegada desde Excel) y sus evaluaciones. Las
+  notas de una prueba escaneada se guardan en el libro desde *Resultados* (cada
+  hoja va al estudiante del N° de lista marcado); también se agregan **notas
+  manuales** (trabajos, disertaciones…) escribiéndolas o pegando una columna de
+  Excel. Calcula el promedio de cada semestre o trimestre con **ponderaciones**
+  (0 = formativa), el **promedio final**, aproximando o truncando a un decimal,
+  y destaca los promedios **limítrofes** (3,9) y bajo 4,0. Las notas
+  cambiadas a mano quedan marcadas y no se reemplazan al volver a guardar.
+  **Copiar notas** / **Copiar promedios** deja una columna en orden de lista
+  para pegar en el libro digital del colegio, y **Excel del curso** descarga el
+  libro completo. Para un estudiante que rinde la prueba después, *Usar esta
+  prueba de nuevo* recupera la clave y la configuración.
+- **Respaldo completo**: un archivo `.zip` con la prueba, las hojas escaneadas
+  (con sus imágenes), los cursos y el libro de notas, para guardarlo en Drive o
+  el correo y restaurarlo en otro equipo (el libro se combina con el que ya
+  hay; la prueba se reemplaza). En el navegador, la primera vez se puede traer
+  la prueba de la versión normal.
+
+`pro.html` se genera a partir de `index.html` y de las partes de
+`pro/partes.html` (`npm run build:pro`); `npm test` avisa si quedó
+desactualizado. En `index.html`, los comentarios `<!-- pro:… -->` marcan dónde
+van las partes Pro y no cambian nada en la versión normal.
+
 ## Uso
 
 1. **Prueba**: configura la cantidad de preguntas, alternativas, la clave y
@@ -344,8 +376,10 @@ computador, algunos servicios no permiten mostrarlos.
 La misma aplicación se empaqueta como app Android con
 [Capacitor](https://capacitorjs.com) (carpeta `android/`). Cada vez que se
 suben cambios, GitHub Actions (`.github/workflows/android.yml`) prueba la
-página, compila el APK y lo publica en **Releases → `app-android`**
-(`LectorHojas.apk`). También queda como *artifact* de la ejecución.
+página, compila las dos apps y las publica en **Releases → `app-android`**:
+`LectorHojas.apk` (normal) y `LectorHojasPro.apk` (versión Pro, se instala
+aparte y puede convivir con la normal). También quedan como *artifact* de la
+ejecución.
 
 En la app:
 
@@ -361,9 +395,14 @@ Para compilar en un computador (con Android Studio o el SDK de Android):
 
 ```bash
 npm install
-npm run android:sync          # copia la página a android/
-cd android && ./gradlew assembleRelease
+npm run android:sync          # copia la página a android/ (y pro.html a la app Pro)
+cd android && ./gradlew assembleNormalRelease assembleProRelease
 ```
+
+Las dos apps salen del mismo proyecto (*product flavors* `normal` y `pro` en
+`android/app/build.gradle`): la Pro usa el identificador
+`cl.lectorhojas.app.pro`, su propio nombre e ícono (`android/app/src/pro/res`) y
+`pro.html` como página principal.
 
 **Firma**: el APK y el AAB se firman con la **llave privada** del proyecto,
 que no está en el repositorio. GitHub Actions la toma de dos secretos del
@@ -374,8 +413,9 @@ repositorio (*Settings → Secrets and variables → Actions*):
 
 Sin esos secretos la app se compila igual (para verificar que no hay errores),
 pero no se publica. Cada versión publicada queda en **Releases → `app-android`**:
-`LectorHojas.apk` (instalación directa) y `LectorHojas-GooglePlay.aab` (para
-Google Play). La guía para publicar en Google Play, con los textos de la ficha,
+`LectorHojas.apk` y `LectorHojasPro.apk` (instalación directa), y
+`LectorHojas-GooglePlay.aab` y `LectorHojasPro-GooglePlay.aab` (para Google
+Play, una ficha por app). La guía para publicar en Google Play, con los textos de la ficha,
 está en [`docs/google-play.md`](docs/google-play.md).
 
 ## Donaciones
@@ -418,6 +458,9 @@ entregar una corrección equivocada sin avisar.
 | Archivo | Contenido |
 | --- | --- |
 | `index.html`, `css/styles.css` | Interfaz |
+| `pro.html` (generado), `pro/partes.html`, `css/pro.css`, `scripts/build-pro.js` | Versión Pro |
+| `js/pro/libro-core.js`, `js/pro/libro.js` | Cursos y libro de notas (lógica y pantalla) |
+| `js/pro/respaldo-core.js`, `js/pro/respaldo.js`, `js/pro/comun.js` | Respaldo completo y utilidades de la versión Pro |
 | `js/app.js` | Lógica de la interfaz y almacenamiento |
 | `js/manual-videos.js` | Enlaces de los videos del manual |
 | `js/native.js` | Integración con la app Android (descargas, impresión, botón Atrás) |

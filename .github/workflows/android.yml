@@ -1,10 +1,12 @@
-# Compila la app Android (APK) y la publica en "Releases" del repositorio.
+# Compila las apps Android (normal y Pro) y las publica en "Releases" del repositorio.
 name: App Android (APK)
 
 on:
   push:
     paths:
       - 'index.html'
+      - 'pro.html'
+      - 'pro/**'
       - 'css/**'
       - 'js/**'
       - 'vendor/**'
@@ -49,6 +51,8 @@ jobs:
 
       - name: Copiar la página a la app
         run: |
+          # También deja pro.html como página principal de la app Pro (android/app/src/pro/assets).
+          node scripts/build-pro.js
           node scripts/build-www.mjs
           npx cap sync android
 
@@ -73,7 +77,7 @@ jobs:
             gh release delete app-android --yes --cleanup-tag || true
           fi
 
-      - name: Compilar APK y AAB
+      - name: Compilar APK y AAB (normal y Pro)
         working-directory: android
         env:
           VERSION_CODE: ${{ github.run_number }}
@@ -86,8 +90,15 @@ jobs:
       - name: Preparar archivos
         if: steps.llave.outputs.firmado == 'true'
         run: |
-          cp android/app/build/outputs/apk/release/app-release.apk LectorHojas.apk
-          cp android/app/build/outputs/bundle/release/app-release.aab LectorHojas-GooglePlay.aab
+          cp android/app/build/outputs/apk/normal/release/app-normal-release.apk LectorHojas.apk
+          cp android/app/build/outputs/bundle/normalRelease/app-normal-release.aab LectorHojas-GooglePlay.aab
+          cp android/app/build/outputs/apk/pro/release/app-pro-release.apk LectorHojasPro.apk
+          cp android/app/build/outputs/bundle/proRelease/app-pro-release.aab LectorHojasPro-GooglePlay.aab
+          # La Pro debe llevar su propia página (pro.html) y la normal la suya.
+          unzip -p LectorHojasPro.apk assets/public/index.html > "$RUNNER_TEMP/pro-index.html"
+          unzip -p LectorHojas.apk assets/public/index.html > "$RUNNER_TEMP/normal-index.html"
+          grep -q 'data-edition="pro"' "$RUNNER_TEMP/pro-index.html" || { echo "::error::La app Pro no tiene la página Pro"; exit 1; }
+          if grep -q 'data-edition="pro"' "$RUNNER_TEMP/normal-index.html"; then echo "::error::La app normal tiene la página Pro"; exit 1; fi
 
       - uses: actions/upload-artifact@v4
         if: steps.llave.outputs.firmado == 'true'
@@ -96,6 +107,8 @@ jobs:
           path: |
             LectorHojas.apk
             LectorHojas-GooglePlay.aab
+            LectorHojasPro.apk
+            LectorHojasPro-GooglePlay.aab
 
       - name: Publicar en Releases
         if: steps.llave.outputs.firmado == 'true'
@@ -104,8 +117,8 @@ jobs:
         run: |
           TAG="app-android"
           gh release delete "$TAG" --yes --cleanup-tag || true
-          gh release create "$TAG" LectorHojas.apk LectorHojas-GooglePlay.aab \
+          gh release create "$TAG" LectorHojas.apk LectorHojas-GooglePlay.aab LectorHojasPro.apk LectorHojasPro-GooglePlay.aab \
             --target "$GITHUB_SHA" \
             --title "App Android · versión 1.0.${{ github.run_number }}" \
-            --notes "**LectorHojas.apk**: para instalar directamente en un teléfono Android. **LectorHojas-GooglePlay.aab**: el archivo que se sube a Google Play Console. Ambos firmados con la llave oficial del proyecto. Compilado desde ${GITHUB_REF_NAME} (${GITHUB_SHA::7})." \
+            --notes "**LectorHojas.apk**: la app normal, para instalar directamente en un teléfono Android. **LectorHojasPro.apk**: la versión Pro (cursos, libro de notas y respaldo); se instala aparte y puede convivir con la normal. Los archivos **.aab** son los que se suben a Google Play Console (uno por app). Todos firmados con la llave oficial del proyecto. Compilado desde ${GITHUB_REF_NAME} (${GITHUB_SHA::7})." \
             --prerelease

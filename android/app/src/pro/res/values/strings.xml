@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- Versión Pro: nombre de la app (el resto viene de src/main). -->
+<resources>
+    <string name="app_name">Lector Hojas Pro</string>
+    <string name="title_activity_main">Lector Hojas Pro</string>
+    <string name="package_name">cl.lectorhojas.app.pro</string>
+    <string name="custom_url_scheme">cl.lectorhojas.app.pro</string>
+</resources>

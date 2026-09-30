@@ -18,6 +18,20 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Dos apps desde el mismo proyecto: la normal y la versión Pro, que se
+    // instala aparte (otro identificador, nombre e ícono; sus datos van por separado).
+    // La página de la Pro (pro.html) se copia como src/pro/assets/public/index.html
+    // al compilar (ver .github/workflows/android.yml).
+    flavorDimensions = ["edicion"]
+    productFlavors {
+        normal {
+            dimension "edicion"
+        }
+        pro {
+            dimension "edicion"
+            applicationIdSuffix ".pro"
+        }
+    }
     // Firma con la llave privada del proyecto. No está en el repositorio: GitHub
     // Actions la toma de los secretos KEYSTORE_BASE64 y KEYSTORE_PASSWORD
     // (ver README). Sin llave, la versión "release" se compila sin firmar.

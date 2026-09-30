@@ -24,6 +24,9 @@ window.MANUAL_VIDEOS = {
   resultados: '', //  5. Pestaña Resultados
   respaldo: '', //    6. Guardar y respaldar
   problemas: '', //   ?. Problemas frecuentes
+  // Sólo en la versión Pro:
+  cursos: '', //      7. Cursos y libro de notas
+  respaldopro: '', // 8. Respaldo completo
 };
 
 // true: donde todavía no hay video se muestra el aviso "Video próximamente".

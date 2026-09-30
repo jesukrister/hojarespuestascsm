@@ -1,0 +1,345 @@
+<!--
+  Partes de la versión Pro. scripts/build-pro.js las inserta en index.html
+  (en los comentarios <!- - pro:nombre - ->) para generar pro.html.
+  Después de cambiar este archivo o index.html:  node scripts/build-pro.js
+-->
+
+<!-- @@ head -->
+<link rel="stylesheet" href="css/pro.css">
+
+<!-- @@ badge -->
+<span class="pro-badge" title="Versión Pro">PRO</span>
+
+<!-- @@ tabs -->
+<button role="tab" data-tab="cursos" aria-selected="false"><span class="step">6</span>Cursos</button>
+
+<!-- @@ prueba -->
+<div id="proImportBanner" class="card pro-banner" hidden>
+  <p><strong>¿Traer tu prueba desde la versión normal?</strong> En este navegador tienes una prueba y hojas escaneadas en la versión normal. Puedes copiarlas a la versión Pro (la versión normal no cambia).</p>
+  <div class="actions">
+    <button type="button" class="btn primary small" data-pro-import-normal>Traer la prueba y los resultados</button>
+    <button type="button" class="btn ghost small" id="proImportDismiss">No, gracias</button>
+  </div>
+</div>
+<div class="card pro-course-link">
+  <label class="inline-select">📚 Curso de esta prueba
+    <select id="proExamCourse"></select>
+  </label>
+  <p id="proExamCourseInfo" class="muted small"></p>
+</div>
+
+<!-- @@ roster -->
+<p id="proRosterNote" class="alert" hidden></p>
+
+<!-- @@ resultados -->
+<div id="proBookBox" class="pro-book">
+  <div class="pro-book-head">
+    <strong>📚 Guardar en el libro de notas</strong>
+    <p id="proBookStatus" class="muted small"></p>
+  </div>
+  <div id="proBookNoCourse" class="pro-book-empty" hidden>
+    <p class="muted small">Para guardar estas notas, crea el curso con la lista de tus estudiantes.</p>
+    <button type="button" class="btn secondary small" id="proBookCreateCourse">＋ Crear el curso</button>
+  </div>
+  <div id="proBookForm" class="pro-book-form" hidden>
+    <label>Curso
+      <select id="proBookCourse"></select>
+    </label>
+    <label>Evaluación
+      <select id="proBookEval"></select>
+    </label>
+    <label class="pro-new-field">Nombre en el libro
+      <input id="proBookTitle" type="text" maxlength="80" autocomplete="off">
+    </label>
+    <label class="pro-new-field">Fecha
+      <input id="proBookDate" type="date">
+    </label>
+    <label class="pro-new-field">Periodo
+      <select id="proBookPeriod"></select>
+    </label>
+    <label class="pro-new-field">Ponderación
+      <input id="proBookWeight" type="number" min="0" step="any" value="1" inputmode="decimal">
+    </label>
+  </div>
+  <div id="proBookActions" class="actions" hidden>
+    <button type="button" class="btn primary" id="proBookSave">📚 Guardar notas en el libro</button>
+    <button type="button" class="btn ghost" id="proBookOpen">Ver el libro</button>
+  </div>
+</div>
+
+<!-- @@ panels -->
+<!-- 6. CURSOS (versión Pro) ------------------------------------------->
+<section id="tab-cursos" class="tab-panel" role="tabpanel" hidden>
+  <p class="man-help"><button type="button" class="link-btn" data-manual="cursos">📘 ¿Cómo se usa esta pestaña?</button></p>
+  <div class="card">
+    <div class="card-head">
+      <h2>Cursos y libro de notas</h2>
+      <div class="actions">
+        <button type="button" class="btn primary small" data-pro-new-course>＋ Nuevo curso</button>
+      </div>
+    </div>
+    <div id="proNoCourses" class="empty" hidden>
+      <p>Aún no tienes cursos. Crea uno con la lista de tus estudiantes: ahí se guardarán las notas de cada prueba que escanees, junto con las notas que agregues a mano.</p>
+      <button type="button" class="btn primary" data-pro-new-course>＋ Crear mi primer curso</button>
+    </div>
+    <div id="proCourseArea" hidden>
+      <div class="pro-course-bar">
+        <label class="inline-select">Curso
+          <select id="proCourseSel"></select>
+        </label>
+        <button type="button" class="btn ghost small" id="proEditCourse">✎ Datos del curso</button>
+      </div>
+      <div class="pro-views" role="tablist" aria-label="Vista del curso">
+        <button type="button" role="tab" data-pro-view="notas" aria-selected="true">Notas</button>
+        <button type="button" role="tab" data-pro-view="evaluaciones" aria-selected="false">Evaluaciones</button>
+        <button type="button" role="tab" data-pro-view="estudiantes" aria-selected="false">Estudiantes</button>
+      </div>
+
+      <div id="proViewNotas" class="pro-view">
+        <div id="proPeriods" class="pro-periods" role="group" aria-label="Periodo"></div>
+        <div id="proStats" class="stats pro-stats"></div>
+        <div id="proGridEmpty" class="pro-empty-note" hidden></div>
+        <div class="table-wrap pro-grid-wrap">
+          <table id="proGrid" class="pro-grid"></table>
+        </div>
+        <p id="proGridHelp" class="muted small">Toca una nota para cambiarla (se marca con un punto morado). Toca el nombre de una evaluación para ver sus datos, copiar sus notas o borrarla.</p>
+        <div class="actions">
+          <button type="button" class="btn secondary" id="proAddManual">＋ Nota manual (trabajo, disertación…)</button>
+          <button type="button" class="btn ghost" id="proCopyAverages">📋 Copiar promedios</button>
+          <button type="button" class="btn ghost" id="proExcel">⬇ Excel del curso</button>
+        </div>
+      </div>
+
+      <div id="proViewEvaluaciones" class="pro-view" hidden>
+        <p class="muted small">La <b>ponderación</b> es cuánto pesa cada nota en el promedio de su periodo. Puedes escribir porcentajes (por ejemplo 30, 30 y 40) o dejar todas en 1 para que pesen lo mismo. Con 0 la nota no se promedia (evaluación formativa).</p>
+        <div class="table-wrap">
+          <table id="proEvals" class="pro-evals"></table>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn secondary" data-pro-add-manual>＋ Nota manual</button>
+        </div>
+      </div>
+
+      <div id="proViewEstudiantes" class="pro-view" hidden>
+        <p class="muted small">El <b>N° de lista</b> es el que el estudiante marca en su hoja de respuestas. Si un estudiante se retira, márcalo como retirado en lugar de borrarlo, para no cambiar la numeración.</p>
+        <div class="table-wrap">
+          <table id="proStudents" class="pro-students"></table>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn secondary" id="proAddStudent">＋ Agregar estudiante</button>
+          <button type="button" class="btn ghost" id="proPasteStudents">📋 Pegar lista…</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card pro-backup" id="proBackupCard">
+    <div class="card-head">
+      <h2>💾 Respaldo</h2>
+    </div>
+    <p>Un solo archivo con todo: la prueba, las hojas escaneadas (con sus imágenes), los cursos y el libro de notas. Guárdalo en Google Drive, en tu correo o en un pendrive, y ábrelo en otro equipo para seguir trabajando allá.</p>
+    <p id="proBackupLast" class="muted small"></p>
+    <div class="actions">
+      <button type="button" class="btn primary" id="proBackupCreate">💾 Crear respaldo</button>
+      <label class="btn secondary" for="proBackupInput">📂 Restaurar un respaldo…</label>
+      <input id="proBackupInput" type="file" accept=".zip,application/zip,application/x-zip-compressed,application/octet-stream" hidden>
+      <button type="button" class="btn ghost" id="proImportNormal" data-pro-import-normal hidden>Traer la prueba de la versión normal</button>
+    </div>
+    <p id="proBackupProgress" class="muted small" hidden></p>
+  </div>
+</section>
+
+<!-- @@ manual-index -->
+<button type="button" data-man-go="cursos"><b>7</b>Cursos y libro de notas</button>
+<button type="button" data-man-go="respaldopro"><b>8</b>Respaldo completo</button>
+
+<!-- @@ manual -->
+<!-- Versión Pro -->
+<article class="card man-section" id="man-cursos" data-man="cursos">
+  <h2><span class="man-num">7</span>Pestaña Cursos: libro de notas</h2>
+  <div class="man-video" data-video="cursos"></div>
+  <p>En la pestaña <b>Cursos</b> guardas la lista de cada curso y todas sus notas: las de las pruebas que escaneas y las que agregas a mano. La plataforma calcula los promedios y te avisa de los estudiantes con nota limítrofe.</p>
+  <h3>Crear un curso</h3>
+  <ol class="man-steps">
+    <li>En <b>Cursos</b>, presiona <b>＋ Nuevo curso</b>.</li>
+    <li>Escribe el curso y la asignatura (por ejemplo <i>8° Básico A · Matemática</i>) y si el año es semestral o trimestral.</li>
+    <li>Pega la lista: un estudiante por línea, en orden de lista. Puedes copiarla directo desde Excel, con el N° de lista y el RUT si los tienes.</li>
+    <li>Presiona <b>Guardar</b>.</li>
+  </ol>
+  <h3>Guardar las notas de una prueba</h3>
+  <ol class="man-steps">
+    <li>En la pestaña <b>Prueba</b>, elige el <b>curso de esta prueba</b>: la lista de estudiantes se toma del curso.</li>
+    <li>Escanea las hojas como siempre.</li>
+    <li>En <b>Resultados</b>, en el recuadro <b>📚 Guardar en el libro de notas</b>, revisa el nombre, la fecha, el periodo y la ponderación, y presiona <b>Guardar notas en el libro</b>. Cada nota se guarda con el estudiante según el N° de lista marcado en la hoja.</li>
+    <li>Si después escaneas más hojas o corriges alguna, vuelve a presionar <b>Guardar notas en el libro</b>: se actualiza la misma evaluación.</li>
+  </ol>
+  <h3>Ver y corregir el libro</h3>
+  <ul class="man-list">
+    <li>En <b>Notas</b> verás una fila por estudiante y una columna por evaluación, con el <b>promedio</b> de cada periodo y el <b>promedio final</b> (en <b>Anual</b>).</li>
+    <li>Los promedios se aproximan a un decimal (3,95 → 4,0). Si tu colegio trunca, cámbialo en <b>✎ Datos del curso</b>.</li>
+    <li><span class="pro-sit limitrofe">3,9</span> = promedio limítrofe · <span class="pro-sit reprobado">3,5</span> = bajo 4,0.</li>
+    <li>Toca una nota para cambiarla. Las notas cambiadas a mano quedan marcadas y no se reemplazan si vuelves a guardar la prueba.</li>
+    <li>Con <b>＋ Nota manual</b> agregas notas que no vienen de una hoja (trabajos, disertaciones…): escríbelas o pégalas desde Excel.</li>
+    <li>En <b>Evaluaciones</b> ajustas la <b>ponderación</b> de cada nota. Con 0 la nota no se promedia (formativa).</li>
+    <li>Para un estudiante que rindió la prueba después: en <b>Evaluaciones</b>, abre la prueba y usa <b>↻ Usar esta prueba de nuevo</b>; escanea su hoja y guárdala en el libro.</li>
+  </ul>
+  <h3>Pasar las notas al libro digital del colegio</h3>
+  <ol class="man-steps">
+    <li>Toca el nombre de la evaluación y presiona <b>📋 Copiar notas</b> (o <b>📋 Copiar promedios</b>).</li>
+    <li>En el libro digital del colegio, haz clic en la casilla del primer estudiante de esa columna y pega (Ctrl+V). Las notas quedan en orden de lista, con casillas vacías para quienes no tienen nota.</li>
+  </ol>
+  <p class="man-tip"><b>💡 Consejo:</b> con <b>⬇ Excel del curso</b> descargas el libro completo, con las notas, los promedios y la situación de cada estudiante.</p>
+  <button class="btn secondary small" type="button" data-goto="cursos">Ir a la pestaña Cursos →</button>
+</article>
+
+<article class="card man-section" id="man-respaldopro" data-man="respaldopro">
+  <h2><span class="man-num">8</span>Respaldo completo y cambio de equipo</h2>
+  <div class="man-video" data-video="respaldopro"></div>
+  <p>El <b>respaldo</b> es un archivo que guarda todo: la prueba, las hojas escaneadas con sus imágenes, los cursos y el libro de notas. Sirve para no perder tu trabajo y para pasar de un equipo a otro (por ejemplo, del celular al computador).</p>
+  <ol class="man-steps">
+    <li>En <b>Cursos</b>, sección <b>💾 Respaldo</b>, presiona <b>Crear respaldo</b>. En el celular, el archivo queda en <i>Descargas/LectorHojas</i> y puedes compartirlo a Google Drive, a tu correo o por WhatsApp.</li>
+    <li>En el otro equipo, abre la versión Pro y presiona <b>Restaurar un respaldo…</b>. Elige el archivo (no hace falta descomprimirlo).</li>
+    <li>Elige qué traer: los <b>cursos y el libro de notas</b> (se combinan con los que ya tienes en ese equipo) y, si quieres, la <b>prueba y sus hojas escaneadas</b> (reemplazan las de ese equipo).</li>
+  </ol>
+  <p class="man-tip"><b>💡 Consejo:</b> crea un respaldo al terminar de guardar las notas de cada prueba. El respaldo contiene nombres y notas de estudiantes: guárdalo en un lugar seguro.</p>
+  <p class="man-warn"><b>⚠️ Importante:</b> la versión Pro guarda sus datos aparte de la versión normal. En el navegador, la primera vez puedes traer la prueba de la versión normal con <b>Traer la prueba de la versión normal</b>.</p>
+</article>
+
+<!-- @@ dialogs -->
+<dialog id="proCourseDialog" class="el-dialog pro-dialog" aria-labelledby="proCourseTitle">
+  <div class="el-head">
+    <h2 id="proCourseTitle">Nuevo curso</h2>
+    <button type="button" class="btn ghost small" data-pro-close aria-label="Cerrar">✕</button>
+  </div>
+  <div class="pro-dialog-body">
+    <div class="form-grid tight">
+      <label>Curso
+        <input id="pcName" type="text" maxlength="80" placeholder="8° Básico A" autocomplete="off">
+      </label>
+      <label>Asignatura
+        <input id="pcSubject" type="text" maxlength="80" placeholder="Matemática" autocomplete="off">
+      </label>
+      <label>Año
+        <input id="pcYear" type="number" min="2000" max="2200" step="1">
+      </label>
+      <label>Periodos
+        <select id="pcPeriods">
+          <option value="2">Semestral (2 semestres)</option>
+          <option value="3">Trimestral (3 trimestres)</option>
+        </select>
+      </label>
+      <label>Nota mínima / aprobación / máxima
+        <span class="inline-3">
+          <input id="pcMin" type="number" step="0.1" aria-label="Nota mínima">
+          <input id="pcPass" type="number" step="0.1" aria-label="Nota de aprobación">
+          <input id="pcMax" type="number" step="0.1" aria-label="Nota máxima">
+        </span>
+      </label>
+      <label>Promedios
+        <select id="pcRounding">
+          <option value="round">Aproximar a un decimal (3,95 → 4,0)</option>
+          <option value="trunc">Truncar a un decimal (3,99 → 3,9)</option>
+        </select>
+      </label>
+    </div>
+    <div id="pcListWrap">
+      <label>Lista del curso
+        <textarea id="pcList" rows="9" placeholder="Un estudiante por línea, en orden de lista. También puedes pegar columnas de Excel (N°, nombre, RUT).&#10;&#10;Ana Aravena&#10;Benjamín Bustos&#10;…"></textarea>
+      </label>
+      <p id="pcListInfo" class="muted small"></p>
+      <button type="button" class="btn ghost small" id="pcUseExamRoster" hidden>Usar la lista de la prueba actual</button>
+    </div>
+    <p id="pcEditNote" class="muted small" hidden>La lista se edita en la vista <b>Estudiantes</b> del curso.</p>
+  </div>
+  <div class="el-foot">
+    <button type="button" class="btn danger ghost" id="pcDelete" hidden>Eliminar curso</button>
+    <span class="spacer"></span>
+    <button type="button" class="btn ghost" data-pro-close>Cancelar</button>
+    <button type="button" class="btn primary" id="pcSave">Guardar</button>
+  </div>
+</dialog>
+
+<dialog id="proEvalDialog" class="el-dialog pro-dialog" aria-labelledby="proEvalTitle">
+  <div class="el-head">
+    <h2 id="proEvalTitle">Evaluación</h2>
+    <button type="button" class="btn ghost small" data-pro-close aria-label="Cerrar">✕</button>
+  </div>
+  <div class="pro-dialog-body">
+    <p id="peInfo" class="muted small" hidden></p>
+    <div class="form-grid tight">
+      <label>Nombre
+        <input id="peTitle" type="text" maxlength="80" placeholder="Disertación Unidad 2" autocomplete="off">
+      </label>
+      <label>Fecha
+        <input id="peDate" type="date">
+      </label>
+      <label>Periodo
+        <select id="pePeriod"></select>
+      </label>
+      <label>Ponderación
+        <input id="peWeight" type="number" min="0" step="any" inputmode="decimal">
+        <small id="peWeightInfo"></small>
+      </label>
+    </div>
+    <div class="pe-grades-head">
+      <h3>Notas</h3>
+      <button type="button" class="btn ghost small" id="pePasteToggle">📋 Pegar notas desde Excel</button>
+    </div>
+    <div id="pePasteBox" hidden>
+      <label>Pega una columna de notas (una por línea, en orden de lista)
+        <textarea id="pePaste" rows="5" placeholder="5,5&#10;6,1&#10;&#10;4,8"></textarea>
+      </label>
+      <button type="button" class="btn secondary small" id="pePasteApply">Poner estas notas</button>
+    </div>
+    <div class="table-wrap pe-grades-wrap">
+      <table id="peGrades" class="pro-students pe-grades"></table>
+    </div>
+    <p id="peError" class="alert error" hidden></p>
+  </div>
+  <div class="el-foot">
+    <button type="button" class="btn danger ghost" id="peDelete">🗑 Eliminar</button>
+    <button type="button" class="btn ghost" id="peCopy">📋 Copiar notas</button>
+    <button type="button" class="btn ghost" id="peReuse" hidden>↻ Usar esta prueba de nuevo</button>
+    <span class="spacer"></span>
+    <button type="button" class="btn ghost" data-pro-close>Cancelar</button>
+    <button type="button" class="btn primary" id="peSave">Guardar</button>
+  </div>
+</dialog>
+
+<dialog id="proPasteDialog" class="el-dialog pro-dialog" aria-labelledby="proPasteTitle">
+  <div class="el-head">
+    <h2 id="proPasteTitle">Pegar lista de estudiantes</h2>
+    <button type="button" class="btn ghost small" data-pro-close aria-label="Cerrar">✕</button>
+  </div>
+  <div class="pro-dialog-body">
+    <label>Un estudiante por línea. También puedes pegar columnas de Excel (N° de lista, nombre, RUT).
+      <textarea id="ppText" rows="10"></textarea>
+    </label>
+    <p id="ppInfo" class="muted small"></p>
+  </div>
+  <div class="el-foot">
+    <span class="spacer"></span>
+    <button type="button" class="btn ghost" data-pro-close>Cancelar</button>
+    <button type="button" class="btn primary" id="ppApply">Agregar a la lista</button>
+  </div>
+</dialog>
+
+<dialog id="proConfirmDialog" class="el-dialog pro-dialog pro-confirm" aria-labelledby="proConfirmTitle">
+  <div class="el-head">
+    <h2 id="proConfirmTitle"></h2>
+    <button type="button" class="btn ghost small" data-pro-close aria-label="Cerrar">✕</button>
+  </div>
+  <div class="pro-dialog-body" id="proConfirmBody"></div>
+  <div class="el-foot">
+    <span class="spacer"></span>
+    <button type="button" class="btn ghost" data-pro-close id="proConfirmCancel">Cancelar</button>
+    <button type="button" class="btn primary" id="proConfirmOk">Aceptar</button>
+  </div>
+</dialog>
+
+<!-- @@ scripts -->
+<script src="js/pro/libro-core.js"></script>
+<script src="js/pro/respaldo-core.js"></script>
+<script src="js/pro/comun.js"></script>
+<script src="js/pro/libro.js"></script>
+<script src="js/pro/respaldo.js"></script>

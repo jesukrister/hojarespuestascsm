@@ -16,11 +16,26 @@
   const ZipWriter = window.ZipWriter;
   const Xlsx = window.Xlsx;
 
-  const STORE_KEY = 'lectorHojas.v1';
+  // Versión Pro (pro.html): mismas funciones más las de js/pro/, con sus datos guardados aparte.
+  const PRO = document.documentElement.getAttribute('data-edition') === 'pro';
+  const STORE_KEY = PRO ? 'lectorHojasPro.v1' : 'lectorHojas.v1';
+  const DB_NAME = PRO ? 'lectorHojasPro' : 'lectorHojas';
   const MAX_IMAGE_SIDE = 2000;
   const PREVIEW_WIDTH = 1200;
   const PHOTO_MAX_SIDE = 1600;
-  const TABS = ['prueba', 'evaluacion', 'hoja', 'escanear', 'resultados', 'manual'];
+  const TABS = ['prueba', 'evaluacion', 'hoja', 'escanear', 'resultados'].concat(PRO ? ['cursos'] : [], ['manual']);
+
+  // Avisos para los módulos de la versión Pro (en la versión normal no hay nadie escuchando).
+  const hooks = {};
+  function emit(name, arg) {
+    for (const fn of hooks[name] || []) {
+      try {
+        fn(arg);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }
 
   const $ = (sel, root) => (root || document).querySelector(sel);
   const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
@@ -106,6 +121,8 @@
     }
     exam.doc = sanitizeDoc(raw.doc);
     exam.forms = sanitizeForms(raw.forms, exam.numQuestions, exam.numChoices);
+    // Datos de la versión Pro (curso y evaluación del libro de notas vinculados).
+    if (raw.pro && typeof raw.pro === 'object') exam.pro = JSON.parse(JSON.stringify(raw.pro));
     return exam;
   }
 
@@ -162,7 +179,7 @@
     if (!dbPromise) {
       dbPromise = new Promise((resolve, reject) => {
         if (typeof indexedDB === 'undefined') return reject(new Error('IndexedDB no disponible'));
-        const req = indexedDB.open('lectorHojas', 2);
+        const req = indexedDB.open(DB_NAME, 2);
         req.onupgradeneeded = () => {
           const db = req.result;
           if (!db.objectStoreNames.contains('images')) db.createObjectStore('images');
@@ -240,6 +257,7 @@
     } catch (e) {
       toast('No se pudo guardar en este navegador (almacenamiento lleno o bloqueado).');
     }
+    emit('save');
   }
 
   /* ------------------------------------------------------------------ */
@@ -353,6 +371,7 @@
     if (name === 'resultados') renderResults();
     if (name === 'manual') renderManualVideos();
     if (location.hash !== '#' + name) history.replaceState(null, '', '#' + name);
+    emit('tab', name);
   }
 
   /* ------------------------------------------------------------------ */
@@ -509,6 +528,7 @@
     $('#thrRange').disabled = e.threshold === null;
     $('#thrRange').value = e.threshold === null ? 0.35 : e.threshold;
     $('#thrValue').textContent = e.threshold === null ? 'auto' : e.threshold.toFixed(2);
+    emit('examForm');
   }
 
   function applyStructure(next) {
@@ -521,6 +541,7 @@
       state.results = [];
       forgetAllImages();
       selectedResultId = null;
+      emit('resultsCleared');
     }
     Object.assign(cur, normalizeConfig(next));
     cur.key = fitKey(cur.key, cur.numQuestions, cur.numChoices);
@@ -2437,10 +2458,12 @@
     const has = state.results.length > 0;
     $('#resultsEmpty').hidden = has;
     $('#resultsContent').hidden = !has;
-    if (!has) return;
-    renderResultsTable();
-    if (selectedResultId) renderDetail($('#resultDetail'), selectedResultId);
-    else $('#resultDetail').innerHTML = '';
+    if (has) {
+      renderResultsTable();
+      if (selectedResultId) renderDetail($('#resultDetail'), selectedResultId);
+      else $('#resultDetail').innerHTML = '';
+    }
+    emit('results');
   }
 
   function renderResultsTable() {
@@ -3462,6 +3485,7 @@
       state.results = [];
       forgetAllImages();
       selectedResultId = null;
+      emit('resultsCleared');
       save();
       $('#scanDetail').innerHTML = '';
       $('#scanQueue').innerHTML = '';
@@ -3498,6 +3522,64 @@
       a.href = url;
       if (d.texto && !a.closest('.man-donate')) a.textContent = '❤ ' + d.texto;
     }
+  }
+
+  /** Versión Pro: reemplaza la prueba actual (sin resultados), p. ej. para volver a usar una prueba del libro de notas. */
+  function replaceExam(raw) {
+    state.exam = sanitizeExam(raw);
+    state.results = [];
+    forgetAllImages();
+    selectedResultId = null;
+    save();
+    $('#scanDetail').innerHTML = '';
+    $('#scanQueue').innerHTML = '';
+    fillExamForm();
+    renderKey();
+    renderObjectives();
+    updateLayoutError();
+    renderResultsBadge();
+    renderDoc();
+    renderResults();
+  }
+
+  // Lo que usan los módulos de la versión Pro (js/pro/). La versión normal no expone nada.
+  if (PRO) {
+    window.LectorApp = {
+      state,
+      on(name, fn) {
+        (hooks[name] = hooks[name] || []).push(fn);
+      },
+      save,
+      grade,
+      gradeCanon,
+      canonAnswers,
+      oaResults,
+      currentObjectives,
+      displayName,
+      rosterName,
+      needsReview,
+      formLetter,
+      formUnknown,
+      sortedResults,
+      fmt,
+      esc,
+      uid,
+      slug,
+      toast,
+      download,
+      dateStamp,
+      fmtDateTime,
+      showTab,
+      fillExamForm,
+      renderResults,
+      renderResultsBadge,
+      replaceExam,
+      sanitizeExam,
+      imageStore,
+      assetStore,
+      STORE_KEY,
+      DB_NAME,
+    };
   }
 
   bind();

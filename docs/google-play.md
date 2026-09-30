@@ -132,3 +132,28 @@ versión mayor. Súbelo en *Producción → Crear versión*.
 En la versión de Google Play **no hay botón de donación**: Google exige usar su
 sistema de pagos para donaciones al desarrollador. El botón aparece sólo en la
 página web, y se activa pegando el enlace en `js/donaciones.js`.
+
+## 8. Versión Pro (una segunda ficha)
+
+La versión Pro es **otra app** para Google Play (identificador
+`cl.lectorhojas.app.pro`), así que tiene su propia ficha. Se publica igual que
+la normal, con estas diferencias:
+
+- En *Crear app*: nombre **Lector de Hojas Pro**, gratis.
+- Archivo a subir: **`LectorHojasPro-GooglePlay.aab`** (Releases → `app-android`).
+- Íconos y gráfico: `docs/play/pro/icono-512.png` y `docs/play/pro/grafico-1024x500.png`.
+- Descripción breve (máx. 80): *Corrige pruebas con la cámara y lleva el libro de notas de tus cursos.*
+- Descripción completa: la misma de la app normal, agregando al final:
+
+  > **Versión Pro**: cursos con su lista de estudiantes y libro de notas. Las
+  > notas de cada prueba escaneada se guardan en el libro con un toque; también
+  > puedes agregar notas manuales (trabajos, disertaciones), usar ponderaciones,
+  > ver promedios por semestre y el promedio final, con aviso de notas
+  > limítrofes. Copia las notas en orden de lista para pegarlas en el libro
+  > digital del colegio, descarga el libro en Excel y crea un respaldo completo
+  > para pasar tu trabajo a otro equipo.
+
+- *Seguridad de los datos*: igual que la normal (no se recopilan datos; las
+  notas, nombres y respaldos quedan en el teléfono).
+- Si tu cuenta es personal y nueva, esta app también necesita su propia prueba
+  cerrada (12 testers durante 14 días).
