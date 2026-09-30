@@ -54,6 +54,13 @@ cualquier hosting de archivos estáticos.
   (también se pueden arrastrar). Tolera fotos inclinadas, giradas (incluso
   al revés), en perspectiva, con iluminación irregular y con la hoja algo
   curvada.
+- **Hojas dañadas**: si una hoja está doblada, rayada o rota y no se puede
+  escanear, el docente transcribe lo que marcó el estudiante (tocando las
+  letras o escribiéndolas seguidas) y la plataforma genera la hoja rellenada
+  —con el nombre, el N° de lista y la fila—, la corrige y la agrega a los
+  resultados con la etiqueta *transcrita* (también en el Excel). La hoja se
+  puede imprimir o guardar en PDF, y se puede adjuntar la foto de la hoja
+  original como evidencia.
 - **Revisión**: se muestra la hoja enderezada con la corrección superpuesta
   (verde = correcta, rojo = incorrecta, azul = respuesta correcta) y se marcan
   en amarillo las marcas dudosas. Cualquier respuesta se puede corregir a mano.
@@ -86,6 +93,8 @@ cualquier hosting de archivos estáticos.
    - la hoja completa en la foto, con las **cuatro esquinas visibles**;
    - buena luz, sin sombras fuertes ni reflejos;
    - hoja lo más plana posible (una leve curvatura se corrige sola).
+
+   Si una hoja no se puede escanear, usa **✍️ Transcribir una hoja dañada**.
 5. **Resultados**: revisa las hojas marcadas “revisar”, corrige si es necesario,
    revisa el logro por OA y descarga las evidencias.
 

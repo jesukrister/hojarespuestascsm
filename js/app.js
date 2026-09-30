@@ -1790,7 +1790,9 @@
           // Hoja de otra evaluación: se ofrece usar la configuración de la hoja.
           item.error(
             `${file.name || 'foto'}: ${res.error}`,
-            other && { label: 'Usar la configuración de esta hoja', run: () => useSheetConfig(other, file) }
+            other
+              ? { label: 'Usar la configuración de esta hoja', run: () => useSheetConfig(other, file) }
+              : { label: '✍️ Transcribir esta hoja', run: () => openTranscribe(file) }
           );
           continue;
         }
@@ -1867,6 +1869,182 @@
   function useSheetConfig(cfg, file) {
     if (!applySheetConfig(cfg)) return;
     if (file) handleFiles([file]);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Transcribir una hoja dañada                                          */
+  /* ------------------------------------------------------------------ */
+
+  // Respuestas que el docente copia de la hoja original (una lista de alternativas por pregunta).
+  const TR = { answers: [], photo: null };
+
+  function openTranscribe(photoFile) {
+    if (!getLayout()) return toast(layoutError);
+    const e = state.exam;
+    TR.answers = Array.from({ length: e.numQuestions }, () => []);
+    $('#trCode').value = '';
+    $('#trName').value = '';
+    $('#trName').placeholder = 'Nombre del estudiante';
+    $('#trCodeWrap').hidden = e.idDigits === 0;
+    $('#trCode').placeholder = e.idDigits ? `${e.idDigits} dígito(s)` : '';
+    $('#trFormWrap').hidden = !e.forms;
+    if (e.forms) $('#trForm').innerHTML = e.forms.maps.map((_, i) => `<option value="${i}">Fila ${formLetter(i)}</option>`).join('');
+    $('#trPhoto').value = '';
+    setTranscribePhoto(photoFile || null);
+    renderTranscribeGrid();
+    const dlg = $('#trDialog');
+    if (!dlg.open) dlg.showModal();
+    setTimeout(() => (e.idDigits ? $('#trCode') : $('#trText')).focus(), 50);
+  }
+
+  function setTranscribePhoto(file) {
+    TR.photo = file || null;
+    const p = $('#trPhotoName');
+    p.hidden = !file;
+    p.textContent = file ? `Foto adjunta: ${file.name || 'foto'}` : '';
+  }
+
+  /** Una letra por pregunta: A, B… ; "-" en blanco; "*" doble marca. */
+  function transcribeText() {
+    const chars = TR.answers.map((m) => (m.length === 0 ? '-' : m.length > 1 ? '*' : CHOICE_LABELS[m[0]]));
+    const groups = [];
+    for (let i = 0; i < chars.length; i += 5) groups.push(chars.slice(i, i + 5).join(''));
+    return groups.join(' ');
+  }
+
+  function parseTranscribeText(text) {
+    const { numQuestions: n, numChoices: c } = state.exam;
+    const out = [];
+    for (const ch of String(text).toUpperCase()) {
+      if (out.length >= n) break;
+      const code = ch.charCodeAt(0) - 65;
+      const q = out.length;
+      if (code >= 0 && code < 6) out.push(code < c ? [code] : []);
+      else if (ch === '*') out.push(TR.answers[q] && TR.answers[q].length > 1 ? TR.answers[q].slice() : []);
+      else if ('-_?X.'.indexOf(ch) >= 0) out.push([]);
+    }
+    while (out.length < n) out.push([]);
+    return out;
+  }
+
+  function renderTranscribeGrid(skipText) {
+    const c = state.exam.numChoices;
+    const html = TR.answers.map((m, q) => {
+      const cls = m.length === 0 ? ' unset' : m.length > 1 ? ' multi' : '';
+      let row = `<div class="key-row${cls}"><span class="qn">${q + 1}</span>`;
+      for (let k = 0; k < c; k++) {
+        row +=
+          `<button type="button" class="bubble-btn" data-tq="${q}" data-tc="${k}" aria-pressed="${m.indexOf(k) >= 0}" ` +
+          `aria-label="Pregunta ${q + 1}, alternativa ${CHOICE_LABELS[k]}">${CHOICE_LABELS[k]}</button>`;
+      }
+      return row + '</div>';
+    });
+    $('#trGrid').innerHTML = html.join('');
+    if (!skipText) $('#trText').value = transcribeText();
+    const answered = TR.answers.filter((m) => m.length === 1).length;
+    const blank = TR.answers.filter((m) => m.length === 0).length;
+    const multi = TR.answers.filter((m) => m.length > 1).length;
+    $('#trStatus').textContent =
+      `${answered} de ${TR.answers.length} con una alternativa` + (blank ? ` · ${blank} en blanco` : '') + (multi ? ` · ${multi} con doble marca` : '');
+  }
+
+  /** Hoja de respuestas rellenada con lo transcrito (mismo diseño de la prueba). */
+  function transcribedSheet() {
+    const e = state.exam;
+    const form = e.forms ? Number($('#trForm').value) || 0 : null;
+    const layout = layoutForForm(form);
+    const digits = $('#trCode').value.replace(/\D/g, '').slice(0, e.idDigits);
+    const id = [];
+    for (let d = 0; d < e.idDigits; d++) id.push(d < digits.length ? Number(digits[d]) : null);
+    const d = new Date();
+    const p2 = (x) => String(x).padStart(2, '0');
+    const name = $('#trName').value.trim() || (digits.length === e.idDigits ? rosterName(digits) : '');
+    const opts = Object.assign(sheetOptions({ answers: TR.answers, id, fields: { Nombre: name } }), {
+      footerNote: `Hoja transcrita por el docente (${p2(d.getDate())}-${p2(d.getMonth() + 1)}-${d.getFullYear()})`,
+    });
+    return { layout, svg: SheetRenderer.renderSVG(layout, opts), id, form };
+  }
+
+  function printTranscribed() {
+    if (!getLayout()) return toast(layoutError);
+    const { layout, svg } = transcribedSheet();
+    setPageStyle(`@page { size: ${layout.width}mm ${layout.height}mm; margin: 0; }`);
+    $('#printArea').className = 'print-area';
+    $('#printArea').innerHTML = `<div class="print-page">${svg}</div>`;
+    window.print();
+  }
+
+  /** Agrega la hoja transcrita a los resultados, con su imagen como evidencia. */
+  async function addTranscribed() {
+    const e = state.exam;
+    if (!getLayout()) return toast(layoutError);
+    const { layout, svg, id, form } = transcribedSheet();
+    if (e.idDigits && id.some((v) => v === null) && !confirm('Falta el N° de lista o código del estudiante. ¿Agregar la hoja de todos modos? (Podrás completarlo después en Resultados).')) return;
+    if (TR.answers.every((m) => m.length === 0) && !confirm('No transcribiste ninguna respuesta. ¿Agregar la hoja de todos modos?')) return;
+    const btn = $('#trAdd');
+    btn.disabled = true;
+    try {
+      // Imagen de la hoja rellenada (hace las veces de hoja escaneada y enderezada).
+      const ppm = layout.format.id === 'full' ? 6 : 8;
+      const img = new Image();
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+      await img.decode();
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(layout.width * ppm);
+      cv.height = Math.round(layout.height * ppm);
+      const ctx = cv.getContext('2d', { willReadFrequently: true });
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, cv.width, cv.height);
+      ctx.drawImage(img, 0, 0, cv.width, cv.height);
+      const gray = OMR.toGray(ctx.getImageData(0, 0, cv.width, cv.height).data, cv.width, cv.height);
+      const px = (bubbles) => bubbles.map((b) => ({ x: b.x * ppm, y: b.y * ppm, r: b.r * ppm }));
+      const res = {
+        rectified: { width: gray.width, height: gray.height, data: gray.data, ppm },
+        overlay: { questions: layout.questions.map((q) => px(q.bubbles)), id: layout.idRows.map((r) => px(r.bubbles)) },
+      };
+      // La foto de la hoja original dañada (si se adjuntó) queda como "foto original".
+      let photoCanvas = cv;
+      if (TR.photo) {
+        try {
+          photoCanvas = (await fileToGray(TR.photo)).canvas;
+        } catch (err) {
+          toast('No se pudo leer la foto adjunta; se guarda sólo la hoja transcrita.');
+        }
+      }
+      const view = await makeView(res, photoCanvas);
+      const record = {
+        id: uid(),
+        fileName: TR.photo ? TR.photo.name || 'foto' : 'Transcrita por el docente',
+        createdAt: Date.now(),
+        scannedAt: Date.now(),
+        code: e.idDigits ? id.map((v) => (v === null ? '?' : String(v))).join('') : null,
+        name: $('#trName').value.trim(),
+        answers: TR.answers.map((m) => ({ marked: m.slice(), uncertain: false })),
+        idMarks: id.map((v) => (v === null ? [] : [v])),
+        idUncertain: false,
+        threshold: null,
+        form: form === null ? 0 : form,
+        transcribed: true,
+        warnings: ['Hoja transcrita por el docente a partir de la hoja original.'],
+      };
+      state.results.push(record);
+      images.set(record.id, view);
+      persistView(record.id, view);
+      save();
+      $('#trDialog').close();
+      const g = grade(record);
+      const who = record.code ? `Código ${record.code}` : record.name || 'Hoja transcrita';
+      queueItem('Transcrita').ok(`✍️ ${who} (transcrita) · ${g.correct}/${g.items.length - g.excluded} correctas · nota ${fmt(g.grade, 1)}`, record.id);
+      renderDetail($('#scanDetail'), record.id);
+      renderResultsBadge();
+      if (!$('#tab-resultados').hidden) renderResults();
+      toast('Hoja transcrita agregada a los resultados.');
+    } catch (err) {
+      console.error(err);
+      toast('No se pudo generar la hoja transcrita: ' + err.message);
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   async function readKeyFromPhoto(file) {
@@ -2288,6 +2466,7 @@
         const tags = [];
         if (needsReview(r)) tags.push('<span class="tag warn">revisar</span>');
         if (r.code && codeCount[r.code] > 1) tags.push('<span class="tag bad">código repetido</span>');
+        if (r.transcribed) tags.push('<span class="tag form">transcrita</span>');
         if (state.exam.forms) tags.push(`<span class="tag form">Fila ${formUnknown(r) ? '?' : formLetter(r.form || 0)}</span>`);
         const gradeCls = g.grade === null ? '' : g.grade >= sc.gradePass ? 'grade-pass' : 'grade-fail';
         return `<tr data-id="${esc(r.id)}"${r.id === selectedResultId ? ' class="selected"' : ''}>
@@ -2520,6 +2699,9 @@
         lines.push({ text: l, font: font(19, 700), color: '#6a1b9a' });
       }
     }
+    if (r.transcribed) {
+      lines.push({ text: 'Hoja transcrita por el docente a partir de la hoja original (ver la foto original, si se adjuntó).', font: font(19, 700), color: '#6a1b9a' });
+    }
     if (needsReview(r)) {
       lines.push({ text: 'Atención: la hoja tiene marcas dudosas sin revisar (recuadros amarillos).', font: font(19, 700), color: '#b26a00' });
     }
@@ -2662,7 +2844,13 @@
 
     rows.forEach(({ r, g }, i) => {
       const edits = manualEdits(r);
-      const status = needsReview(r) ? 'Revisar' : edits.length ? `Corregida manualmente (${edits.length})` : 'OK';
+      const status = needsReview(r)
+        ? 'Revisar'
+        : r.transcribed
+        ? 'Transcrita por el docente'
+        : edits.length
+        ? `Corregida manualmente (${edits.length})`
+        : 'OK';
       const link = links[i] || {};
       const row = [
         i + 1,
@@ -3177,6 +3365,37 @@
       const b = e.target.closest('[data-view]');
       if (b) renderDetail($('#scanDetail'), b.dataset.view);
     });
+    // Transcribir una hoja dañada.
+    $('#btnTranscribe').addEventListener('click', () => openTranscribe());
+    $('#trGrid').addEventListener('click', (e) => {
+      const b = e.target.closest('.bubble-btn');
+      if (!b) return;
+      const q = Number(b.dataset.tq);
+      const c = Number(b.dataset.tc);
+      const m = TR.answers[q];
+      const i = m.indexOf(c);
+      if (i >= 0) m.splice(i, 1);
+      else {
+        m.push(c);
+        m.sort((a, b2) => a - b2);
+      }
+      renderTranscribeGrid();
+    });
+    $('#trText').addEventListener('input', (e) => {
+      TR.answers = parseTranscribeText(e.target.value);
+      renderTranscribeGrid(true);
+    });
+    // Al salir sólo se ordena el texto (redibujar la grilla aquí haría perder el clic que causó el blur).
+    $('#trText').addEventListener('blur', () => ($('#trText').value = transcribeText()));
+    $('#trCode').addEventListener('input', (e) => {
+      e.target.value = e.target.value.replace(/\D/g, '').slice(0, state.exam.idDigits);
+      $('#trName').placeholder = rosterName(e.target.value) || 'Nombre del estudiante';
+    });
+    $('#trPhoto').addEventListener('change', (e) => setTranscribePhoto(e.target.files[0] || null));
+    $('#trPrint').addEventListener('click', printTranscribed);
+    $('#trAdd').addEventListener('click', addTranscribed);
+    for (const b of $$('[data-tr-close]')) b.addEventListener('click', () => $('#trDialog').close());
+
     $('#thrAuto').addEventListener('change', (e) => {
       state.exam.threshold = e.target.checked ? null : parseFloat($('#thrRange').value);
       save();
@@ -3192,7 +3411,7 @@
     let dragDepth = 0;
     const hint = $('#dropHint');
     document.addEventListener('dragenter', (e) => {
-      if ($('#elDialog').open) return;
+      if (document.querySelector('dialog[open]')) return;
       if (!e.dataTransfer || Array.from(e.dataTransfer.types).indexOf('Files') < 0) return;
       dragDepth++;
       hint.hidden = false;
@@ -3204,7 +3423,12 @@
     document.addEventListener('dragover', (e) => e.preventDefault());
     document.addEventListener('drop', (e) => {
       e.preventDefault();
-      if ($('#elDialog').open) return;
+      if ($('#trDialog').open) {
+        const f = e.dataTransfer && Array.from(e.dataTransfer.files).find((x) => x.type.startsWith('image/'));
+        if (f) setTranscribePhoto(f);
+        return;
+      }
+      if (document.querySelector('dialog[open]')) return;
       dragDepth = 0;
       hint.hidden = true;
       if (e.dataTransfer && e.dataTransfer.files.length) {

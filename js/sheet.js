@@ -110,6 +110,12 @@
       const labelW = (f.label.length * 1.9 + 2.5) * k;
       out.push(`<text x="${n(f.x)}" y="${n(f.y)}" font-size="${n(fieldFont)}">${esc(f.label)}:</text>`);
       out.push(`<line x1="${n(f.x + labelW)}" y1="${n(f.y + 0.6 * k)}" x2="${n(f.x2)}" y2="${n(f.y + 0.6 * k)}" stroke="#000" stroke-width="0.2"/>`);
+      // Texto ya escrito en el campo (hoja transcrita por el docente).
+      const text = fill.fields && fill.fields[f.label];
+      if (text) {
+        const size = Math.min(fieldFont, ((f.x2 - f.x - labelW - 2 * k) / Math.max(4, String(text).length)) * 1.9);
+        out.push(`<text x="${n(f.x + labelW + 1.5 * k)}" y="${n(f.y - 0.3 * k)}" font-size="${n(size)}" fill="#1d3a8a">${esc(text)}</text>`);
+      }
     }
 
     if (hd.idBlock) {
@@ -173,7 +179,8 @@
     }
 
     const c = layout.config;
-    const footer = `${c.numQuestions} preguntas · alternativas ${g.choiceLabels[0]}–${g.choiceLabels[g.choiceLabels.length - 1]}`;
+    let footer = `${c.numQuestions} preguntas · alternativas ${g.choiceLabels[0]}–${g.choiceLabels[g.choiceLabels.length - 1]}`;
+    if (opts.footerNote) footer += ` · ${opts.footerNote}`;
     out.push(`<text x="${n(W / 2)}" y="${n(layout.footerY)}" font-size="${n(2.3 * k)}" fill="#777" text-anchor="middle">${esc(footer)}</text>`);
     return out.join('');
   }

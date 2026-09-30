@@ -618,3 +618,19 @@ label.form-pick select { width: auto; min-width: 4.5em; }
 .native-notice button { border: 0; border-radius: 8px; padding: 8px 12px; background: #fff; color: var(--primary); font: inherit; font-weight: 700; }
 .native-notice button.close { background: transparent; color: #fff; padding: 8px; }
 .native-app body { padding-top: env(safe-area-inset-top, 0px); }
+
+/* ---------- Transcribir una hoja dañada ---------- */
+.tr-dialog { width: min(720px, calc(100vw - 24px)); }
+.tr-dialog[open] { display: flex; flex-direction: column; }
+.tr-body { padding: 12px 18px; overflow: auto; }
+.tr-body > label { margin-top: 10px; }
+.tr-grid { max-height: 44vh; overflow: auto; margin-top: 6px; }
+.tr-grid .key-row.multi .qn { color: var(--bad); }
+.tr-photo input { padding: 6px 0; border: 0; }
+@media (max-width: 480px) {
+  .tr-dialog .el-foot { flex-wrap: wrap; }
+  .tr-dialog .el-foot .spacer { display: none; }
+  .tr-dialog .el-foot .btn { flex: 1 1 40%; }
+  .tr-dialog .el-foot #trAdd { flex-basis: 100%; order: -1; }
+  .tr-grid { max-height: none; overflow: visible; }
+}

@@ -402,6 +402,7 @@
             <input id="filesInput" type="file" accept="image/*" multiple hidden>
           </div>
           <p class="muted small center">También puedes arrastrar imágenes a esta sección. Puedes seleccionar varias fotos a la vez.</p>
+          <p class="center"><button id="btnTranscribe" class="btn ghost small" type="button">✍️ Transcribir una hoja dañada</button></p>
           <details class="tips-box">
             <summary>Consejos para una buena foto</summary>
             <ul class="tips">
@@ -656,6 +657,15 @@ Núcleo = Contiene el material genético</pre>
             <li>Foto desde arriba. No importa si la hoja queda un poco girada o inclinada.</li>
           </ul>
           <p class="man-tip"><b>💡 Bueno saber:</b> si corriges una respuesta a mano, queda marcada con un triángulo morado, para que se sepa que la cambió el docente.</p>
+          <h3>Hojas que no se pueden escanear (dobladas, rayadas o rotas)</h3>
+          <ol class="man-steps">
+            <li>Presiona <b>✍️ Transcribir una hoja dañada</b> (o el botón <b>✍️ Transcribir esta hoja</b> que aparece junto a una foto rechazada).</li>
+            <li>Escribe el <b>N° de lista</b> del estudiante y, si la prueba tiene filas, elige su <b>fila</b>.</li>
+            <li>Copia lo que marcó el estudiante: toca la letra de cada pregunta, o escríbelas seguidas en <b>Escritura rápida</b> (por ejemplo <code>ABCDA BC-DA</code>; el guion es una pregunta en blanco). Si marcó dos alternativas, toca las dos.</li>
+            <li>Presiona <b>Agregar a los resultados</b>: la plataforma genera la hoja rellenada, la corrige y la agrega con la etiqueta <span class="tag form">transcrita</span>.</li>
+            <li>Si quieres la hoja en papel o PDF, presiona <b>🖨️ Hoja en PDF</b> (en la ventana de impresión elige “Guardar como PDF”).</li>
+          </ol>
+          <p class="man-tip"><b>💡 Consejo:</b> adjunta una foto de la hoja original dañada: queda guardada como evidencia junto a la hoja transcrita.</p>
           <button class="btn secondary small" type="button" data-goto="escanear">Ir a la pestaña Escanear →</button>
         </article>
 
@@ -705,7 +715,10 @@ Núcleo = Contiene el material genético</pre>
               <p>La hoja es de otra evaluación (otro número de preguntas, alternativas o dígitos que la prueba configurada con su clave). Si en realidad es la misma evaluación, presiona <b>Usar la configuración de esta hoja</b>: la plataforma se ajusta a la hoja y la vuelve a leer; después revisa la clave en la pestaña Prueba.</p>
               <p>No hace falta hacer nada si solo cambia el papel o las hojas por página (por ejemplo, un cuarto de hoja impreso ampliado): la hoja se lee sola con su propio diseño. Y si todavía no configuraste la prueba (sin clave ni resultados), la plataforma toma la configuración de la primera hoja que escanees.</p></details>
             <details><summary>Dice “Las filas de respuestas no quedaron bien alineadas”.</summary>
-              <p>La hoja está muy doblada o curvada. Alísala sobre una mesa y vuelve a sacar la foto. La plataforma prefiere rechazar la foto antes que corregir mal.</p></details>
+              <p>La hoja está muy doblada o curvada. Alísala sobre una mesa y vuelve a sacar la foto. La plataforma prefiere rechazar la foto antes que corregir mal.</p>
+              <p>Si aun así no se puede leer, presiona <b>✍️ Transcribir esta hoja</b> y copia las respuestas del estudiante: la hoja se agrega a los resultados sin escanearla.</p></details>
+            <details><summary>Una hoja está rota o rayada y no se puede escanear.</summary>
+              <p>En Escanear, presiona <b>✍️ Transcribir una hoja dañada</b>, escribe el N° de lista y copia las alternativas que marcó el estudiante. La plataforma genera su hoja rellenada, la corrige y la agrega a los resultados con la etiqueta “transcrita”, para que se sepa que la ingresó el docente.</p></details>
             <details><summary>Una pregunta tiene un recuadro amarillo (marca dudosa).</summary>
               <p>El estudiante marcó muy suave, borró mal o marcó dos veces. Mira la hoja y elige la letra correcta en la lista de la derecha. Si muchas marcas salen dudosas, en Escanear puedes desmarcar “Sensibilidad automática” y ajustar el umbral.</p></details>
             <details><summary>Aparece “código repetido”.</summary>
@@ -736,6 +749,42 @@ Núcleo = Contiene el material genético</pre>
       <p class="legal">© 2026 Francesco Vivero · Uso gratuito. Prohibida su copia, modificación o redistribución sin autorización del autor. · <a href="privacidad.html">Política de privacidad</a></p>
     </footer>
   </div>
+
+  <dialog id="trDialog" class="el-dialog tr-dialog" aria-labelledby="trDialogTitle">
+    <div class="el-head">
+      <h2 id="trDialogTitle">Transcribir una hoja dañada</h2>
+      <button type="button" class="btn ghost small" data-tr-close aria-label="Cerrar">✕</button>
+    </div>
+    <div class="tr-body">
+      <p class="muted small">Para una hoja doblada, rayada o rota que no se puede escanear: copia lo que marcó el estudiante en su hoja original. Toca la letra de cada pregunta (dos letras si marcó dos; ninguna si la dejó en blanco). La plataforma genera la hoja rellenada y la agrega a los resultados, marcada como <strong>transcrita por el docente</strong>.</p>
+      <div class="form-grid tight">
+        <label id="trCodeWrap">N° de lista / código
+          <input id="trCode" type="text" inputmode="numeric" autocomplete="off">
+        </label>
+        <label>Nombre (opcional)
+          <input id="trName" type="text" autocomplete="off">
+        </label>
+        <label id="trFormWrap" hidden>Fila
+          <select id="trForm"></select>
+        </label>
+      </div>
+      <label>Escritura rápida
+        <input id="trText" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Ej.: ABCDA BC-DA …  (- = en blanco)">
+      </label>
+      <p id="trStatus" class="muted small"></p>
+      <div id="trGrid" class="key-grid tr-grid" aria-label="Respuestas del estudiante"></div>
+      <label class="tr-photo">Foto de la hoja original (opcional: queda como evidencia)
+        <input id="trPhoto" type="file" accept="image/*">
+      </label>
+      <p id="trPhotoName" class="muted small" hidden></p>
+    </div>
+    <div class="el-foot">
+      <button type="button" class="btn secondary" id="trPrint">🖨️ Hoja en PDF</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn ghost" data-tr-close>Cancelar</button>
+      <button type="button" class="btn primary" id="trAdd">Agregar a los resultados</button>
+    </div>
+  </dialog>
 
   <dialog id="mathDialog" class="el-dialog math-dialog" aria-labelledby="mathDialogTitle">
     <div class="el-head">
