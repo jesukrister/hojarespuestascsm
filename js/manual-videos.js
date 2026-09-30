@@ -27,6 +27,10 @@ window.MANUAL_VIDEOS = {
   // Sólo en la versión Pro:
   cursos: '', //      7. Cursos y libro de notas
   respaldopro: '', // 8. Respaldo completo
+  desarrollo: '', //  9. Preguntas de desarrollo
+  tickets: '', //     10. Tickets de salida
+  nombres: '', //     11. Hojas con nombre
+  lote: '', //        12. PDF y varias hojas por foto
 };
 
 // true: donde todavía no hay video se muestra el aviso "Video próximamente".

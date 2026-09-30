@@ -52,7 +52,7 @@ function strokeCircle(img, ppm, cx, cy, r, width, value) {
 
 /**
  * Dibuja la hoja.
- * marks: { answers: [[{choice, value, holes}]...], id: [digit...] }
+ * marks: { answers: [[{choice, value, holes}]...], id: [digit...], dev: [puntos | null | [p1, p2]...] }
  */
 function rasterizeSheet(layout, ppm, marks, seed) {
   const rand = mulberry32(seed || 1);
@@ -64,7 +64,7 @@ function rasterizeSheet(layout, ppm, marks, seed) {
   fillRect(img, ppm, o.x - o.size / 2, o.y - o.size / 2, o.x + o.size / 2, o.y + o.size / 2, 20);
   if (!(marks && marks.hideSideMarks))
     for (const sm of layout.sideMarks) fillRect(img, ppm, sm.x - sm.size / 2, sm.y - sm.size / 2, sm.x + sm.size / 2, sm.y + sm.size / 2, 20);
-  for (const c of layout.codeCells.concat(layout.formCells || []))
+  for (const c of layout.codeCells.concat(layout.formCells || [], layout.extCells || []))
     if (c.bit) fillRect(img, ppm, c.x - c.size / 2, c.y - c.size / 2, c.x + c.size / 2, c.y + c.size / 2, 20);
   // Texto del encabezado simulado como barras finas.
   const k = layout.scale || 1;
@@ -106,12 +106,27 @@ function rasterizeSheet(layout, ppm, marks, seed) {
     q.bubbles.forEach(bubbles);
   }
   for (const row of layout.idRows) row.bubbles.forEach(bubbles);
+  if (layout.dev) {
+    fillRect(img, ppm, layout.dev.x, layout.dev.titleY - 2.2 * k, layout.dev.x + 60 * k, layout.dev.titleY, 60); // título
+    for (const row of layout.devRows) {
+      fillRect(img, ppm, row.labelX - 4, row.y - 1.1, row.labelX, row.y + 1.1, 40); // rótulo
+      row.bubbles.forEach(bubbles);
+    }
+  }
 
   const answers = (marks && marks.answers) || [];
   answers.forEach((list, qi) => {
     for (const mk of list || []) {
       const b = layout.questions[qi].bubbles[mk.choice];
       fillDisk(img, ppm, b.x, b.y, b.r * (mk.radius || 0.9), mk.value == null ? 60 : mk.value, rand, mk.holes || 0.15);
+    }
+  });
+  const dev = (marks && marks.dev) || [];
+  dev.forEach((pts, di) => {
+    if (pts == null) return;
+    for (const v of Array.isArray(pts) ? pts : [pts]) {
+      const b = layout.devRows[di].bubbles[v];
+      fillDisk(img, ppm, b.x, b.y, b.r * 0.9, 60, rand, 0.15);
     }
   });
   const id = (marks && marks.id) || [];
@@ -210,4 +225,49 @@ function randomAnswers(numQuestions, numChoices, seed, opts) {
   return { marks, expected };
 }
 
-module.exports = { rasterizeSheet, photograph, randomAnswers, mulberry32 };
+/**
+ * Foto con varias hojas (p. ej. tickets sobre la mesa o una página de la
+ * fotocopiadora). items: [{ layout, sheet, ppm, corners: esquinas del papel en px }]
+ */
+function photographMany(items, W, H, seed, opts) {
+  opts = opts || {};
+  const rand = mulberry32(seed || 3);
+  const data = new Float32Array(W * H);
+  const inv = items.map((it) =>
+    OMR.solveHomography(it.corners, [
+      { x: 0, y: 0 },
+      { x: it.layout.width, y: 0 },
+      { x: it.layout.width, y: it.layout.height },
+      { x: 0, y: it.layout.height },
+    ])
+  );
+  const gauss = () => {
+    let u = 0, v = 0;
+    while (u === 0) u = rand();
+    while (v === 0) v = rand();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  };
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      let v = opts.background == null ? 90 : opts.background;
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        const p = OMR.project(inv[i], x + 0.5, y + 0.5);
+        if (p.x >= 0 && p.y >= 0 && p.x < it.layout.width && p.y < it.layout.height) {
+          const sx = Math.min(it.sheet.width - 1, Math.floor(p.x * it.ppm));
+          const sy = Math.min(it.sheet.height - 1, Math.floor(p.y * it.ppm));
+          v = it.sheet.data[sy * it.sheet.width + sx];
+        }
+      }
+      data[y * W + x] = Math.max(0, Math.min(255, v + gauss() * 5));
+    }
+  return { width: W, height: H, data };
+}
+
+/** Esquinas de un rectángulo w × h centrado en (cx, cy) y girado `angle` radianes. */
+function rectCorners(cx, cy, w, h, angle) {
+  const c = Math.cos(angle || 0), s = Math.sin(angle || 0);
+  return [[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]].map(([dx, dy]) => ({ x: cx + dx * c - dy * s, y: cy + dx * s + dy * c }));
+}
+
+module.exports = { rasterizeSheet, photograph, photographMany, rectCorners, randomAnswers, mulberry32 };

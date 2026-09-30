@@ -207,7 +207,7 @@
   /* Detección de las marcas de las esquinas                             */
   /* ------------------------------------------------------------------ */
 
-  function markerCandidates(blobs, w, h) {
+  function markerCandidates(blobs, w, h, limit) {
     const minSide = Math.min(w, h);
     const minArea = Math.max(25, Math.pow(minSide * 0.007, 2));
     const maxArea = w * h * 0.03;
@@ -223,11 +223,23 @@
       out.push(b);
     }
     out.sort((a, b) => b.area - a.area);
-    return out.slice(0, 18);
+    return out.slice(0, limit || 18);
   }
 
-  function findMarkerQuad(blobs, w, h, layout) {
-    const cands = markerCandidates(blobs, w, h);
+  /**
+   * Cuadriláteros candidatos (del más probable al menos probable).
+   * opts.many: foto con varias hojas (más marcas candidatas y más cuadriláteros).
+   */
+  function findMarkerQuad(blobs, w, h, layout, opts) {
+    const many = !!(opts && opts.many);
+    let cands = markerCandidates(blobs, w, h, many ? 400 : 18);
+    // Varias hojas: las marcas de todas tienen un tamaño parecido (la foto se
+    // toma desde arriba), así que se usan sólo las manchas del tamaño de las
+    // más grandes. Las hojas más lejanas se encuentran después, al tapar las ya leídas.
+    if (many && cands.length) {
+      const top = cands[0].area;
+      cands = cands.filter((b) => b.area >= top / 1.4).slice(0, 48);
+    }
     if (cands.length < 4) return [];
     const m = layout.markers;
     const sheetQuadArea = polygonArea(m);
@@ -236,12 +248,14 @@
     const found = [];
     const n = cands.length;
     for (let i = 0; i < n; i++)
-      for (let j = i + 1; j < n; j++)
-        for (let k = j + 1; k < n; k++)
+      for (let j = i + 1; j < n; j++) {
+        if (cands[i].area > cands[j].area * 3) break;
+        for (let k = j + 1; k < n; k++) {
+          if (cands[i].area > cands[k].area * 3) break;
           for (let l = k + 1; l < n; l++) {
             const set = [cands[i], cands[j], cands[k], cands[l]];
             // cands está ordenado por área descendente.
-            if (set[0].area > set[3].area * 3) continue;
+            if (set[0].area > set[3].area * 3) break;
             const pts = orderClockwise(set);
             if (!isConvex(pts)) continue;
             const qa = polygonArea(pts);
@@ -258,19 +272,23 @@
             if (aspect < sheetAspect * 0.45) continue;
             // Cuadrilátero grande, con marcas de tamaño parecido entre sí y
             // proporciones cercanas a las de la hoja (la perspectiva puede
-            // alterarlas, por eso ese criterio pesa menos).
+            // alterarlas, por eso ese criterio pesa menos). Con varias hojas no
+            // se premia el tamaño: se prefiere el que tenga la relación entre
+            // marcas y cuadrilátero de una sola hoja.
             const score =
-              qa *
+              (many ? 1 : qa) *
               (set[3].area / set[0].area) *
-              Math.exp(-Math.abs(Math.log(ratio / expected))) *
+              Math.exp(-(many ? 2 : 1) * Math.abs(Math.log(ratio / expected))) *
               Math.exp(-Math.abs(Math.log(aspect / sheetAspect)));
             found.push({ score, pts });
           }
+        }
+      }
     found.sort((a, b) => b.score - a.score);
-    return found.slice(0, 6).map((f) => f.pts);
+    return found.slice(0, many ? 400 : 6).map((f) => f.pts);
   }
 
-  function locateMarkers(img, layout) {
+  function locateMarkers(img, layout, opts) {
     const { width: w, height: h } = img;
     const maxSide = Math.max(w, h);
     const attempts = [
@@ -282,7 +300,7 @@
     for (const a of attempts) {
       const bin = adaptiveThreshold(img, Math.round(a.win) | 1, a.ratio);
       const blobs = findBlobs(bin, w, h);
-      const quads = findMarkerQuad(blobs, w, h, layout);
+      const quads = findMarkerQuad(blobs, w, h, layout, opts);
       if (quads.length) return { quads, blobs };
     }
     return null;
@@ -393,6 +411,15 @@
     // Un código borroso no se usa (evita coincidencias por azar del control).
     const clarity = Math.min(...contrasts.map((c) => Math.abs(c - 0.35)));
     const decoded = clarity >= 0.08 ? SheetLayout.decodeConfig(bits) : null;
+    // Código extra: cantidad de casillas de desarrollo (null si no se lee con claridad).
+    if (decoded) {
+      const ext = (layout.extCells || []).map((cell) => {
+        const v = sampleSheetPatch(img, H, cell.x, cell.y, cell.size * 0.5);
+        return codeWhite > 1 ? 1 - v / codeWhite : 0;
+      });
+      const extClear = ext.length === SheetLayout.EXT_BITS && Math.min(...ext.map((c) => Math.abs(c - 0.35))) >= 0.08;
+      decoded.devCount = extClear ? SheetLayout.decodeExt(ext.map((c) => (c > 0.35 ? 1 : 0))) : null;
+    }
     return { orientContrast, bits, decoded, clarity };
   }
 
@@ -780,8 +807,13 @@
    */
   function scanSheet(img, layout, options) {
     const opts = Object.assign({}, DEFAULTS, options || {});
+    // opts.many: la foto (o página) puede tener varias hojas. Se revisan más
+    // cuadriláteros y sólo se acepta uno que muestre el código o la marca de
+    // orientación de una hoja de esta prueba.
+    const many = !!opts.many;
 
-    const found = locateMarkers(img, layout);
+    const found = locateMarkers(img, layout, { many });
+    if (!found && many) return { ok: false, notFound: true, error: 'No se encontró otra hoja de esta prueba en la foto.' };
     if (!found) {
       return {
         ok: false,
@@ -797,6 +829,13 @@
     let best = null;
     let quad = found.quads[0];
     let otherDecoded = null;
+    // Con varias hojas en la foto, un cuadrilátero puede juntar marcas de hojas
+    // distintas: sólo se acepta si su código dice que es una hoja de esta prueba.
+    const isThisTest = (ev) =>
+      ev.decoded &&
+      SheetLayout.sameStructure(ev.decoded, layout.config) &&
+      (ev.decoded.devCount === null || ev.decoded.devCount === undefined || ev.decoded.devCount === (layout.devRows || []).length);
+    const candidates = [];
     for (const q of found.quads) {
       let qBest = null;
       for (let k = 0; k < 4; k++) {
@@ -805,9 +844,15 @@
         if (!H) continue;
         const ev = evaluateHypothesis(img, H, layout);
         const score = ev.orientContrast + (ev.decoded ? 1 : 0);
+        if (many && !isThisTest(ev)) continue;
         if (!qBest || score > qBest.score) qBest = { k, H, ev, score, dst };
       }
       if (!qBest) continue;
+      if (many) {
+        candidates.push({ best: qBest, quad: q });
+        if (candidates.length >= 16) break;
+        continue;
+      }
       if (!best) {
         best = qBest;
         quad = q;
@@ -817,6 +862,7 @@
         quad = q;
         break;
       }
+      if (many) continue;
       // Antes de probar otro cuadrilátero: ¿es una hoja de otro formato o papel?
       // (sus marcas están en otra proporción y la marca de orientación en otro lugar).
       const other = decodeWithOtherFormats(img, q, layout);
@@ -827,21 +873,37 @@
         break;
       }
     }
+    if (many) {
+      // Cada candidato se lee completo; un cuadrilátero que junta marcas de dos
+      // hojas no tiene las marcas laterales donde corresponde, o no pasa los
+      // controles de alineación: se sigue con el siguiente.
+      let firstFail = null;
+      for (const c of candidates) {
+        const r = readWith(c.best, c.quad, null);
+        if (r.ok) return r;
+        if (r.skip) continue;
+        if (!firstFail) firstFail = r;
+      }
+      return firstFail || { ok: false, notFound: true, error: 'No se encontró otra hoja de esta prueba en la foto.' };
+    }
     if (!best) {
       return { ok: false, corners: quad, error: 'No se pudo calcular la geometría de la hoja.' };
     }
+    return readWith(best, quad, otherDecoded);
 
+    function readWith(best, quad, otherDecoded) {
     const d = best.dst;
     const sidePx = (Math.hypot(d[1].x - d[0].x, d[1].y - d[0].y) + Math.hypot(d[2].x - d[3].x, d[2].y - d[3].y)) / 2;
     const sideMm = layout.markers[1].x - layout.markers[0].x;
     const pxPerMm = sidePx / sideMm;
     const sidePts = locateSideMarks(found.blobs, best.H, layout, pxPerMm);
     const sideFound = sidePts.filter(Boolean).length;
+    if (many && sideFound < 3) return { ok: false, skip: true };
 
     let decoded = best.ev.decoded || otherDecoded;
     // Si el código no se lee con la configuración actual, puede que la hoja se
     // haya impreso en otro formato o papel (el código queda en otra posición).
-    if (!decoded) decoded = decodeWithOtherFormats(img, quad, layout);
+    if (!decoded && !many) decoded = decodeWithOtherFormats(img, quad, layout);
 
     // Sin código legible se exige una marca de orientación nítida y las marcas laterales.
     if (!decoded && (best.ev.orientContrast < 0.3 || sideFound < 2)) {
@@ -868,6 +930,19 @@
           'Revise la configuración de la prueba.',
       };
     }
+    // Casillas de desarrollo: la hoja dice cuántas tiene.
+    const devExpected = (layout.devRows || []).length;
+    if (decoded && decoded.devCount !== null && decoded.devCount !== undefined && decoded.devCount !== devExpected) {
+      return {
+        ok: false,
+        corners: d,
+        decoded,
+        devMismatch: true,
+        error: devExpected
+          ? `Esta hoja tiene ${decoded.devCount} casilla(s) de desarrollo y la prueba configurada tiene ${devExpected}. Revise la configuración de la prueba.`
+          : `Esta hoja tiene ${decoded.devCount} casilla(s) de desarrollo, pero la prueba configurada no tiene (se configuran en la versión Pro).`,
+      };
+    }
     if (!decoded) warnings.push('No se pudo verificar el código de la hoja; revise que corresponda a esta prueba.');
 
     // Lectura con un conjunto de marcas laterales. Si una marca lateral falta
@@ -886,8 +961,13 @@
       const rect = rectify(img, mapping, layout, ppm);
       const dark = darknessMap(rect);
 
-      // Alinear filas (preguntas y dígitos de ID), columna por columna.
-      const rows = layout.questions.map((q) => q.bubbles).concat(layout.idRows.map((r) => r.bubbles));
+      // Alinear filas (preguntas, dígitos de ID y casillas de desarrollo), columna por columna.
+      const devRows = layout.devRows || [];
+      const devStart = layout.questions.length + layout.idRows.length;
+      const rows = layout.questions
+        .map((q) => q.bubbles)
+        .concat(layout.idRows.map((r) => r.bubbles))
+        .concat(devRows.map((r) => r.bubbles));
       const levelsY = [layout.markers[0].y, layout.markers[3].y].concat(
         layout.sideMarks.filter((sm, i) => sidePts[i]).map((sm) => sm.y)
       );
@@ -897,6 +977,13 @@
         return idx;
       });
       if (layout.idRows.length) groups.push(layout.idRows.map((_, i) => layout.questions.length + i));
+      // Desarrollo: un grupo por cada tramo de filas con la misma cantidad de burbujas.
+      const firstDevGroup = groups.length;
+      devRows.forEach((r, i) => {
+        const last = groups.length > firstDevGroup ? groups[groups.length - 1] : null;
+        if (last && rows[last[0]].length === r.bubbles.length) last.push(devStart + i);
+        else groups.push([devStart + i]);
+      });
       const shifts = new Array(rows.length);
       for (const idxs of groups) {
         let anchor = 0;
@@ -935,9 +1022,12 @@
         reason, // detalle interno (para diagnóstico)
         debug: opts.debug ? { rect, shifts, sidePts } : undefined,
         corners: d,
+        decoded,
         error:
-          'Las filas de respuestas no quedaron bien alineadas (la hoja parece doblada o curvada). ' +
-          'Alísela sobre una superficie plana y tome la foto nuevamente.',
+          reason.g >= firstDevGroup
+            ? 'Las casillas de desarrollo de la hoja no calzan con las de la prueba (revise sus puntajes máximos) o la hoja está doblada.'
+            : 'Las filas de respuestas no quedaron bien alineadas (la hoja parece doblada o curvada). ' +
+              'Alísela sobre una superficie plana y tome la foto nuevamente.',
       });
       const pitch = layout.grid.pitch;
       const pitchOf = (g) => {
@@ -1027,6 +1117,11 @@
         const r = decideRow(rowScores[i], T, opts);
         return { value: r.marked.length === 1 ? r.marked[0] : null, marked: r.marked, uncertain: r.uncertain };
       });
+      const dev = devRows.map((row, j) => {
+        const i = devStart + j;
+        const r = decideRow(rowScores[i], T, opts);
+        return { marked: r.marked, uncertain: r.uncertain, scores: rowScores[i].map((s) => Math.round(s * 1000) / 1000) };
+      });
       const idComplete = idDigits.length > 0 && idDigits.every((dg) => dg.value !== null);
       const idValue = idDigits.length ? idDigits.map((dg) => (dg.value === null ? '?' : String(dg.value))).join('') : null;
 
@@ -1035,17 +1130,20 @@
       const overlay = {
         questions: layout.questions.map((q, i) => toPx(q.bubbles, shifts[i])),
         id: layout.idRows.map((row, j) => toPx(row.bubbles, shifts[layout.questions.length + j])),
+        dev: devRows.map((row, j) => toPx(row.bubbles, shifts[devStart + j])),
       };
 
       return {
         ok: true,
         answers,
         id: { value: idValue, complete: idComplete, digits: idDigits },
+        dev,
         threshold: Math.round(T * 1000) / 1000,
         thresholdMode,
         rotation: best.k,
         corners: best.dst,
         codeVerified: !!decoded,
+        decoded,
         form,
         warnings: warn,
         rectified: rect,
@@ -1065,11 +1163,84 @@
       if (!first) first = res;
     }
     return first;
+    }
+  }
+
+  /**
+   * Copia de la foto con la hoja leída tapada (su papel completo, con un
+   * pequeño margen), para buscar la siguiente hoja en la misma foto.
+   * @param corners posiciones en la foto de las marcas de las esquinas (TL, TR, BR, BL)
+   */
+  function eraseSheet(img, layout, corners) {
+    const H = solveHomography(layout.markers, corners);
+    const { width: w, height: h } = img;
+    const data = new Float32Array(img.data);
+    if (!H) return { width: w, height: h, data };
+    const mg = 2 * (layout.scale || 1);
+    const poly = [
+      project(H, -mg, -mg),
+      project(H, layout.width + mg, -mg),
+      project(H, layout.width + mg, layout.height + mg),
+      project(H, -mg, layout.height + mg),
+    ];
+    // Se rellena con el gris típico de la foto (mediana), sin bordes marcados.
+    const sample = [];
+    for (let i = 0; i < data.length; i += Math.max(1, Math.floor(data.length / 5000))) sample.push(data[i]);
+    sample.sort((a, b) => a - b);
+    const fillV = sample[Math.floor(sample.length / 2)];
+    const minY = Math.max(0, Math.floor(Math.min(...poly.map((p) => p.y))));
+    const maxY = Math.min(h - 1, Math.ceil(Math.max(...poly.map((p) => p.y))));
+    for (let y = minY; y <= maxY; y++) {
+      const xs = [];
+      for (let i = 0; i < 4; i++) {
+        const a = poly[i];
+        const b = poly[(i + 1) % 4];
+        if ((a.y <= y + 0.5 && b.y > y + 0.5) || (b.y <= y + 0.5 && a.y > y + 0.5)) {
+          xs.push(a.x + ((y + 0.5 - a.y) * (b.x - a.x)) / (b.y - a.y));
+        }
+      }
+      xs.sort((a, b) => a - b);
+      for (let i = 0; i + 1 < xs.length; i += 2) {
+        const x0 = Math.max(0, Math.round(xs[i]));
+        const x1 = Math.min(w - 1, Math.round(xs[i + 1]));
+        for (let x = x0; x <= x1; x++) data[y * w + x] = fillV;
+      }
+    }
+    return { width: w, height: h, data };
+  }
+
+  /**
+   * Lee todas las hojas de esta prueba que haya en una foto o página: primero
+   * como una foto normal y, si hay más, tapando cada hoja leída y buscando la
+   * siguiente. Devuelve la lista de resultados (uno por hoja encontrada; si no
+   * se encontró ninguna, el resultado de la lectura normal con su error).
+   */
+  function scanSheets(img, layout, options) {
+    const opts = Object.assign({}, options || {});
+    const max = opts.maxSheets || 12;
+    const out = [];
+    let first = scanSheet(img, layout, opts);
+    let work = img;
+    let res = first;
+    if (!first.ok) {
+      res = scanSheet(img, layout, Object.assign({}, opts, { many: true }));
+      if (res.notFound) return [first];
+    }
+    while (out.length < max) {
+      out.push(res);
+      if (!res.corners) break;
+      work = eraseSheet(work, layout, res.corners);
+      res = scanSheet(work, layout, Object.assign({}, opts, { many: true }));
+      if (res.notFound) break;
+    }
+    return out;
   }
 
   return {
     DEFAULTS,
     toGray,
+    eraseSheet,
+    scanSheets,
     adaptiveThreshold,
     findBlobs,
     solveHomography,

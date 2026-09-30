@@ -1,0 +1,4 @@
+pdf.js 6.3.289 (Mozilla, licencia Apache 2.0: LICENSE-pdfjs.txt), versión "legacy"
+para navegadores más antiguos. Sólo la usa la versión Pro para leer los PDF de la
+fotocopiadora; se carga cuando se sube un PDF. Los decodificadores de imágenes
+JBIG2 y JPEG 2000 (carpeta wasm) tienen sus propias licencias.

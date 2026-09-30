@@ -49,6 +49,7 @@
             <select id="proExamCourse"></select>
           </label>
           <p id="proExamCourseInfo" class="muted small"></p>
+          <p class="pro-ticket-line"><button type="button" class="btn secondary small" id="proNewTicket">🎟️ Crear un ticket de salida</button> <span class="muted small">Mini control de 3 a 10 preguntas para el final de la clase: 8 por página.</span></p>
         </div>
         <div class="card">
           <h2>Datos de la prueba</h2>
@@ -101,6 +102,18 @@
           <p class="muted small">Consejo: rellena una hoja con las respuestas correctas y fotografíala para cargar la clave de una vez.</p>
           <p id="keyPhotoMsg" class="alert" hidden></p>
         </div>
+        <details class="card pro-dev-card" id="proDevCard">
+          <summary><h2>✍️ Preguntas de desarrollo (casillas de puntaje)</h2><span id="proDevSummary" class="muted small"></span></summary>
+          <p class="muted small">Si la prueba tiene preguntas de desarrollo, la hoja de respuestas trae una fila por pregunta con casillas 0, 1, 2… Tú corriges la pregunta en la prueba y marcas en la hoja el puntaje obtenido: el lector lo suma a la nota junto con las alternativas.</p>
+          <div class="table-wrap">
+            <table id="proDevTable" class="pro-dev-table"></table>
+          </div>
+          <div class="actions">
+            <button type="button" class="btn secondary small" id="proDevAdd">＋ Agregar pregunta de desarrollo</button>
+            <button type="button" class="btn ghost small" id="proDevFromDoc" hidden></button>
+          </div>
+          <p id="proDevNote" class="alert warn" hidden></p>
+        </details>
 
         <div class="card">
           <div class="card-head">
@@ -405,6 +418,34 @@
           </ul>
           <div id="sheetPreview" class="sheet-preview" aria-label="Vista previa de la hoja"></div>
         </div>
+        <div class="card pro-names" id="proNamesCard">
+          <div class="card-head">
+            <h2>📇 Hojas con el nombre de cada estudiante</h2>
+          </div>
+          <p class="muted small">Imprime una hoja por estudiante con su nombre y su N° de lista ya marcado: no tiene que rellenar el número y el lector sabe de quién es cada hoja.</p>
+          <div class="form-grid">
+            <label>Lista de estudiantes
+              <select id="pnSource"></select>
+            </label>
+            <label>Estudiantes
+              <select id="pnWho">
+                <option value="all">Todos</option>
+                <option value="pick">Elegir…</option>
+              </select>
+            </label>
+            <label id="pnFormWrap" hidden>Filas
+              <select id="pnForms"></select>
+              <small>Cada estudiante recibe la prueba de la fila impresa en su hoja.</small>
+            </label>
+          </div>
+          <div id="pnPick" class="pn-pick" hidden></div>
+          <p id="pnInfo" class="muted small"></p>
+          <p id="pnWarn" class="alert warn" hidden></p>
+          <div class="actions">
+            <button type="button" class="btn primary" id="pnPrint">🖨️ Imprimir hojas con nombre</button>
+            <button type="button" class="btn ghost" id="pnList" hidden>📋 Lista de reparto de filas</button>
+          </div>
+        </div>
       </section>
 
       <!-- 3. ESCANEAR ------------------------------------------------------>
@@ -419,6 +460,7 @@
             <input id="filesInput" type="file" accept="image/*" multiple hidden>
           </div>
           <p class="muted small center">También puedes arrastrar imágenes a esta sección. Puedes seleccionar varias fotos a la vez.</p>
+          <p class="pro-scan-hint small center">📄 <b>Versión Pro:</b> también puedes subir el <b>PDF</b> de la fotocopiadora (todas las hojas del curso) y fotografiar <b>varias hojas o tickets juntos</b> en una misma foto.</p>
           <p class="center"><button id="btnTranscribe" class="btn ghost small" type="button">✍️ Transcribir una hoja dañada</button></p>
           <details class="tips-box">
             <summary>Consejos para una buena foto</summary>
@@ -514,6 +556,13 @@
             <div class="table-wrap"><table id="oaTable" class="item-table"></table></div>
             <h3 class="sub-h">Logro de cada estudiante por objetivo</h3>
             <div class="table-wrap"><table id="oaMatrix" class="results-table oa-matrix"></table></div>
+          </details>
+          <details id="proReinforce" class="card" open hidden>
+            <summary><h2>🎯 Para reforzar</h2><span class="muted small">según los objetivos de aprendizaje</span></summary>
+            <div id="proReinforceBody"></div>
+            <div class="actions">
+              <button type="button" class="btn ghost small" id="proReinforceCopy">📋 Copiar la lista</button>
+            </div>
           </details>
           <details class="card" open>
             <summary><h2>Análisis por pregunta</h2></summary>
@@ -628,6 +677,10 @@
             <button type="button" data-man-go="respaldo"><b>6</b>Guardar y respaldar</button>
             <button type="button" data-man-go="cursos"><b>7</b>Cursos y libro de notas</button>
             <button type="button" data-man-go="respaldopro"><b>8</b>Respaldo completo</button>
+            <button type="button" data-man-go="desarrollo"><b>9</b>Preguntas de desarrollo</button>
+            <button type="button" data-man-go="tickets"><b>10</b>Tickets de salida</button>
+            <button type="button" data-man-go="nombres"><b>11</b>Hojas con nombre</button>
+            <button type="button" data-man-go="lote"><b>12</b>PDF y varias hojas por foto</button>
             <button type="button" data-man-go="problemas"><b>?</b>Problemas frecuentes</button>
           </nav>
           <p class="donate-wrap man-donate" hidden>¿Te sirve la plataforma? Es gratuita; si quieres, puedes apoyar su desarrollo: <a class="donate-link" target="_blank" rel="noopener">❤ Apoya este proyecto</a></p>
@@ -889,6 +942,58 @@ Núcleo = Contiene el material genético</pre>
           <p class="man-warn"><b>⚠️ Importante:</b> la versión Pro guarda sus datos aparte de la versión normal. En el navegador, la primera vez puedes traer la prueba de la versión normal con <b>Traer la prueba de la versión normal</b>.</p>
         </article>
 
+        <article class="card man-section" id="man-desarrollo" data-man="desarrollo">
+          <h2><span class="man-num">9</span>Preguntas de desarrollo: casillas de puntaje</h2>
+          <div class="man-video" data-video="desarrollo"></div>
+          <p>Si tu prueba tiene preguntas de desarrollo, la hoja de respuestas puede traer una fila por pregunta con casillas <b>0, 1, 2…</b>. Tú corriges la pregunta en la prueba y pintas en la hoja el puntaje obtenido: al escanear, el lector lo suma a las alternativas y calcula la nota con todo.</p>
+          <ol class="man-steps">
+            <li>En <b>Prueba</b>, abre <b>✍️ Preguntas de desarrollo</b> y presiona <b>＋ Agregar pregunta de desarrollo</b> (hasta 7). Si armaste la prueba en <b>Evaluación</b>, usa <b>Crear desde la evaluación</b>.</li>
+            <li>Escribe un rótulo corto (por ejemplo <i>P21</i>) y el <b>puntaje máximo</b> de cada pregunta (1 a 10).</li>
+            <li>Imprime la hoja: al final aparece el recuadro <b>Desarrollo · uso del docente</b>.</li>
+            <li>Después de corregir, pinta en cada fila el círculo con el puntaje obtenido y escanea la hoja como siempre.</li>
+            <li>En el detalle de cada hoja verás los puntajes al final de la lista; si falta alguno o está dudoso, elígelo en la lista.</li>
+          </ol>
+          <p class="man-tip"><b>💡 Bueno saber:</b> la hoja lleva impresa la cantidad de casillas. Si agregas una pregunta de desarrollo después de imprimir, las hojas antiguas se leen igual y te pide escribir a mano el puntaje que falta.</p>
+        </article>
+
+        <article class="card man-section" id="man-tickets" data-man="tickets">
+          <h2><span class="man-num">10</span>Tickets de salida</h2>
+          <div class="man-video" data-video="tickets"></div>
+          <p>Un <b>ticket de salida</b> es un mini control de 3 a 10 preguntas para el final de la clase. Se imprimen <b>8 por hoja carta</b> y se corrigen en segundos.</p>
+          <ol class="man-steps">
+            <li>En <b>Prueba</b>, presiona <b>🎟️ Crear un ticket de salida</b>.</li>
+            <li>Escribe cuántas preguntas tiene, la clave (por ejemplo <code>ABCDA</code>) y el objetivo de aprendizaje. Si eliges el curso, puedes imprimir cada ticket con el nombre del estudiante.</li>
+            <li>Imprime en la pestaña <b>Hoja</b> y recorta por las líneas.</li>
+            <li>Al final de la clase, junta los tickets sobre la mesa y <b>fotografía varios a la vez</b> (o escanéalos juntos en la fotocopiadora): la plataforma lee cada uno.</li>
+            <li>En <b>Resultados</b>, el recuadro <b>🎯 Para reforzar</b> muestra quiénes no lograron el objetivo.</li>
+          </ol>
+          <p class="man-tip"><b>💡 Consejo:</b> al guardar un ticket en el libro de notas, la ponderación sugerida es 0 (formativa: no se promedia).</p>
+        </article>
+
+        <article class="card man-section" id="man-nombres" data-man="nombres">
+          <h2><span class="man-num">11</span>Hojas con el nombre de cada estudiante</h2>
+          <div class="man-video" data-video="nombres"></div>
+          <p>Puedes imprimir una hoja de respuestas (o un ticket) por estudiante, con su <b>nombre</b> y su <b>N° de lista ya marcado</b>. Así nadie se equivoca al marcar su número y el lector sabe de quién es cada hoja.</p>
+          <ol class="man-steps">
+            <li>En la pestaña <b>Hoja</b>, busca el recuadro <b>📇 Hojas con el nombre de cada estudiante</b>.</li>
+            <li>Elige la lista: un curso de la pestaña Cursos o la lista escrita en Prueba. Si quieres, elige sólo algunos estudiantes.</li>
+            <li>Si la prueba tiene filas, elige cómo repartirlas: <b>alternadas según el N° de lista</b> (así los compañeros de al lado tienen filas distintas) o todos la misma.</li>
+            <li>Presiona <b>🖨️ Imprimir hojas con nombre</b>. Con filas, al final se imprime la <b>lista de reparto</b> para entregar a cada estudiante la prueba de su fila.</li>
+          </ol>
+          <p class="man-warn"><b>⚠️ Importante:</b> la prueba debe tener al menos 2 dígitos de identificación (pestaña Prueba) para marcar el N° de lista.</p>
+        </article>
+
+        <article class="card man-section" id="man-lote" data-man="lote">
+          <h2><span class="man-num">12</span>PDF de la fotocopiadora y varias hojas por foto</h2>
+          <div class="man-video" data-video="lote"></div>
+          <ul class="man-list">
+            <li><b>PDF:</b> escanea todas las hojas del curso en la fotocopiadora del colegio (un PDF con varias páginas) y súbelo en <b>Escanear → Subir imágenes o PDF</b>. Cada página se lee como una foto.</li>
+            <li><b>Varias hojas por foto:</b> puedes fotografiar juntas dos medias hojas o varios tickets (o poner varias en el vidrio de la fotocopiadora). La plataforma encuentra cada hoja, la lee y guarda un recorte como evidencia.</li>
+            <li>Para que funcione, las hojas no deben taparse entre sí: se deben ver completas sus cuatro esquinas y sus marcas laterales.</li>
+          </ul>
+          <p class="man-tip"><b>💡 Consejo:</b> en la fotocopiadora, escanea en blanco y negro o escala de grises a 150–300 ppp.</p>
+        </article>
+
         <!-- ? -->
         <article class="card man-section" id="man-problemas" data-man="problemas">
           <h2><span class="man-num">?</span>Problemas frecuentes</h2>
@@ -958,6 +1063,7 @@ Núcleo = Contiene el material genético</pre>
       </label>
       <p id="trStatus" class="muted small"></p>
       <div id="trGrid" class="key-grid tr-grid" aria-label="Respuestas del estudiante"></div>
+      <div id="trDev" class="tr-dev" hidden></div>
       <label class="tr-photo">Foto de la hoja original (opcional: queda como evidencia)
         <input id="trPhoto" type="file" accept="image/*">
       </label>
@@ -1215,6 +1321,48 @@ Núcleo = Contiene el material genético</pre>
     </div>
   </dialog>
 
+  <dialog id="proTicketDialog" class="el-dialog pro-dialog" aria-labelledby="proTicketTitle">
+    <div class="el-head">
+      <h2 id="proTicketTitle">🎟️ Nuevo ticket de salida</h2>
+      <button type="button" class="btn ghost small" data-pro-close aria-label="Cerrar">✕</button>
+    </div>
+    <div class="pro-dialog-body">
+      <p class="muted small">Un mini control para el final de la clase. Se imprimen 8 tickets por hoja y puedes fotografiar varios juntos (o escanearlos en la fotocopiadora). Los resultados muestran al instante el logro del objetivo y quiénes necesitan refuerzo.</p>
+      <div class="form-grid tight">
+        <label>Título
+          <input id="ptTitle" type="text" maxlength="60" autocomplete="off">
+        </label>
+        <label>N° de preguntas
+          <input id="ptQuestions" type="number" min="1" max="10" step="1" value="5">
+        </label>
+        <label>Alternativas
+          <select id="ptChoices">
+            <option value="3">3 (A–C)</option>
+            <option value="4" selected>4 (A–D)</option>
+            <option value="5">5 (A–E)</option>
+          </select>
+        </label>
+        <label>Objetivo de aprendizaje
+          <input id="ptOa" type="text" maxlength="60" placeholder="OA 3" autocomplete="off">
+        </label>
+        <label>Curso (opcional)
+          <select id="ptCourse"></select>
+        </label>
+      </div>
+      <label>Clave de respuestas
+        <input id="ptKey" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Ej.: ABCDA">
+        <small id="ptKeyInfo"></small>
+      </label>
+      <label class="check"><input type="checkbox" id="ptNames" checked> Imprimir cada ticket con el nombre del estudiante (necesita curso)</label>
+      <p id="ptWarn" class="alert warn" hidden></p>
+    </div>
+    <div class="el-foot">
+      <span class="spacer"></span>
+      <button type="button" class="btn ghost" data-pro-close>Cancelar</button>
+      <button type="button" class="btn primary" id="ptCreate">Crear ticket</button>
+    </div>
+  </dialog>
+
   <dialog id="proConfirmDialog" class="el-dialog pro-dialog pro-confirm" aria-labelledby="proConfirmTitle">
     <div class="el-head">
       <h2 id="proConfirmTitle"></h2>
@@ -1245,5 +1393,8 @@ Núcleo = Contiene el material genético</pre>
   <script src="js/pro/comun.js"></script>
   <script src="js/pro/libro.js"></script>
   <script src="js/pro/respaldo.js"></script>
+  <script src="js/pro/desarrollo.js"></script>
+  <script src="js/pro/tickets.js"></script>
+  <script src="js/pro/nombres.js"></script>
 </body>
 </html>

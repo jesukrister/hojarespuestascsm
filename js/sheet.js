@@ -32,8 +32,8 @@
   /**
    * Contenido de una hoja de respuestas (sin el elemento <svg> contenedor).
    * @param layout resultado de SheetLayout.computeLayout
-   * @param opts   { title, subtitle, school, fill: { answers: [[idx...]...], id: [digit...] } }
-   *               `fill` sólo se usa para ejemplos y pruebas automáticas.
+   * @param opts   { title, subtitle, school, fill: { answers: [[idx...]...], id: [digit...], dev: [puntos...], fields: { Nombre: '…' } } }
+   *               `fill` se usa para ejemplos, hojas transcritas y hojas con el nombre impreso.
    */
   function renderContent(layout, opts) {
     opts = opts || {};
@@ -56,8 +56,8 @@
       out.push(`<rect x="${n(sm.x - sm.size / 2)}" y="${n(sm.y - sm.size / 2)}" width="${n(sm.size)}" height="${n(sm.size)}" fill="#000"/>`);
     }
 
-    // Código de configuración.
-    for (const cell of layout.codeCells) {
+    // Código de configuración (y el extra con la cantidad de casillas de desarrollo).
+    for (const cell of layout.codeCells.concat(layout.extCells || [])) {
       if (!cell.bit) continue;
       out.push(
         `<rect x="${n(cell.x - cell.size / 2)}" y="${n(cell.y - cell.size / 2)}" width="${n(cell.size)}" height="${n(cell.size)}" fill="#000"/>`
@@ -135,7 +135,7 @@
     // Instrucciones con ejemplo de marcado (en la misma línea, para dejar
     // libre el espacio sobre la grilla).
     const iy = layout.instructionsY;
-    const left = 14 * k;
+    const left = layout.margin || 14 * k;
     const instr =
       k === 1
         ? 'Rellene completamente un círculo por pregunta con lápiz grafito o pasta oscura. No doble la hoja.'
@@ -143,7 +143,7 @@
     out.push(`<text x="${n(left)}" y="${n(iy)}" font-size="${n(2.8 * k)}" fill="#222">${instr}</text>`);
     const u = k; // unidad del ejemplo
     const er = 1.9 * u;
-    const ex = W - 14 * k - 38 * u;
+    const ex = W - (layout.margin || 14 * k) - 38 * u;
     const ey = iy - 1 * u;
     out.push(`<text x="${n(ex - 1.5 * u)}" y="${n(ey + 0.9 * u)}" font-size="${n(2.6 * k)}" text-anchor="end" fill="#444">Así:</text>`);
     out.push(`<circle cx="${n(ex + 1.5 * u)}" cy="${n(ey)}" r="${n(er)}" fill="#1a1a1a" stroke="#333" stroke-width="0.25"/>`);
@@ -178,8 +178,28 @@
       for (let j = 0; j < q.bubbles.length; j++) out.push(bubble(q.bubbles[j], fontLetter, marked.indexOf(j) >= 0));
     }
 
+    // Casillas de desarrollo: el docente marca el puntaje obtenido en cada pregunta.
+    if (layout.dev) {
+      const d = layout.dev;
+      const devFill = fill.dev || [];
+      const titleFont = Math.min(2.9 * k, 3);
+      out.push(
+        `<text x="${n(d.x)}" y="${n(d.titleY)}" font-size="${n(titleFont)}" font-weight="bold">Desarrollo <tspan font-weight="normal" fill="#555">· uso del docente: marque el puntaje obtenido</tspan></text>`
+      );
+      out.push(
+        `<rect x="${n(d.x - 1)}" y="${n(d.top - 1)}" width="${n(d.width + 1)}" height="${n(d.bottom - d.top + 2)}" rx="1.2" fill="none" stroke="#bbb" stroke-width="0.2"/>`
+      );
+      for (const row of d.rows) {
+        out.push(
+          `<text x="${n(row.labelX)}" y="${n(row.y + fontNum * 0.36)}" font-size="${n(fontNum)}" font-weight="bold" text-anchor="end">${esc(row.label)}</text>`
+        );
+        for (let v = 0; v < row.bubbles.length; v++) out.push(bubble(row.bubbles[v], fontLetter, devFill[row.index] === v));
+      }
+    }
+
     const c = layout.config;
     let footer = `${c.numQuestions} preguntas · alternativas ${g.choiceLabels[0]}–${g.choiceLabels[g.choiceLabels.length - 1]}`;
+    if (layout.devRows && layout.devRows.length) footer += ` · ${layout.devRows.length} de desarrollo`;
     if (opts.footerNote) footer += ` · ${opts.footerNote}`;
     out.push(`<text x="${n(W / 2)}" y="${n(layout.footerY)}" font-size="${n(2.3 * k)}" fill="#777" text-anchor="middle">${esc(footer)}</text>`);
     return out.join('');
@@ -198,19 +218,28 @@
   }
 
   /**
-   * Página completa para imprimir: 1, 2 o 4 hojas de respuestas con líneas de corte.
+   * Página completa para imprimir: 1, 2, 4 u 8 hojas de respuestas con líneas de corte.
+   * @param pieceLayouts (opcional) una hoja distinta por recorte, que se repiten
+   *        si son menos que los recortes (p. ej. filas A, B, C y D en la misma
+   *        página). Cada una puede ser un layout o { layout, opts } (p. ej. una
+   *        hoja con el nombre de cada estudiante).
+   * @param exact (opcional) no repetir: los recortes sin hoja quedan en blanco.
    * @returns { svg, width, height, landscape }
    */
-  function renderPageSVG(layout, opts, pieceLayouts) {
+  function renderPageSVG(layout, opts, pieceLayouts, exact) {
     const c = layout.config;
     const tiling = SheetLayout.pageTiling(c.paper, c.format);
-    const content = renderContent(layout, opts);
+    const content = pieceLayouts && pieceLayouts.length ? '' : renderContent(layout, opts);
     const out = [svgOpen(tiling.width, tiling.height)];
     out.push(`<rect x="0" y="0" width="${n(tiling.width)}" height="${n(tiling.height)}" fill="#fff"/>`);
-    // pieceLayouts: una hoja distinta por recorte (p. ej. filas A, B, C y D en la misma página).
     tiling.pieces.forEach((p, i) => {
-      const own = pieceLayouts && pieceLayouts.length ? pieceLayouts[i % pieceLayouts.length] : null;
-      out.push(`<g transform="translate(${n(p.x)} ${n(p.y)})">${own ? renderContent(own, opts) : content}</g>`);
+      let own = null;
+      if (pieceLayouts && pieceLayouts.length) {
+        own = exact ? pieceLayouts[i] : pieceLayouts[i % pieceLayouts.length];
+        if (!own) return;
+      }
+      const html = !own ? content : own.markers ? renderContent(own, opts) : renderContent(own.layout, own.opts || opts);
+      out.push(`<g transform="translate(${n(p.x)} ${n(p.y)})">${html}</g>`);
     });
     for (const cut of tiling.cuts) {
       out.push(`<line x1="${n(cut.x1)}" y1="${n(cut.y1)}" x2="${n(cut.x2)}" y2="${n(cut.y2)}" stroke="#9a9a9a" stroke-width="0.25" stroke-dasharray="2 1.5"/>`);

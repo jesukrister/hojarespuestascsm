@@ -100,6 +100,11 @@ jobs:
           unzip -p LectorHojas.apk assets/public/index.html > "$RUNNER_TEMP/normal-index.html"
           grep -q 'data-edition="pro"' "$RUNNER_TEMP/pro-index.html" || { echo "::error::La app Pro no tiene la página Pro"; exit 1; }
           if grep -q 'data-edition="pro"' "$RUNNER_TEMP/normal-index.html"; then echo "::error::La app normal tiene la página Pro"; exit 1; fi
+          # pdf.js (lectura de PDF) sólo va en la app Pro.
+          unzip -l LectorHojasPro.apk > "$RUNNER_TEMP/pro-files.txt"
+          unzip -l LectorHojas.apk > "$RUNNER_TEMP/normal-files.txt"
+          grep -q 'assets/public/vendor/pdf/pdf.min.mjs' "$RUNNER_TEMP/pro-files.txt" || { echo "::error::La app Pro no tiene pdf.js"; exit 1; }
+          if grep -q 'assets/public/vendor/pdf/' "$RUNNER_TEMP/normal-files.txt"; then echo "::error::La app normal lleva pdf.js"; exit 1; fi
 
       - uses: actions/upload-artifact@v4
         if: steps.llave.outputs.firmado == 'true'

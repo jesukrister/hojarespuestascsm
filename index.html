@@ -88,6 +88,7 @@
           <p class="muted small">Consejo: rellena una hoja con las respuestas correctas y fotografíala para cargar la clave de una vez.</p>
           <p id="keyPhotoMsg" class="alert" hidden></p>
         </div>
+        <!-- pro:prueba-desarrollo -->
 
         <div class="card">
           <div class="card-head">
@@ -392,6 +393,7 @@
           </ul>
           <div id="sheetPreview" class="sheet-preview" aria-label="Vista previa de la hoja"></div>
         </div>
+        <!-- pro:hoja -->
       </section>
 
       <!-- 3. ESCANEAR ------------------------------------------------------>
@@ -406,6 +408,7 @@
             <input id="filesInput" type="file" accept="image/*" multiple hidden>
           </div>
           <p class="muted small center">También puedes arrastrar imágenes a esta sección. Puedes seleccionar varias fotos a la vez.</p>
+          <!-- pro:escanear -->
           <p class="center"><button id="btnTranscribe" class="btn ghost small" type="button">✍️ Transcribir una hoja dañada</button></p>
           <details class="tips-box">
             <summary>Consejos para una buena foto</summary>
@@ -469,6 +472,7 @@
             <h3 class="sub-h">Logro de cada estudiante por objetivo</h3>
             <div class="table-wrap"><table id="oaMatrix" class="results-table oa-matrix"></table></div>
           </details>
+          <!-- pro:resultados-oa -->
           <details class="card" open>
             <summary><h2>Análisis por pregunta</h2></summary>
             <div class="table-wrap">
@@ -783,6 +787,7 @@ Núcleo = Contiene el material genético</pre>
       </label>
       <p id="trStatus" class="muted small"></p>
       <div id="trGrid" class="key-grid tr-grid" aria-label="Respuestas del estudiante"></div>
+      <div id="trDev" class="tr-dev" hidden></div>
       <label class="tr-photo">Foto de la hoja original (opcional: queda como evidencia)
         <input id="trPhoto" type="file" accept="image/*">
       </label>

@@ -34,9 +34,11 @@
    * @param answers arreglo con { marked: [índices] } por pregunta
    * @param key     arreglo con el índice correcto por pregunta, o null (pregunta sin clave / anulada)
    * @param scoring ver DEFAULT_SCORING
+   * @param dev     (opcional) preguntas de desarrollo: { items: [{ label, max }], marks: [{ marked: [puntos] } | null] }.
+   *                Sus puntos se suman al puntaje; una casilla sin marcar (o con dos) vale 0 hasta corregirla.
    * Estados: correct, wrong, blank, multiple (más de una marca: cuenta como incorrecta), excluded.
    */
-  function gradeAnswers(answers, key, scoring) {
+  function gradeAnswers(answers, key, scoring, dev) {
     const s = Object.assign({}, DEFAULT_SCORING, scoring || {});
     const items = [];
     let correct = 0, wrong = 0, blank = 0, multiple = 0, excluded = 0;
@@ -63,11 +65,31 @@
       items.push({ status, marked, key: k });
     }
     const counted = answers.length - excluded;
-    const maxScore = counted * s.pointsCorrect;
-    const raw = correct * s.pointsCorrect - (wrong + multiple) * s.penaltyWrong;
+    let maxScore = counted * s.pointsCorrect;
+    let raw = correct * s.pointsCorrect - (wrong + multiple) * s.penaltyWrong;
+    const devItems = [];
+    let devPoints = 0;
+    let devMax = 0;
+    if (dev && Array.isArray(dev.items)) {
+      dev.items.forEach((it, i) => {
+        const m = (dev.marks && dev.marks[i] && dev.marks[i].marked) || [];
+        let status = 'blank';
+        let points = 0;
+        if (m.length > 1) status = 'multiple';
+        else if (m.length === 1) {
+          status = 'scored';
+          points = Math.min(it.max, Math.max(0, m[0]));
+        }
+        devItems.push({ label: it.label, max: it.max, points, status });
+        devPoints += points;
+        devMax += it.max;
+      });
+      raw += devPoints;
+      maxScore += devMax;
+    }
     const score = Math.max(0, Math.round(raw * 100) / 100);
     const percent = maxScore > 0 ? Math.round((score / maxScore) * 1000) / 10 : 0;
-    return {
+    const out = {
       items,
       correct,
       wrong,
@@ -79,6 +101,8 @@
       percent,
       grade: computeGrade(score, maxScore, s),
     };
+    if (dev && Array.isArray(dev.items)) Object.assign(out, { dev: devItems, devPoints, devMax });
+    return out;
   }
 
   /** Análisis por pregunta sobre varios resultados: % de acierto y distribución de respuestas. */

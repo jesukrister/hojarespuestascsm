@@ -151,7 +151,10 @@ la normal, con estas diferencias:
   > ver promedios por semestre y el promedio final, con aviso de notas
   > limítrofes. Copia las notas en orden de lista para pegarlas en el libro
   > digital del colegio, descarga el libro en Excel y crea un respaldo completo
-  > para pasar tu trabajo a otro equipo.
+  > para pasar tu trabajo a otro equipo. Además: casillas de puntaje para
+  > preguntas de desarrollo, tickets de salida (8 por página), hojas con el
+  > nombre de cada estudiante y lectura del PDF de la fotocopiadora o de
+  > varias hojas en una misma foto.
 
 - *Seguridad de los datos*: igual que la normal (no se recopilan datos; las
   notas, nombres y respaldos quedan en el teléfono).

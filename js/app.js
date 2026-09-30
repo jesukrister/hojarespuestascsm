@@ -63,6 +63,7 @@
       levels: Object.assign({}, Grading.DEFAULT_LEVELS),
       doc: defaultDoc(),
       forms: null, // filas B–D: { maps: [{ order, perms }] } (ver sanitizeForms)
+      dev: [], // versión Pro: casillas de puntaje de preguntas de desarrollo [{ label, max }]
     };
   }
 
@@ -121,6 +122,7 @@
     }
     exam.doc = sanitizeDoc(raw.doc);
     exam.forms = sanitizeForms(raw.forms, exam.numQuestions, exam.numChoices);
+    exam.dev = PRO ? SheetLayout.normalizeDev(raw.dev) : [];
     // Datos de la versión Pro (curso y evaluación del libro de notas vinculados).
     if (raw.pro && typeof raw.pro === 'object') exam.pro = JSON.parse(JSON.stringify(raw.pro));
     return exam;
@@ -758,7 +760,8 @@
     }
     const id = [];
     for (let i = 0; i < idDigits; i++) id.push(i === idDigits - 1 ? 7 : 0);
-    return { answers, id };
+    const dev = state.exam.dev.map((d, i) => (d.max * (i + 2)) % (d.max + 1));
+    return { answers, id, dev };
   }
 
   async function downloadSample() {
@@ -1749,7 +1752,7 @@
   }
 
   function createResult(res, fileName) {
-    return {
+    const record = {
       id: uid(),
       fileName,
       createdAt: Date.now(),
@@ -1763,6 +1766,11 @@
       form: res.form ? res.form.index : 0,
       warnings: resultWarnings(res),
     };
+    // Casillas de desarrollo (las que la hoja no tenga quedan sin puntaje).
+    if (state.exam.dev.length) {
+      record.dev = state.exam.dev.map((_, i) => (res.dev && res.dev[i] ? { marked: res.dev[i].marked, uncertain: res.dev[i].uncertain } : null));
+    }
+    return record;
   }
 
   function queueItem(name) {
@@ -1796,43 +1804,174 @@
     };
   }
 
+  const isPdf = (f) => !!f && (f.type === 'application/pdf' || /\.pdf$/i.test(f.name || ''));
+
   async function handleFiles(fileList) {
-    const files = Array.from(fileList || []).filter((f) => !f.type || f.type.startsWith('image/'));
+    const files = Array.from(fileList || []).filter((f) => !f.type || f.type.startsWith('image/') || (PRO && isPdf(f)));
     if (!files.length) return;
     if (!getLayout()) return toast(layoutError);
     if (!state.exam.key.some((k) => k !== null)) toast('Aún no hay clave de respuestas: se leerán las marcas, pero no se podrá calificar.');
     for (const file of files) {
-      const item = queueItem(file.name || 'foto');
+      if (PRO && isPdf(file)) {
+        await scanPdf(file);
+        continue;
+      }
+      const name = file.name || 'foto';
+      const item = queueItem(name);
       await nextFrame();
       try {
         const { gray, canvas } = await fileToGray(file);
-        const { res, other } = scanAuto(gray);
-        if (!res.ok) {
-          // Hoja de otra evaluación: se ofrece usar la configuración de la hoja.
-          item.error(
-            `${file.name || 'foto'}: ${res.error}`,
-            other
-              ? { label: 'Usar la configuración de esta hoja', run: () => useSheetConfig(other, file) }
-              : { label: '✍️ Transcribir esta hoja', run: () => openTranscribe(file) }
-          );
-          continue;
-        }
-        const record = createResult(res, file.name || 'foto');
-        const view = await makeView(res, canvas);
-        state.results.push(record);
-        images.set(record.id, view);
-        persistView(record.id, view);
-        save();
-        const g = grade(record);
-        const who = record.code ? `Código ${record.code}` : file.name || 'Hoja';
-        item.ok(`${who} · ${g.correct}/${g.items.length - g.excluded} correctas · nota ${fmt(g.grade, 1)}`, record.id);
-        renderDetail($('#scanDetail'), record.id);
+        await scanImage(gray, canvas, name, item, () => file);
       } catch (e) {
         console.error(e);
-        item.error(`${file.name || 'foto'}: no se pudo procesar la imagen (${e.message}).`);
+        item.error(`${name}: no se pudo procesar la imagen (${e.message}).`);
       }
     }
     renderResultsBadge();
+  }
+
+  /** Guarda una hoja leída como resultado y la muestra en la cola. */
+  async function addScanned(res, photoCanvas, name, item) {
+    const record = createResult(res, name);
+    const view = await makeView(res, photoCanvas);
+    state.results.push(record);
+    images.set(record.id, view);
+    persistView(record.id, view);
+    save();
+    const g = grade(record);
+    const who = record.code ? `Código ${record.code}` : name;
+    item.ok(`${who} · ${g.correct}/${g.items.length - g.excluded} correctas · nota ${fmt(g.grade, 1)}`, record.id);
+    renderDetail($('#scanDetail'), record.id);
+  }
+
+  /** Recorte de la foto con una sola hoja (la foto tenía varias). */
+  function cropSheet(canvas, layout, corners) {
+    const H = OMR.solveHomography(layout.markers, corners);
+    if (!H) return canvas;
+    const pts = [
+      [0, 0],
+      [layout.width, 0],
+      [layout.width, layout.height],
+      [0, layout.height],
+    ].map(([x, y]) => OMR.project(H, x, y));
+    const xs = pts.map((p) => p.x);
+    const ys = pts.map((p) => p.y);
+    const pad = 0.04 * Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+    const x0 = Math.max(0, Math.floor(Math.min(...xs) - pad));
+    const y0 = Math.max(0, Math.floor(Math.min(...ys) - pad));
+    const x1 = Math.min(canvas.width, Math.ceil(Math.max(...xs) + pad));
+    const y1 = Math.min(canvas.height, Math.ceil(Math.max(...ys) + pad));
+    if (x1 - x0 < 10 || y1 - y0 < 10) return canvas;
+    const cv = document.createElement('canvas');
+    cv.width = x1 - x0;
+    cv.height = y1 - y0;
+    cv.getContext('2d').drawImage(canvas, x0, y0, cv.width, cv.height, 0, 0, cv.width, cv.height);
+    return cv;
+  }
+
+  /**
+   * Lee una foto (o una página de un PDF). En la versión Pro, si tiene varias
+   * hojas de la prueba (p. ej. tickets de salida o dos medias hojas), se
+   * leen todas: cada hoja leída se tapa y se busca la siguiente.
+   * @param getFile función que entrega la imagen original (para transcribirla si no se puede leer)
+   */
+  async function scanImage(gray, canvas, name, item, getFile) {
+    const auto = scanAuto(gray);
+    let res = auto.res;
+    let layout = auto.layout || getLayout();
+    if (!res.ok && PRO && !auto.other && layout) {
+      const many = OMR.scanSheet(gray, layout, Object.assign(scanOptions(), { many: true }));
+      if (!many.notFound) res = many;
+    }
+    const found = [res];
+    if (PRO && layout && res.corners && (res.ok || res.decoded)) {
+      let work = gray;
+      let last = res;
+      for (let i = 0; i < 40; i++) {
+        work = OMR.eraseSheet(work, layout, last.corners);
+        await nextFrame();
+        const next = OMR.scanSheet(work, layout, Object.assign(scanOptions(), { many: true }));
+        if (next.notFound) break;
+        found.push(next);
+        if (!next.corners) break;
+        last = next;
+      }
+    }
+    const multi = found.length > 1;
+    for (let i = 0; i < found.length; i++) {
+      const r = found[i];
+      const label = multi ? `${name} · hoja ${i + 1} de ${found.length}` : name;
+      const it = i === 0 ? item : queueItem(label);
+      if (!r.ok) {
+        // Hoja de otra evaluación: se ofrece usar la configuración de la hoja.
+        const transcribe = getFile ? { label: '✍️ Transcribir esta hoja', run: async () => openTranscribe(await getFile()) } : null;
+        const other = !multi && auto.other;
+        it.error(`${label}: ${r.error}`, other ? { label: 'Usar la configuración de esta hoja', run: async () => useSheetConfig(other, await getFile()) } : transcribe);
+        continue;
+      }
+      await addScanned(r, multi && r.corners ? cropSheet(canvas, layout, r.corners) : canvas, label, it);
+    }
+  }
+
+  /* ---------- Versión Pro: PDF de la fotocopiadora ---------- */
+
+  let pdfjsPromise = null;
+  function ensurePdfJs() {
+    if (!pdfjsPromise) {
+      const base = new URL('vendor/pdf/', document.baseURI).href;
+      pdfjsPromise = import(base + 'pdf.min.mjs').then((lib) => {
+        lib.GlobalWorkerOptions.workerSrc = base + 'pdf.worker.min.mjs';
+        return lib;
+      });
+      pdfjsPromise.catch(() => (pdfjsPromise = null));
+    }
+    return pdfjsPromise;
+  }
+
+  /** Cada página del PDF se lee como una foto (con una o varias hojas). */
+  async function scanPdf(file) {
+    const name = file.name || 'documento.pdf';
+    let item = queueItem(`${name} (PDF)`);
+    await nextFrame();
+    let doc;
+    let task = null;
+    try {
+      const lib = await ensurePdfJs();
+      task = lib.getDocument({
+        data: new Uint8Array(await file.arrayBuffer()),
+        wasmUrl: new URL('vendor/pdf/wasm/', document.baseURI).href,
+        isEvalSupported: false,
+      });
+      doc = await task.promise;
+    } catch (e) {
+      console.error(e);
+      item.error(`${name}: no se pudo abrir el PDF (${e.message || e}).`);
+      return;
+    }
+    for (let p = 1; p <= doc.numPages; p++) {
+      const label = `${name} · pág. ${p}`;
+      if (p > 1) item = queueItem(label);
+      await nextFrame();
+      try {
+        const page = await doc.getPage(p);
+        const base = page.getViewport({ scale: 1 });
+        const viewport = page.getViewport({ scale: MAX_IMAGE_SIDE / Math.max(base.width, base.height) });
+        const cv = document.createElement('canvas');
+        cv.width = Math.round(viewport.width);
+        cv.height = Math.round(viewport.height);
+        await page.render({ canvas: cv, viewport, background: '#ffffff' }).promise;
+        page.cleanup();
+        const ctx = cv.getContext('2d');
+        const gray = OMR.toGray(ctx.getImageData(0, 0, cv.width, cv.height).data, cv.width, cv.height);
+        const pageFile = () => canvasToBlob(cv, 'image/jpeg', 0.9).then((b) => new File([b], `${name.replace(/\.pdf$/i, '')}-pag${p}.jpg`, { type: 'image/jpeg' }));
+        await scanImage(gray, cv, label, item, pageFile);
+      } catch (e) {
+        console.error(e);
+        item.error(`${label}: no se pudo leer la página (${e.message || e}).`);
+      }
+      renderResultsBadge();
+    }
+    if (task) task.destroy();
   }
 
   /**
@@ -1848,7 +1987,17 @@
     if (!layout) return { res: { ok: false, error: layoutError } };
     const res = OMR.scanSheet(gray, layout, scanOptions());
     const d = res.decoded;
-    if (res.ok || !d || sameStructure(d, state.exam)) return { res };
+    if (!res.ok && res.devMismatch && d && d.devCount < state.exam.dev.length) {
+      const alt = computeLayout(Object.assign({}, state.exam, { dev: state.exam.dev.slice(0, d.devCount), fields: state.exam.sheetFields }));
+      const res2 = OMR.scanSheet(gray, alt, scanOptions());
+      if (res2.ok) {
+        res2.warnings = (res2.warnings || []).concat(
+          `La hoja tiene ${d.devCount} de las ${state.exam.dev.length} casillas de desarrollo de la prueba (se imprimió antes de agregarlas): escribe los puntajes que faltan.`
+        );
+        return { res: res2, layout: alt };
+      }
+    }
+    if (res.ok || !d || sameStructure(d, state.exam)) return { res, layout };
     const e = state.exam;
     if (d.numQuestions === e.numQuestions && d.numChoices === e.numChoices && d.idDigits === e.idDigits) {
       const alt = computeLayout(Object.assign({}, e, { paper: d.paper, format: d.format, fields: e.sheetFields }));
@@ -1857,12 +2006,12 @@
         const fmtLabel = FORMATS[d.format].label.toLowerCase();
         res2.warnings = (res2.warnings || []).concat(`Hoja impresa en otro formato (${fmtLabel}, papel ${PAPERS[d.paper].label.split(' ')[0]}): se leyó con su propio diseño.`);
       }
-      return { res: res2 };
+      return { res: res2, layout: alt };
     }
     if (!e.key.some((k) => k !== null) && !state.results.length) {
-      if (applySheetConfig(d)) return { res: OMR.scanSheet(gray, getLayout(), scanOptions()), adopted: d };
+      if (applySheetConfig(d)) return { res: OMR.scanSheet(gray, getLayout(), scanOptions()), adopted: d, layout: getLayout() };
     }
-    return { res, other: d };
+    return { res, other: d, layout };
   }
 
   /** Cambia la estructura de la prueba a la leída en el código de una hoja. */
@@ -1897,12 +2046,25 @@
   /* ------------------------------------------------------------------ */
 
   // Respuestas que el docente copia de la hoja original (una lista de alternativas por pregunta).
-  const TR = { answers: [], photo: null };
+  const TR = { answers: [], dev: [], photo: null };
 
   function openTranscribe(photoFile) {
     if (!getLayout()) return toast(layoutError);
     const e = state.exam;
     TR.answers = Array.from({ length: e.numQuestions }, () => []);
+    TR.dev = e.dev.map(() => null);
+    const devBox = $('#trDev');
+    devBox.hidden = !e.dev.length;
+    devBox.innerHTML = e.dev.length
+      ? `<strong>Desarrollo (puntaje que le diste):</strong>` +
+        e.dev
+          .map((d, i) => {
+            const opts = ['<option value="">—</option>'];
+            for (let v = 0; v <= d.max; v++) opts.push(`<option value="${v}">${v}</option>`);
+            return `<label class="inline-select">${esc(d.label)}<select data-trdev="${i}">${opts.join('')}</select><span class="muted small">/ ${d.max}</span></label>`;
+          })
+          .join('')
+      : '';
     $('#trCode').value = '';
     $('#trName').value = '';
     $('#trName').placeholder = 'Nombre del estudiante';
@@ -1980,7 +2142,7 @@
     const d = new Date();
     const p2 = (x) => String(x).padStart(2, '0');
     const name = $('#trName').value.trim() || (digits.length === e.idDigits ? rosterName(digits) : '');
-    const opts = Object.assign(sheetOptions({ answers: TR.answers, id, fields: { Nombre: name } }), {
+    const opts = Object.assign(sheetOptions({ answers: TR.answers, id, dev: TR.dev, fields: { Nombre: name } }), {
       footerNote: `Hoja transcrita por el docente (${p2(d.getDate())}-${p2(d.getMonth() + 1)}-${d.getFullYear()})`,
     });
     return { layout, svg: SheetRenderer.renderSVG(layout, opts), id, form };
@@ -2021,7 +2183,11 @@
       const px = (bubbles) => bubbles.map((b) => ({ x: b.x * ppm, y: b.y * ppm, r: b.r * ppm }));
       const res = {
         rectified: { width: gray.width, height: gray.height, data: gray.data, ppm },
-        overlay: { questions: layout.questions.map((q) => px(q.bubbles)), id: layout.idRows.map((r) => px(r.bubbles)) },
+        overlay: {
+          questions: layout.questions.map((q) => px(q.bubbles)),
+          id: layout.idRows.map((r) => px(r.bubbles)),
+          dev: (layout.devRows || []).map((r) => px(r.bubbles)),
+        },
       };
       // La foto de la hoja original dañada (si se adjuntó) queda como "foto original".
       let photoCanvas = cv;
@@ -2048,6 +2214,7 @@
         transcribed: true,
         warnings: ['Hoja transcrita por el docente a partir de la hoja original.'],
       };
+      if (e.dev.length) record.dev = e.dev.map((_, i) => ({ marked: TR.dev[i] === null ? [] : [TR.dev[i]], uncertain: false }));
       state.results.push(record);
       images.set(record.id, view);
       persistView(record.id, view);
@@ -2139,14 +2306,28 @@
     return out;
   }
 
+  /** Puntajes de desarrollo del resultado (versión Pro), para sumarlos a la nota. */
+  function devSpec(r) {
+    const d = state.exam.dev;
+    return d && d.length ? { items: d, marks: r.dev || [] } : undefined;
+  }
+
   /** Corrección en el orden de la hoja del estudiante (su fila). */
   function grade(r) {
-    return Grading.gradeAnswers(r.answers, keyForForm(formMap(r)), state.exam.scoring);
+    return Grading.gradeAnswers(r.answers, keyForForm(formMap(r)), state.exam.scoring, devSpec(r));
   }
 
   /** Corrección en el orden de la fila A (mismo puntaje; para OA y análisis). */
   function gradeCanon(r) {
-    return formMap(r) ? Grading.gradeAnswers(canonAnswers(r), state.exam.key, state.exam.scoring) : grade(r);
+    return formMap(r) ? Grading.gradeAnswers(canonAnswers(r), state.exam.key, state.exam.scoring, devSpec(r)) : grade(r);
+  }
+
+  /** Casillas de desarrollo sin puntaje claro (sin marcar, dobles o dudosas) y no corregidas a mano. */
+  function devPending(r) {
+    return (state.exam.dev || []).filter((_, i) => {
+      const m = r.dev && r.dev[i];
+      return !m || (!m.edited && (m.uncertain || m.marked.length !== 1));
+    }).length;
   }
 
   /** Fila sin leer (las hojas guardadas antes de existir las filas cuentan como fila A). */
@@ -2176,7 +2357,7 @@
 
   function needsReview(r) {
     const incompleteId = state.exam.idDigits > 0 && (!r.code || r.code.indexOf('?') >= 0);
-    return incompleteId || r.idUncertain || formUnknown(r) || r.answers.some((a) => a.uncertain && !a.edited);
+    return incompleteId || r.idUncertain || formUnknown(r) || r.answers.some((a) => a.uncertain && !a.edited) || devPending(r) > 0;
   }
 
   const STATUS = {
@@ -2224,7 +2405,27 @@
       })
       .join('');
 
+    // Casillas de desarrollo (versión Pro): puntaje marcado por el docente, corregible aquí.
+    const devRows = (g.dev || [])
+      .map((d, i) => {
+        const m = (r.dev && r.dev[i]) || null;
+        const opts = ['<option value="">—</option>'];
+        for (let v = 0; v <= d.max; v++) opts.push(`<option value="${v}"${d.status === 'scored' && d.points === v ? ' selected' : ''}>${v}</option>`);
+        if (d.status === 'multiple') opts.push(`<option value="multi" selected>${m.marked.join('+')}</option>`);
+        const unc = !!m && !m.edited && (m.uncertain || m.marked.length !== 1);
+        const cls = d.status === 'scored' ? 'correct' : d.status === 'multiple' ? 'multiple' : 'blank';
+        return (
+          `<div class="ans dev ${cls}${unc || !m ? ' uncertain' : ''}" title="${esc(`${d.label}: máximo ${d.max} punto(s)${unc || !m ? ' · revisar' : ''}`)}">` +
+          `<span class="qn">${esc(d.label)}</span>` +
+          `<select data-dev="${i}" aria-label="Puntaje de ${esc(d.label)}">${opts.join('')}</select>` +
+          `<span class="k">/ ${d.max} pts</span></div>`
+        );
+      })
+      .join('');
+
     const alerts = [];
+    const devMissing = devPending(r);
+    if (devMissing) alerts.push(`${devMissing} pregunta(s) de desarrollo sin puntaje claro: elige el puntaje en la lista (al final).`);
     if (state.exam.idDigits > 0 && (!r.code || r.code.indexOf('?') >= 0)) {
       alerts.push('No se pudo leer completo el código del estudiante: complétalo manualmente.');
     }
@@ -2281,7 +2482,7 @@
                 : '<p class="muted small" data-img-status>Cargando imagen…</p>'
             }
           </div>
-          <div class="answers-list">${rows}</div>
+          <div class="answers-list">${rows}${devRows ? `<div class="dev-head">Desarrollo (${fmtScore(g.devPoints)} de ${g.devMax} pts)</div>${devRows}` : ''}</div>
         </div>
       </div>`;
     const list = $('.answers-list', container);
@@ -2379,6 +2580,30 @@
       if (!bubbles) return;
       for (const m of marked) if (bubbles[m]) circle(bubbles[m], bubbles[m].r * 1.2, '#6a1b9a44', '#6a1b9a', null, lw);
     });
+    (g.dev || []).forEach((d, i) => {
+      const bubbles = view.overlay.dev && view.overlay.dev[i];
+      if (!bubbles) return;
+      const m = (r.dev && r.dev[i]) || { marked: [] };
+      const color = d.status === 'scored' ? '#1565c0' : '#c62828';
+      for (const v of m.marked) if (bubbles[v]) circle(bubbles[v], bubbles[v].r * 1.2, color + '44', color, null, lw * 1.25);
+      if (!m.edited && (m.uncertain || m.marked.length !== 1)) {
+        const first = bubbles[0];
+        const last = bubbles[bubbles.length - 1];
+        const pad = first.r * 1.7;
+        ctx.setLineDash([lw * 2.5, lw * 1.5]);
+        ctx.strokeStyle = '#e0a800';
+        ctx.lineWidth = lw;
+        ctx.strokeRect((first.x - pad) * s, (first.y - pad) * s, (last.x - first.x + 2 * pad) * s, 2 * pad * s);
+        ctx.setLineDash([]);
+      }
+      // Puntaje obtenido, a la derecha de la fila.
+      const last = bubbles[bubbles.length - 1];
+      ctx.setLineDash([]);
+      ctx.font = `700 ${Math.round(last.r * 1.6 * s)}px Arial, sans-serif`;
+      ctx.fillStyle = m.edited ? '#6a1b9a' : color;
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${d.points}/${d.max}${m.edited ? ' ✎' : ''}`, (last.x + last.r * 2.2) * s, last.y * s);
+    });
     ctx.setLineDash([]);
   }
 
@@ -2402,6 +2627,14 @@
       const prev = r.answers[q];
       const original = prev.edited ? prev.original : prev.marked;
       r.answers[q] = { marked: v === '' ? [] : [Number(v)], uncertain: false, edited: true, original };
+    } else if (e.type === 'change' && e.target.matches('select[data-dev]')) {
+      const i = Number(e.target.dataset.dev);
+      const v = e.target.value;
+      if (v === 'multi') return;
+      if (!r.dev) r.dev = [];
+      const prev = r.dev[i] || { marked: [] };
+      const original = prev.edited ? prev.original : prev.marked;
+      r.dev[i] = { marked: v === '' ? [] : [Number(v)], uncertain: false, edited: true, original };
     } else if (e.type === 'change' && e.target.matches('select[data-field="form"]')) {
       if (e.target.value === '') return;
       r.form = Number(e.target.value);
@@ -2499,6 +2732,7 @@
           <td class="num">${g.correct}</td>
           <td class="num">${g.wrong + g.multiple}</td>
           <td class="num">${g.blank}</td>
+          ${g.dev ? `<td class="num">${fmtScore(g.devPoints)}/${g.devMax}</td>` : ''}
           <td class="num">${fmtScore(g.score)}</td>
           <td class="num">${fmt(g.percent, 0)}%</td>
           <td class="num ${gradeCls}">${fmt(g.grade, 1)}</td>
@@ -2508,7 +2742,7 @@
     $('#resultsTable').innerHTML = `
       <thead><tr>
         <th class="num">#</th><th>Código</th><th>Nombre</th><th class="num">Correctas</th><th class="num">Incorrectas</th>
-        <th class="num">Omitidas</th><th class="num">Puntaje</th><th class="num">Logro</th><th class="num">Nota</th>
+        <th class="num">Omitidas</th>${state.exam.dev.length ? '<th class="num">Desarrollo</th>' : ''}<th class="num">Puntaje</th><th class="num">Logro</th><th class="num">Nota</th>
       </tr></thead><tbody>${body}</tbody>`;
 
     renderItemAnalysis(rows);
@@ -2530,7 +2764,22 @@
         return `<tr><td class="num">${s.question}</td><td>${s.key === null ? '–' : CHOICE_LABELS[s.key]}</td><td>${bar}</td><td class="dist">${dist}</td><td class="num">${s.blank}</td><td class="num">${s.multiple}</td></tr>`;
       })
       .join('');
-    $('#itemTable').innerHTML = head + '<tbody>' + body + '</tbody>';
+    let devBody = '';
+    if (state.exam.dev.length && rows.length) {
+      devBody = state.exam.dev
+        .map((d, i) => {
+          const pts = rows.map((x) => (x.g.dev && x.g.dev[i] ? x.g.dev[i].points : 0));
+          const avg = pts.reduce((a, b) => a + b, 0) / pts.length;
+          const pct = (avg / d.max) * 100;
+          const cls = pct < 40 ? 'low' : pct < 65 ? 'mid' : '';
+          const dist = [];
+          for (let v = 0; v <= d.max; v++) dist.push(`<span>${v}: ${pts.filter((p) => p === v).length}</span>`);
+          return `<tr><td class="num">${esc(d.label)}</td><td>máx ${d.max}</td><td><span class="bar ${cls}"><i style="width:${pct}%"></i></span>${fmt(avg, 1)} pts</td><td class="dist">${dist.join(' ')}</td><td class="num"></td><td class="num"></td></tr>`;
+        })
+        .join('');
+      devBody = `<tr><th colspan="6">Preguntas de desarrollo (puntaje promedio)</th></tr>` + devBody;
+    }
+    $('#itemTable').innerHTML = head + '<tbody>' + body + devBody + '</tbody>';
   }
 
   function renderOaResults(rows) {
@@ -2585,6 +2834,7 @@
       ['N°', 'Código', 'Nombre', 'Archivo', 'Correctas', 'Incorrectas', 'Omitidas', 'Dobles marcas', 'Puntaje', 'Puntaje máximo', '% logro', 'Nota']
         .concat(state.exam.forms ? ['Fila'] : [])
         .concat(currentObjectives().objectives.map((o) => `% ${o.name}`))
+        .concat(state.exam.dev.map((d) => `${d.label} (máx ${d.max})`))
         .concat(qCols)
         .map(cell)
         .join(sep)
@@ -2593,6 +2843,7 @@
       ['', '', state.exam.forms ? 'CLAVE (fila A)' : 'CLAVE', '', '', '', '', '', '', '', '', '']
         .concat(state.exam.forms ? [''] : [])
         .concat(currentObjectives().objectives.map(() => ''))
+        .concat(state.exam.dev.map(() => ''))
         .concat(state.exam.key.map((k) => (k === null ? '' : CHOICE_LABELS[k])))
         .map(cell)
         .join(sep)
@@ -2602,6 +2853,7 @@
         [i + 1, r.code || '', displayName(r), r.fileName, g.correct, g.wrong, g.blank, g.multiple, dec(g.score, 2), dec(g.maxScore, 2), dec(g.percent, 1), dec(g.grade, 1)]
           .concat(state.exam.forms ? [formUnknown(r) ? '?' : formLetter(r.form || 0)] : [])
           .concat(oaResults(g).map((o) => dec(o.percent, 1)))
+          .concat((g.dev || []).map((d) => (d.status === 'scored' ? d.points : '')))
           .concat(canonAnswers(r).map((a) => letters(a.marked)))
           .map(cell)
           .join(sep)
@@ -2649,6 +2901,10 @@
     const out = [];
     r.answers.forEach((a, q) => {
       if (a.edited) out.push(`P${q + 1}: ${letters(a.original || []) || '—'} → ${letters(a.marked) || '—'}`);
+    });
+    (state.exam.dev || []).forEach((d, i) => {
+      const m = r.dev && r.dev[i];
+      if (m && m.edited) out.push(`${d.label}: ${(m.original || []).join('+') || '—'} → ${m.marked.join('+') || '—'} pts`);
     });
     return out;
   }
@@ -2709,6 +2965,11 @@
       color: '#5d6877',
       gapBefore: 6,
     });
+    if (g.dev) {
+      measure.font = font(19);
+      const txt = `Desarrollo: ${g.dev.map((d) => `${d.label} ${d.status === 'scored' ? d.points : '–'}/${d.max}`).join('   ')}   (total ${fmtScore(g.devPoints)} de ${g.devMax} pts)`;
+      for (const l of wrapText(measure, txt, W - 2 * pad)) lines.push({ text: l, font: font(19), color: '#1c2430' });
+    }
     const oaRes = oaResults(gradeCanon(r));
     if (oaRes.length) {
       measure.font = font(19);
@@ -2837,6 +3098,7 @@
     if (withForms) head.push('Fila');
     const objectives = currentObjectives().objectives;
     for (const o of objectives) head.push(`% ${o.name}`);
+    for (const d of exam.dev) head.push(`${d.label} (máx ${d.max})`);
     head.push('Estado', 'Hoja corregida', 'Foto original', 'Archivo');
     const firstQ = head.length;
     for (let q = 1; q <= n; q++) head.push('P' + q);
@@ -2889,6 +3151,7 @@
         g.grade === null ? '' : { v: g.grade, s: g.grade >= sc.gradePass ? 'ok' : 'bad' },
         ...(withForms ? [formUnknown(r) ? '?' : formLetter(r.form || 0)] : []),
         ...oaResults(g).map((o) => (o.percent === null ? '' : { v: o.percent, s: 'lvl' + o.level })),
+        ...(g.dev || []).map((d) => (d.status === 'scored' ? d.points : { v: 'sin puntaje', s: 'bad' })),
         status,
         link.sheet ? { v: 'Ver hoja corregida', link: link.sheet, tooltip: link.sheet } : { v: 'sin imagen', s: 'muted' },
         link.photo ? { v: 'Ver foto original', link: link.photo, tooltip: link.photo } : { v: 'sin imagen', s: 'muted' },
@@ -2906,6 +3169,7 @@
     const cols = [5, 10, 28, 10, 11, 10, 9, 9, 10, 9, 7]
       .concat(withForms ? [6] : [])
       .concat(objectives.map((o) => Math.max(9, Math.min(24, o.name.length + 4))))
+      .concat(exam.dev.map(() => 11))
       .concat([16, 20, 18, 22])
       .concat(new Array(n).fill(5));
 
@@ -3132,7 +3396,10 @@
     const paperSel = $('#exPaper');
     paperSel.innerHTML = PAPER_IDS.map((id) => `<option value="${id}">${esc(PAPERS[id].label)}</option>`).join('');
     $('#docPaper').innerHTML = paperSel.innerHTML;
-    $('#exFormat').innerHTML = FORMAT_IDS.map((id) => `<option value="${id}">${esc(FORMATS[id].label)}</option>`).join('');
+    // El ticket de salida (8 por página) es de la versión Pro (la normal lo muestra sólo si la prueba ya lo usa).
+    $('#exFormat').innerHTML = FORMAT_IDS.filter((id) => PRO || id !== 'ticket' || state.exam.format === 'ticket')
+      .map((id) => `<option value="${id}">${esc(FORMATS[id].label)}</option>`)
+      .join('');
     $('#docFont').innerHTML = Object.keys(TestDoc.FONTS).map((f) => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
     $('#exQuestions').max = LIMITS.maxQuestions;
     $('#exIdDigits').max = LIMITS.maxIdDigits;
@@ -3415,6 +3682,10 @@
       $('#trName').placeholder = rosterName(e.target.value) || 'Nombre del estudiante';
     });
     $('#trPhoto').addEventListener('change', (e) => setTranscribePhoto(e.target.files[0] || null));
+    $('#trDev').addEventListener('change', (e) => {
+      const sel = e.target.closest('[data-trdev]');
+      if (sel) TR.dev[Number(sel.dataset.trdev)] = sel.value === '' ? null : Number(sel.value);
+    });
     $('#trPrint').addEventListener('click', printTranscribed);
     $('#trAdd').addEventListener('click', addTranscribed);
     for (const b of $$('[data-tr-close]')) b.addEventListener('click', () => $('#trDialog').close());
@@ -3542,6 +3813,24 @@
     renderResults();
   }
 
+  /** Versión Pro: preguntas de desarrollo de la evaluación (para crear sus casillas de puntaje). */
+  function docDevCandidates() {
+    const d = state.exam.doc;
+    if (!d.text.trim()) return [];
+    const parsed = TestDoc.parseQuestions(d.text, { sortByNumber: d.sortByNumber });
+    const qs = effectiveQuestions(parsed.questions);
+    const plan = TestDoc.planSections(qs, parsed.sections, d.format);
+    return qs.map((q, i) => ({ type: q.type, number: plan.numbers[i] })).filter((x) => x.type === 'open');
+  }
+
+  /** Versión Pro: la estructura de la prueba cambió (p. ej. casillas de desarrollo). */
+  function refreshStructure() {
+    updateLayoutError();
+    renderResultsBadge();
+    if (!$('#tab-hoja').hidden) renderSheetPreview();
+    if (!$('#tab-resultados').hidden) renderResults();
+  }
+
   // Lo que usan los módulos de la versión Pro (js/pro/). La versión normal no expone nada.
   if (PRO) {
     window.LectorApp = {
@@ -3575,6 +3864,18 @@
       renderResultsBadge,
       replaceExam,
       sanitizeExam,
+      refreshStructure,
+      docDevCandidates,
+      getLayout,
+      layoutForForm,
+      sheetOptions,
+      setPageStyle,
+      fileToGray,
+      canvasToBlob,
+      renderKey,
+      renderObjectives,
+      applyStructure,
+      nextFrame,
       imageStore,
       assetStore,
       STORE_KEY,

@@ -104,6 +104,24 @@ pestañas, manual…) es el mismo código, así que las mejoras llegan a las dos
   el correo y restaurarlo en otro equipo (el libro se combina con el que ya
   hay; la prueba se reemplaza). En el navegador, la primera vez se puede traer
   la prueba de la versión normal.
+- **Casillas de desarrollo**: hasta 7 preguntas de desarrollo con una fila de
+  casillas 0, 1, 2… (máximo 10 puntos cada una) al final de la hoja. El docente
+  corrige la pregunta y marca el puntaje; el lector lo suma a las alternativas
+  (se puede corregir a mano en el detalle) y aparece en la tabla, el Excel, las
+  evidencias y el análisis. Se pueden crear desde las preguntas de desarrollo
+  de la evaluación.
+- **Tickets de salida**: formato de 8 por página (medio cuarto de hoja,
+  apaisado) para mini controles de 3 a 10 preguntas, que se crean en un paso
+  (clave, objetivo y curso) y se guardan en el libro como formativos. En
+  *Resultados*, **Para reforzar** lista por objetivo a quienes quedaron en No
+  logrado o Medianamente logrado.
+- **Hojas con nombre**: una hoja (o ticket) por estudiante con su nombre, el
+  curso y el N° de lista ya marcado; con filas, se asignan alternadas según el
+  N° de lista y se imprime la lista de reparto.
+- **PDF y varias hojas por foto**: se sube el PDF de la fotocopiadora (con
+  [pdf.js](https://mozilla.github.io/pdf.js/), incluido en `vendor/pdf` y
+  cargado sólo al usarse) y cada página se lee como una foto; en una foto o
+  página con varias hojas (tickets, medias hojas) se leen todas.
 
 `pro.html` se genera a partir de `index.html` y de las partes de
 `pro/partes.html` (`npm run build:pro`); `npm test` avisa si quedó
@@ -461,6 +479,8 @@ entregar una corrección equivocada sin avisar.
 | `pro.html` (generado), `pro/partes.html`, `css/pro.css`, `scripts/build-pro.js` | Versión Pro |
 | `js/pro/libro-core.js`, `js/pro/libro.js` | Cursos y libro de notas (lógica y pantalla) |
 | `js/pro/respaldo-core.js`, `js/pro/respaldo.js`, `js/pro/comun.js` | Respaldo completo y utilidades de la versión Pro |
+| `js/pro/desarrollo.js`, `js/pro/tickets.js`, `js/pro/nombres.js` | Casillas de desarrollo, tickets de salida y “Para reforzar”, hojas con nombre |
+| `vendor/pdf/` | pdf.js (lectura de PDF en la versión Pro; en Android sólo va en la app Pro) |
 | `js/app.js` | Lógica de la interfaz y almacenamiento |
 | `js/manual-videos.js` | Enlaces de los videos del manual |
 | `js/native.js` | Integración con la app Android (descargas, impresión, botón Atrás) |
@@ -509,3 +529,15 @@ entregar una corrección equivocada sin avisar.
 8. Se mide qué tan oscuro está el interior de cada burbuja; un umbral
    automático (o manual) decide cuáles están marcadas, y se detectan
    omisiones, dobles marcas y marcas dudosas.
+9. Casillas de desarrollo (versión Pro): cuatro celdas junto al código de
+   configuración indican cuántas filas de desarrollo tiene la hoja (con un bit
+   de paridad; las hojas sin casillas no imprimen nada y se leen como 0). Si
+   no coincide con la prueba configurada, la hoja se rechaza (o, si tiene menos
+   casillas, se lee y se piden los puntajes que faltan). Las filas de
+   desarrollo se alinean y controlan igual que las de preguntas.
+10. Varias hojas en una foto (versión Pro): después de leer una hoja, su
+    papel se tapa y se busca la siguiente. En esa búsqueda sólo se usan las
+    manchas del tamaño de las marcas de esquina y se acepta un cuadrilátero
+    únicamente si su código dice que es exactamente esta prueba y tiene sus
+    marcas laterales; si la lectura no pasa los controles, se prueba el
+    siguiente (dos hojas vecinas pueden formar un cuadrilátero engañoso).

@@ -7,9 +7,15 @@
  * así que ambos siempre coinciden.
  *
  * Formatos: una hoja de respuestas puede ocupar la página completa, media
- * página (2 por página) o un cuarto de página (4 por página). En los formatos
- * pequeños las marcas y textos se reducen proporcionalmente, pero las
- * burbujas conservan un tamaño mínimo para que se puedan rellenar y leer.
+ * página (2 por página), un cuarto de página (4 por página) o un octavo
+ * (ticket de salida, 8 por página). En los formatos pequeños las marcas y
+ * textos se reducen proporcionalmente, pero las burbujas conservan un tamaño
+ * mínimo para que se puedan rellenar y leer.
+ *
+ * Casillas de desarrollo (opcional): bajo la grilla, una fila por pregunta de
+ * desarrollo con burbujas 0, 1, 2… donde el docente marca el puntaje obtenido.
+ * Cuántas hay queda impreso en un código extra junto al código de
+ * configuración, para que una hoja nunca se lea con otra cantidad.
  */
 (function (root, factory) {
   const api = factory();
@@ -31,8 +37,9 @@
     full: { id: 'full', label: 'Hoja completa (1 por página)', perPage: 1, k: 1, checksumKey: 10 },
     half: { id: 'half', label: 'Media hoja (2 por página)', perPage: 2, k: 0.8, checksumKey: 5 },
     quarter: { id: 'quarter', label: 'Cuarto de hoja (4 por página)', perPage: 4, k: 0.65, checksumKey: 12 },
+    ticket: { id: 'ticket', label: 'Ticket de salida (8 por página)', perPage: 8, k: 0.5, checksumKey: 3 },
   };
-  const FORMAT_IDS = ['full', 'half', 'quarter'];
+  const FORMAT_IDS = ['full', 'half', 'quarter', 'ticket'];
 
   const LIMITS = {
     minQuestions: 1,
@@ -40,6 +47,8 @@
     minChoices: 2,
     maxChoices: 6,
     maxIdDigits: 10,
+    maxDev: 7, // preguntas de desarrollo
+    maxDevPoints: 10,
   };
 
   const CHOICE_LABELS = ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -67,6 +76,7 @@
   const GROUP_GAP = 1.8;
   const MAX_PITCH = 7;
   const MIN_PITCH = 4.4;
+  const DEV_LABEL_W = 12; // ancho del rótulo de cada fila de desarrollo ("D1", "P21")
 
   function clampInt(v, min, max, fallback) {
     const n = Math.round(Number(v));
@@ -84,6 +94,39 @@
       idDigits: clampInt(cfg.idDigits, 0, LIMITS.maxIdDigits, 0),
       format: FORMATS[cfg.format] ? cfg.format : 'full',
     };
+  }
+
+  /**
+   * Preguntas de desarrollo con casillas de puntaje: [{ label, max }].
+   * label: rótulo corto ("D1", "P21"); max: puntaje máximo (1–10).
+   */
+  function normalizeDev(dev) {
+    if (!Array.isArray(dev)) return [];
+    return dev.slice(0, LIMITS.maxDev).map((d, i) => {
+      const label = String((d && d.label) || '').replace(/\s+/g, ' ').trim().slice(0, 5) || `D${i + 1}`;
+      return { label, max: clampInt(d && d.max, 1, LIMITS.maxDevPoints, 4) };
+    });
+  }
+
+  /* ---------- Código extra: cantidad de casillas de desarrollo ----------
+   * Cuatro celdas junto al código de configuración (dos a cada lado):
+   * 3 bits con la cantidad (0–7) y uno de paridad. Las hojas sin casillas
+   * (y las anteriores a este código) no imprimen nada y se leen como 0.
+   */
+  const EXT_BITS = 4;
+
+  function encodeExt(devCount) {
+    const v = clampInt(devCount, 0, LIMITS.maxDev, 0);
+    const bits = [v & 1, (v >> 1) & 1, (v >> 2) & 1];
+    bits.push(bits[0] ^ bits[1] ^ bits[2]);
+    return bits;
+  }
+
+  /** Cantidad de casillas de desarrollo o null si la paridad no coincide. */
+  function decodeExt(bits) {
+    if (!bits || bits.length !== EXT_BITS) return null;
+    if ((bits[0] ^ bits[1] ^ bits[2]) !== bits[3]) return null;
+    return bits[0] | (bits[1] << 1) | (bits[2] << 2);
   }
 
   /** Campos de escritura del encabezado (no afectan la lectura). */
@@ -178,11 +221,12 @@
     return Number.isFinite(n) && n >= 0 && n < FORM_CODES.length ? n : null;
   }
 
-  /** Tamaño de una hoja de respuestas (vertical) según papel y formato. */
+  /** Tamaño de una hoja de respuestas según papel y formato (el ticket es apaisado). */
   function pieceSize(paperId, formatId) {
     const p = PAPERS[paperId];
     if (formatId === 'half') return { width: p.height / 2, height: p.width };
     if (formatId === 'quarter') return { width: p.width / 2, height: p.height / 2 };
+    if (formatId === 'ticket') return { width: p.width / 2, height: p.height / 4 };
     return { width: p.width, height: p.height };
   }
 
@@ -213,6 +257,22 @@
         cuts: [
           { x1: W / 2, y1: 0, x2: W / 2, y2: H },
           { x1: 0, y1: H / 2, x2: W, y2: H / 2 },
+        ],
+      };
+    }
+    if (formatId === 'ticket') {
+      const pieces = [];
+      for (let r = 0; r < 4; r++) for (let c2 = 0; c2 < 2; c2++) pieces.push({ x: (c2 * W) / 2, y: (r * H) / 4 });
+      return {
+        width: W,
+        height: H,
+        landscape: false,
+        pieces,
+        cuts: [
+          { x1: W / 2, y1: 0, x2: W / 2, y2: H },
+          { x1: 0, y1: H / 4, x2: W, y2: H / 4 },
+          { x1: 0, y1: H / 2, x2: W, y2: H / 2 },
+          { x1: 0, y1: (3 * H) / 4, x2: W, y2: (3 * H) / 4 },
         ],
       };
     }
@@ -285,9 +345,15 @@
     const codePitch = CODE_PITCH * k;
     const codeStart = W / 2 - ((CODE_BITS - 1) * codePitch) / 2;
     const codeCells = bits.map((bit, i) => ({ x: codeStart + i * codePitch, y: H - m, size: CODE_CELL * k, bit }));
+    const dev = normalizeDev(cfg && cfg.dev);
+    const extBits = encodeExt(dev.length);
+    const extCells = [-2, -1, CODE_BITS, CODE_BITS + 1].map((pos, i) => ({ x: codeStart + pos * codePitch, y: H - m, size: CODE_CELL * k, bit: extBits[i] }));
 
-    const left = SIDE_MARGIN * k;
-    const right = W - SIDE_MARGIN * k;
+    // Margen del contenido. En el ticket se deja más espacio para que el texto
+    // y el recuadro del N° de lista no toquen las marcas laterales.
+    const margin = c.format === 'ticket' ? 10 : SIDE_MARGIN * k;
+    const left = margin;
+    const right = W - margin;
     const headerTop = HEADER_TOP * k;
 
     // ----- Encabezado -----
@@ -340,9 +406,16 @@
     const gridBottomFor = (p) => (k === 1 ? H - 24 : H - Math.max(24 * k, 16.75 * k + 0.86 * p + 1.4));
     const colGap = k === 1 ? COL_GAP : Math.max(3.5, COL_GAP * k);
 
+    // Casillas de desarrollo bajo la grilla: separación (para que los controles
+    // del lector bajo la última fila de preguntas no las vean), título y filas.
+    const devGap = (p) => p + 4 + 3 * k;
+    const devSpace = (p) => (dev.length ? devGap(p) + 3 * k + dev.length * p : 0);
+
     // ----- Grilla de preguntas: se busca el mayor espaciado que quepa -----
+    // Con casillas de desarrollo se prueba primero la misma grilla que sin
+    // ellas y, si no caben debajo, más columnas (más cortas) o menor espaciado.
     let chosen = null;
-    for (let p = MAX_PITCH; p >= MIN_PITCH - 1e-9; p = Math.round((p - 0.1) * 100) / 100) {
+    search: for (let p = MAX_PITCH; p >= MIN_PITCH - 1e-9; p = Math.round((p - 0.1) * 100) / 100) {
       const gridTop = gridTopFor(p);
       const areaH = gridBottomFor(p) - gridTop;
       const colW = NUM_WIDTH + c.numChoices * p;
@@ -351,15 +424,18 @@
       const maxRows = rowsThatFit(areaH, p);
       if (maxRows < 1) continue;
       const colsNeeded = Math.ceil(c.numQuestions / maxRows);
-      if (colsNeeded <= colsFit) {
-        chosen = { pitch: p, colW, cols: colsNeeded, gridTop, gridBottom: gridBottomFor(p) };
-        break;
+      for (let cols = colsNeeded; cols <= colsFit; cols++) {
+        const rowsHere = Math.ceil(c.numQuestions / cols);
+        if (dev.length && gridTop + rowOffset(rowsHere - 1, p) + devSpace(p) > gridBottomFor(p) + 1e-9) continue;
+        if (dev.length && DEV_LABEL_W + (Math.max(...dev.map((d) => d.max)) + 1) * p > areaW) continue;
+        chosen = { pitch: p, colW, cols, gridTop, gridBottom: gridBottomFor(p) };
+        break search;
       }
     }
     if (!chosen) {
       const where = c.format === 'full' ? `papel ${paper.label}` : `el formato "${format.label}" en papel ${paper.label}`;
       throw new Error(
-        `No caben ${c.numQuestions} preguntas con ${c.numChoices} alternativas en ${where}. ` +
+        `No caben ${c.numQuestions} preguntas con ${c.numChoices} alternativas${dev.length ? ` y ${dev.length} casilla(s) de desarrollo` : ''} en ${where}. ` +
           (c.format === 'full'
             ? 'Reduzca preguntas, alternativas o dígitos de identificación, o use un papel más grande.'
             : 'Use un formato más grande (menos hojas por página) o reduzca preguntas, alternativas o dígitos de identificación.')
@@ -404,11 +480,29 @@
       questions.push({ index: q, number: q + 1, column: col, row, labelX: x0 + NUM_WIDTH - 1.2, y, bubbles });
     }
 
+    // ----- Casillas de desarrollo -----
+    let devBlock = null;
+    if (dev.length) {
+      const lastRowY = gridTop + rowOffset(rowsPerCol - 1, pitch);
+      const widest = DEV_LABEL_W + (Math.max(...dev.map((d) => d.max)) + 1) * pitch;
+      const x0 = Math.max(left, Math.min(startX, right - widest));
+      const titleY = lastRowY + devGap(pitch);
+      const rowsTop = titleY + 3 * k;
+      const rows = dev.map((d, i) => {
+        const y = rowsTop + pitch * (i + 0.5);
+        const bubbles = [];
+        for (let v = 0; v <= d.max; v++) bubbles.push({ x: x0 + DEV_LABEL_W + pitch * (v + 0.5), y, r, label: String(v) });
+        return { index: i, label: d.label, max: d.max, labelX: x0 + DEV_LABEL_W - 1.2, y, bubbles };
+      });
+      devBlock = { x: x0, titleY, top: rowsTop, bottom: rowsTop + dev.length * pitch, width: widest, rows };
+    }
+
     return {
       config: c,
       paper,
       format,
       scale: k,
+      margin,
       width: W,
       height: H,
       markers,
@@ -416,6 +510,7 @@
       orientation,
       sideMarks,
       codeCells,
+      extCells,
       formCells,
       formBubbles,
       form,
@@ -431,6 +526,8 @@
       grid: { top: gridTop, bottom: gridBottom, pitch, r, cols, rowsPerCol, columns, choiceLabels: CHOICE_LABELS.slice(0, c.numChoices) },
       questions,
       idRows: idBlock ? idBlock.rows : [],
+      dev: devBlock,
+      devRows: devBlock ? devBlock.rows : [],
       footerY: H - 7 * k,
     };
   }
@@ -443,14 +540,18 @@
     LIMITS,
     CHOICE_LABELS,
     CODE_BITS,
+    EXT_BITS,
     FORM_CODES,
     FORM_LETTERS,
     decodeForm,
     normalizeForm,
     normalizeConfig,
     normalizeFields,
+    normalizeDev,
     encodeConfig,
     decodeConfig,
+    encodeExt,
+    decodeExt,
     sameStructure,
     pieceSize,
     pageTiling,

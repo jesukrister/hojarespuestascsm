@@ -193,7 +193,8 @@
       $('#proBookTitle').value = state.exam.title || 'Prueba';
       $('#proBookDate').value = today;
       $('#proBookPeriod').innerHTML = periodOptions(course, L.periodForDate(today, course.periods));
-      $('#proBookWeight').value = '1';
+      // Un ticket de salida es formativo: por omisión no se promedia.
+      $('#proBookWeight').value = state.exam.format === 'ticket' ? '0' : '1';
     } else if (isNew && $('#proBookPeriod').options.length !== course.periods) {
       $('#proBookPeriod').innerHTML = periodOptions(course, L.periodForDate($('#proBookDate').value, course.periods));
     }

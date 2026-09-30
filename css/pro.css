@@ -165,3 +165,42 @@ input[type="date"] {
 @media print {
   .pro-book, .pro-course-link, .pro-banner { display: none !important; }
 }
+
+/* Casillas de desarrollo (pestaña Prueba) */
+.pro-dev-card > summary { flex-wrap: wrap; }
+.pro-dev-card > summary .muted { margin-left: auto; }
+.pro-dev-table { width: auto; }
+.pro-dev-table td { vertical-align: middle; }
+.pro-dev-table input.dev-label { width: 6em; }
+.pro-dev-table select { width: auto; }
+@media (max-width: 560px) {
+  .pro-dev-table th:nth-child(3), .pro-dev-table td:nth-child(3) { display: none; }
+}
+
+/* Ticket de salida y escaneo */
+.pro-ticket-line { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 4px 0 0; }
+.pro-scan-hint { margin: 6px auto 0; max-width: 640px; padding: 8px 12px; border-radius: 8px; background: var(--pro-soft); color: #6b4a10; }
+
+/* Hojas con nombre */
+.pn-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 2px 12px; max-height: 260px; overflow: auto; margin-top: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; }
+.pn-pick label.check { font-weight: 400; font-size: 0.9rem; }
+.pro-flash { animation: proFlash 1.8s ease-out; }
+@keyframes proFlash { 0%, 40% { box-shadow: 0 0 0 4px #f0c36d; } 100% { box-shadow: var(--shadow); } }
+
+/* Para reforzar */
+#proReinforce > summary { flex-wrap: wrap; }
+.pro-reinforce-oa { padding: 10px 0; border-top: 1px solid var(--border); }
+.pro-reinforce-oa:first-child { border-top: 0; padding-top: 0; }
+.pro-reinforce-oa h3 { font-size: 1rem; margin-bottom: 6px; }
+.pro-reinforce-oa p { margin: 4px 0; line-height: 1.9; }
+.pro-chip { display: inline-block; margin: 0 4px 0 0; padding: 1px 9px; border-radius: 999px; font-size: 0.82rem; line-height: 1.6; }
+.pro-chip.nl { background: #f9d6d6; }
+.pro-chip.ml { background: #fff1c2; }
+.pro-ml { color: #8a6100; }
+
+@media print {
+  .print-reparto { padding: 15mm; font: 11pt Arial, sans-serif; color: #000; }
+  .print-reparto h2 { font-size: 15pt; margin: 0 0 2mm; }
+  .print-reparto table { width: 100%; border-collapse: collapse; margin-top: 4mm; }
+  .print-reparto th, .print-reparto td { border: 0.3mm solid #999; padding: 1.5mm 3mm; text-align: left; }
+}
