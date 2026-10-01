@@ -189,6 +189,7 @@ label.range output { min-width: 3.2em; font-variant-numeric: tabular-nums; }
 
 .alert { padding: 10px 12px; border-radius: 8px; background: var(--primary-soft); margin: 12px 0 0; }
 .alert.error { background: var(--bad-soft); color: var(--bad); }
+.alert .layout-fix { margin: 6px 0 0 4px; }
 .alert.ok { background: var(--ok-soft); color: var(--ok); }
 .alert.warn { background: var(--warn-soft); color: var(--warn); }
 

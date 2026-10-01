@@ -373,11 +373,42 @@
 
   function updateLayoutError() {
     getLayout();
+    // Si no cabe en un formato de varias hojas por página (o en el ticket de
+    // salida) pero sí en una hoja completa, se ofrece cambiar con un botón.
+    let fitsFull = false;
+    if (layoutError && state.exam.format !== 'full') {
+      try {
+        computeLayout(Object.assign({}, state.exam, { format: 'full', fields: state.exam.sheetFields }));
+        fitsFull = true;
+      } catch (e) {
+        fitsFull = false;
+      }
+    }
+    const sig = layoutError + (fitsFull ? '|' + state.exam.format : '');
     for (const id of ['#layoutError', '#formatError']) {
       const el = $(id);
-      el.textContent = layoutError;
       el.hidden = !layoutError;
+      // Sin cambios no se redibuja: así el botón no desaparece justo al tocarlo.
+      if (el.dataset.sig === sig) continue;
+      el.dataset.sig = sig;
+      el.textContent = layoutError;
+      if (fitsFull) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn secondary small layout-fix';
+        b.textContent = state.exam.format === 'ticket' ? 'Volver a una prueba normal (1 hoja por página)' : 'Usar 1 hoja por página';
+        b.addEventListener('click', () => useFormat('full'));
+        el.append(' ', b);
+      }
     }
+  }
+
+  /** Cambia las hojas por página (como el selector de la pestaña Hoja). */
+  function useFormat(id) {
+    $('#exFormat').value = id;
+    if ($('#exFormat').value !== id) return;
+    onStructureInput();
+    toast(id === 'full' ? 'Listo: 1 hoja de respuestas por página.' : 'Formato cambiado.');
   }
 
   /* ------------------------------------------------------------------ */
@@ -559,6 +590,7 @@
 
   function applyStructure(next) {
     const cur = state.exam;
+    const wasTicket = cur.format === 'ticket';
     if (!sameStructure(next, cur) && state.results.length) {
       const ok = confirm(
         `Cambiar el número de preguntas, alternativas, dígitos, el papel o las hojas por página hace incompatibles los ${state.results.length} resultados guardados, que serán eliminados. ¿Continuar?`
@@ -570,6 +602,9 @@
       emit('resultsCleared');
     }
     Object.assign(cur, normalizeConfig(next));
+    // El ticket de salida quita Curso, Fecha y RUT de la hoja: al volver a una
+    // prueba normal se recuperan.
+    if (wasTicket && cur.format !== 'ticket') cur.sheetFields = { curso: true, fecha: true, rut: true };
     cur.key = fitKey(cur.key, cur.numQuestions, cur.numChoices);
     cur.forms = sanitizeForms(cur.forms, cur.numQuestions, cur.numChoices);
     if (PRO) cur.pie = sanitizePie(cur.pie, cur.numQuestions, cur.numChoices);
@@ -4132,6 +4167,7 @@
       refreshStructure,
       docDevCandidates,
       getLayout,
+      useFormat,
       layoutForForm,
       pieLayout,
       pieReady,

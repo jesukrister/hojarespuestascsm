@@ -191,6 +191,8 @@ input[type="date"] {
 }
 
 /* Ticket de salida y escaneo */
+.pro-ticket-active { flex-basis: 100%; margin: 8px 0 0; }
+.pro-ticket-active .btn { margin-left: 4px; }
 .pro-ticket-line { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 4px 0 0; }
 .pro-scan-hint { margin: 6px auto 0; max-width: 640px; padding: 8px 12px; border-radius: 8px; background: var(--pro-soft); color: #6b4a10; }
 

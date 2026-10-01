@@ -127,6 +127,15 @@
   });
   $('#ptCreate').addEventListener('click', createTicket);
 
+  // Aviso mientras la prueba actual es un ticket, con el botón para volver a
+  // una prueba normal (1 hoja por página).
+  function renderTicketNotice() {
+    $('#proTicketActive').hidden = state.exam.format !== 'ticket';
+  }
+  $('#proTicketExit').addEventListener('click', () => app.useFormat('full'));
+  app.on('save', renderTicketNotice);
+  renderTicketNotice();
+
   /* ---------- Para reforzar (por objetivo de aprendizaje) ---------- */
 
   let reinforceText = '';
