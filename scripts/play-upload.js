@@ -7,7 +7,10 @@
  *   node scripts/play-upload.js paquete=archivo.aab[,novedades.txt] ...
  *
  * Variables de entorno:
- *   PLAY_SERVICE_ACCOUNT_JSON  clave JSON de la cuenta de servicio con acceso a
+ *   PLAY_ACCESS_TOKEN          token de acceso de la cuenta de servicio, obtenido en
+ *                              GitHub sin claves (Workload Identity Federation);
+ *   PLAY_SERVICE_ACCOUNT       su correo (sólo para los mensajes)
+ *   PLAY_SERVICE_ACCOUNT_JSON  o bien: clave JSON de la cuenta de servicio con acceso a
  *                              las apps en Play Console (si falta, no se publica)
  *   PLAY_TRACK                 segmento: vacío o "cerrada" = la prueba cerrada en uso
  *                              (la que ya tenga versiones; si no, "alpha");
@@ -178,23 +181,33 @@ async function main(argv = process.argv.slice(2), env = process.env, log = conso
     out('::notice::PLAY_TRACK = ninguno: no se publica en Google Play.');
     return done(0);
   }
-  if (!String(env.PLAY_SERVICE_ACCOUNT_JSON || '').trim()) {
-    out('::notice::Falta el secreto PLAY_SERVICE_ACCOUNT_JSON: no se publica en Google Play (ver docs/google-play.md, sección 9).');
+  // Credenciales: un token de acceso ya obtenido por GitHub con Workload
+  // Identity Federation (sin claves; PLAY_ACCESS_TOKEN) o una clave JSON.
+  const accessToken = String(env.PLAY_ACCESS_TOKEN || '').trim();
+  const keyText = String(env.PLAY_SERVICE_ACCOUNT_JSON || '').trim();
+  if (!accessToken && !keyText) {
+    out('::notice::Google Play no está configurado (falta la variable PLAY_WIF_PROVIDER o el secreto PLAY_SERVICE_ACCOUNT_JSON): no se publica en Google Play (ver docs/google-play.md, sección 9).');
     return done(0);
   }
-  let key;
-  try {
-    key = JSON.parse(env.PLAY_SERVICE_ACCOUNT_JSON);
-  } catch (e) {
-    out('::error::PLAY_SERVICE_ACCOUNT_JSON no es un JSON válido: pega el contenido completo del archivo .json de la cuenta de servicio.');
-    return done(1);
-  }
+  let account = String(env.PLAY_SERVICE_ACCOUNT || '').trim();
   let api;
-  try {
-    api = client(await getToken(key), env.PLAY_API_ROOT || DEFAULT_ROOT);
-  } catch (e) {
-    out(`::error::${e.message}`);
-    return done(1);
+  if (accessToken) {
+    api = client(accessToken, env.PLAY_API_ROOT || DEFAULT_ROOT);
+  } else {
+    let key;
+    try {
+      key = JSON.parse(keyText);
+    } catch (e) {
+      out('::error::PLAY_SERVICE_ACCOUNT_JSON no es un JSON válido: pega el contenido completo del archivo .json de la cuenta de servicio.');
+      return done(1);
+    }
+    if (key && key.client_email) account = key.client_email;
+    try {
+      api = client(await getToken(key), env.PLAY_API_ROOT || DEFAULT_ROOT);
+    } catch (e) {
+      out(`::error::${e.message}`);
+      return done(1);
+    }
   }
   let failed = 0;
   for (const app of parseArgs(argv)) {
@@ -216,12 +229,12 @@ async function main(argv = process.argv.slice(2), env = process.env, log = conso
       else out(`::notice::${what}, enviada a revisión de Google.`);
     } catch (e) {
       if (isNotFound(e)) {
-        out(`::warning::${app.pkg}: Play Console no encontró la app. Créala y sube el primer .aab a mano, y da acceso a la cuenta de servicio (${key.client_email}).`);
+        out(`::warning::${app.pkg}: Play Console no encontró la app. Créala y sube el primer .aab a mano, y da acceso a la cuenta de servicio${account ? ` (${account})` : ''}.`);
         continue;
       }
       const hint =
         e.status === 401 || e.status === 403
-          ? ` La cuenta de servicio ${key.client_email} no tiene permiso: en Play Console → Usuarios y permisos, invítala y dale «Lanzar a segmentos de prueba» (y «Lanzar a producción» si publicas ahí).`
+          ? ` La cuenta de servicio${account ? ` ${account}` : ''} no tiene permiso: en Play Console → Usuarios y permisos, invítala y dale «Lanzar a segmentos de prueba» (y «Lanzar a producción» si publicas ahí).`
           : '';
       out(`::error::${app.pkg}: ${e.message}${hint}`);
       failed++;

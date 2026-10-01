@@ -477,9 +477,11 @@ pero no se publica. Cada versión publicada queda en **Releases → `app-android
 Play, una ficha por app). La guía para publicar en Google Play, con los textos de la ficha,
 está en [`docs/google-play.md`](docs/google-play.md).
 
-**Publicación automática en Google Play:** si el repositorio tiene el secreto
-`PLAY_SERVICE_ACCOUNT_JSON` (clave de una cuenta de servicio con permiso en
-Play Console), cada compilación sube los dos `.aab` a la prueba cerrada en uso
+**Publicación automática en Google Play:** si el repositorio tiene las
+variables `PLAY_WIF_PROVIDER` y `PLAY_SERVICE_ACCOUNT` (GitHub se identifica
+ante Google con Workload Identity Federation, sin claves guardadas) o el
+secreto `PLAY_SERVICE_ACCOUNT_JSON`, de una cuenta de servicio con permiso en
+Play Console, cada compilación sube los dos `.aab` a la prueba cerrada en uso
 con `scripts/play-upload.js` (API oficial de publicación de Google Play, sin
 dependencias), con las novedades de `docs/play/novedades.txt` y
 `docs/play/pro/novedades.txt`. La variable `PLAY_TRACK` elige otro segmento

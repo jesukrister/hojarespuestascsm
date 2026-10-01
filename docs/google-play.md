@@ -184,17 +184,48 @@ entrar con tu cuenta de Google.
 
 1. Entra a <https://console.cloud.google.com> con la misma cuenta de Play
    Console y crea un proyecto (arriba, *Seleccionar proyecto → Proyecto
-   nuevo*), por ejemplo **lector-hojas-play**.
-2. *APIs y servicios → Biblioteca* → busca **Google Play Android Developer
-   API** → **Habilitar**.
-3. *IAM y administración → Cuentas de servicio → Crear cuenta de servicio*:
-   nombre **publicador-github** → *Crear y continuar* → no le des ningún rol →
-   *Listo*.
-4. Abre la cuenta creada → pestaña *Claves* → *Agregar clave → Crear clave
-   nueva* → **JSON** → *Crear*. Se descarga un archivo `.json`: es una
-   contraseña, **no lo subas al repositorio ni lo compartas**.
-5. Copia el correo de la cuenta de servicio (termina en
+   nuevo*), por ejemplo **hoja-d-respuesta-cl**.
+2. *IAM y administración → Cuentas de servicio → Crear cuenta de servicio*:
+   un nombre cualquiera → *Crear y continuar* → **no le des ningún rol** →
+   *Continuar* → *Listo*.
+3. Copia el correo de la cuenta de servicio (termina en
    `.iam.gserviceaccount.com`).
+
+**No hace falta crear una clave JSON** (y muchas cuentas de Google la tienen
+bloqueada con la política `iam.disableServiceAccountKeyCreation`): GitHub se
+identifica ante Google con *Workload Identity Federation*, sin contraseñas
+guardadas.
+
+### 9.1 b Permitir que GitHub use la cuenta (Cloud Shell)
+
+1. En la consola de Google Cloud, arriba a la derecha, abre **Cloud Shell**
+   (el ícono `>_`) y espera a que aparezca la terminal.
+2. Pega este bloque completo (cambia las dos primeras líneas si tu proyecto o
+   tu cuenta de servicio tienen otro nombre) y presiona Enter. Si pregunta
+   *Authorize*, acepta.
+
+```bash
+PROYECTO=hoja-d-respuesta-cl
+CUENTA=francescodvdo@hoja-d-respuesta-cl.iam.gserviceaccount.com
+REPO=jesukrister/hojarespuestascsm
+gcloud config set project "$PROYECTO"
+gcloud services enable androidpublisher.googleapis.com iamcredentials.googleapis.com sts.googleapis.com iam.googleapis.com
+gcloud iam workload-identity-pools create github --location=global --display-name="GitHub"
+gcloud iam workload-identity-pools providers create-oidc github --location=global \
+  --workload-identity-pool=github --display-name="GitHub" \
+  --issuer-uri="https://token.actions.githubusercontent.com" \
+  --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository" \
+  --attribute-condition="assertion.repository=='$REPO'"
+NUMERO=$(gcloud projects describe "$PROYECTO" --format='value(projectNumber)')
+gcloud iam service-accounts add-iam-policy-binding "$CUENTA" --role=roles/iam.workloadIdentityUser \
+  --member="principalSet://iam.googleapis.com/projects/$NUMERO/locations/global/workloadIdentityPools/github/attribute.repository/$REPO"
+echo; echo "PLAY_WIF_PROVIDER:    projects/$NUMERO/locations/global/workloadIdentityPools/github/providers/github"
+echo "PLAY_SERVICE_ACCOUNT: $CUENTA"
+```
+
+3. Al final aparecen dos líneas, `PLAY_WIF_PROVIDER` y
+   `PLAY_SERVICE_ACCOUNT`: cópialas para el paso 9.3. Sólo este repositorio
+   puede usar la cuenta de servicio.
 
 ### 9.2 Darle permiso en Play Console
 
@@ -212,14 +243,20 @@ entrar con tu cuenta de Google.
 4. *Invitar usuario*. La cuenta de servicio no necesita aceptar la invitación.
    El permiso puede tardar unas horas (a veces hasta un día) en funcionar.
 
-### 9.3 Guardar la clave en GitHub
+### 9.3 Decirle a GitHub qué cuenta usar
 
-1. En el repositorio: *Settings → Secrets and variables → Actions → New
-   repository secret*.
-2. Nombre: **`PLAY_SERVICE_ACCOUNT_JSON`**. Valor: abre el archivo `.json` con
-   el Bloc de notas, copia **todo** su contenido y pégalo.
-3. *Add secret*. Después borra el archivo `.json` de tu computador (si se
-   pierde o se filtra, en Google Cloud se borra esa clave y se crea otra).
+En el repositorio: *Settings → Secrets and variables → Actions → pestaña
+**Variables** → New repository variable*, y crea dos variables (no son
+secretos: no sirven de nada fuera de este repositorio):
+
+- **`PLAY_WIF_PROVIDER`**: el valor que mostró Cloud Shell, por ejemplo
+  `projects/123456789012/locations/global/workloadIdentityPools/github/providers/github`.
+- **`PLAY_SERVICE_ACCOUNT`**: el correo de la cuenta de servicio.
+
+*Alternativa con clave:* si tu cuenta sí permite crear claves JSON, puedes
+crear una (pestaña *Claves* de la cuenta de servicio) y guardarla como
+secreto **`PLAY_SERVICE_ACCOUNT_JSON`** en lugar de las dos variables. Es
+menos seguro: si el archivo se filtra, cualquiera puede publicar.
 
 ### 9.4 Probar
 
@@ -236,7 +273,7 @@ entrar con tu cuenta de Google.
 | La app nunca se ha publicado (por ejemplo la Pro recién creada) | Google sólo acepta borradores: queda como **borrador** en la prueba cerrada y la primera vez la lanzas a mano (*Revisar versión → Lanzar*). |
 | La app todavía no tiene ningún `.aab` en Play Console | Aviso «Play Console no encontró la app»: sube el primer `.aab` a mano; desde la siguiente versión se publica sola. |
 | Google pide no enviar a revisión automáticamente | La versión queda lista y el aviso dice que entres a *Resumen de publicación → Enviar cambios a revisión*. |
-| Falta el secreto | Compila y publica en *Releases* como siempre, pero no sube nada a Play. |
+| Faltan las variables (o el secreto) | Compila y publica en *Releases* como siempre, pero no sube nada a Play. |
 
 ### Cambiar a qué prueba se publica
 

@@ -1,6 +1,6 @@
 # Compila las apps Android (normal y Pro), las publica en "Releases" del
-# repositorio y las sube a Google Play Console (si está el secreto
-# PLAY_SERVICE_ACCOUNT_JSON; ver docs/google-play.md, sección 9).
+# repositorio y las sube a Google Play Console (si están las variables
+# PLAY_WIF_PROVIDER y PLAY_SERVICE_ACCOUNT; ver docs/google-play.md, sección 9).
 name: App Android (APK)
 
 on:
@@ -29,6 +29,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write # para identificarse ante Google sin claves (publicación en Google Play)
 
 concurrency:
   group: android-${{ github.ref }}
@@ -142,9 +143,26 @@ jobs:
       # repositorio PLAY_TRACK (internal, alpha, beta, production o ninguno).
       # Las novedades que ven los testers están en docs/play/novedades.txt y
       # docs/play/pro/novedades.txt.
+      # GitHub se identifica ante Google con Workload Identity Federation (sin
+      # claves guardadas) y recibe un token de la cuenta de servicio, válido
+      # sólo para publicar en Google Play y por una hora.
+      - name: Identificarse ante Google
+        id: google
+        if: steps.llave.outputs.firmado == 'true' && vars.PLAY_WIF_PROVIDER != ''
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.PLAY_WIF_PROVIDER }}
+          service_account: ${{ vars.PLAY_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/androidpublisher
+          create_credentials_file: false
+          export_environment_variables: false
+
       - name: Publicar en Google Play
         if: steps.llave.outputs.firmado == 'true'
         env:
+          PLAY_ACCESS_TOKEN: ${{ steps.google.outputs.access_token }}
+          PLAY_SERVICE_ACCOUNT: ${{ vars.PLAY_SERVICE_ACCOUNT }}
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           PLAY_TRACK: ${{ github.event.inputs.segmento || vars.PLAY_TRACK }}
           PLAY_RELEASE_NAME: 1.0.${{ github.run_number }}

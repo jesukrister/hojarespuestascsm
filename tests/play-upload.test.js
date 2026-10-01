@@ -160,7 +160,7 @@ test('play: sube, elige la pista y maneja borradores, revisión y apps que falta
 test('play: sin secreto o con "ninguno" no publica; errores claros', async () => {
   const logs = [];
   assert.equal(await P.main(['a=b.aab'], {}, (l) => logs.push(l)), 0);
-  assert.match(logs.pop(), /Falta el secreto PLAY_SERVICE_ACCOUNT_JSON/);
+  assert.match(logs.pop(), /Google Play no está configurado/);
   assert.equal(await P.main(['a=b.aab'], { PLAY_TRACK: 'ninguno', PLAY_SERVICE_ACCOUNT_JSON: '{}' }, (l) => logs.push(l)), 0);
   assert.match(logs.pop(), /no se publica/);
   assert.equal(await P.main(['a=b.aab'], { PLAY_SERVICE_ACCOUNT_JSON: 'no es json' }, (l) => logs.push(l)), 1);
@@ -185,3 +185,24 @@ test('play: sin secreto o con "ninguno" no publica; errores claros', async () =>
     server.close();
   }
 });
+
+test('play: sin claves, con el token que entrega GitHub (Workload Identity Federation)', async () => {
+  const apps = { 'cl.wif': { tracks: [{ track: 'alpha', releases: [{ versionCodes: ['9'] }] }] } };
+  const { server, calls, root } = await mockPlay(apps);
+  try {
+    const aab = tmp('app.aab', Buffer.alloc(100, 1));
+    const logs = [];
+    const env = { PLAY_ACCESS_TOKEN: 'tok', PLAY_SERVICE_ACCOUNT: 'pub@p.iam.gserviceaccount.com', PLAY_API_ROOT: root, PLAY_RELEASE_NAME: '1.0.11' };
+    assert.equal(await P.main([`cl.wif=${aab}`, `cl.otra=${aab}`], env, (l) => logs.push(l)), 0, logs.join('\n'));
+    assert.ok(!calls.some((c) => c.token), 'no pide token: usa el de GitHub');
+    assert.equal(apps['cl.wif'].committed.track, 'alpha');
+    assert.match(logs.join('\n'), /cl\.otra: .*\(pub@p\.iam\.gserviceaccount\.com\)/);
+    // Token inválido: error claro con la cuenta.
+    const bad = Object.assign({}, env, { PLAY_ACCESS_TOKEN: 'otro' });
+    assert.equal(await P.main([`cl.wif=${aab}`], bad, (l) => logs.push(l)), 1);
+    assert.match(logs.pop(), /La cuenta de servicio pub@p\.iam\.gserviceaccount\.com no tiene permiso/);
+  } finally {
+    server.close();
+  }
+});
+
