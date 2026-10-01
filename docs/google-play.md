@@ -125,7 +125,9 @@ Prueba → Exportar configuración), desinstalen el APK e instalen desde Play.
 ### Actualizaciones
 
 Cada cambio que se sube al repositorio genera un `.aab` nuevo con número de
-versión mayor. Súbelo en *Producción → Crear versión*.
+versión mayor. Con la **publicación automática** (sección 9) llega solo a
+Play Console; si no la configuras, súbelo a mano en *Crear versión* de la
+prueba que corresponda.
 
 ## 7. Donaciones
 
@@ -151,7 +153,8 @@ la normal, con estas diferencias:
   > ver promedios por semestre y el promedio final, con aviso de notas
   > limítrofes. Copia las notas en orden de lista para pegarlas en el libro
   > digital del colegio, descarga el libro en Excel y crea un respaldo completo
-  > para pasar tu trabajo a otro equipo. Además: casillas de puntaje para
+  > para pasar tu trabajo a otro equipo (guárdalo en Google Drive con un toque;
+  > la app te recuerda respaldar y guarda copias automáticas). Además: casillas de puntaje para
   > preguntas de desarrollo, tickets de salida (8 por página), hojas con el
   > nombre de cada estudiante y lectura del PDF de la fotocopiadora o de
   > varias hojas en una misma foto. Escaneo continuo: deja la cámara abierta y
@@ -164,3 +167,94 @@ la normal, con estas diferencias:
   notas, nombres y respaldos quedan en el teléfono).
 - Si tu cuenta es personal y nueva, esta app también necesita su propia prueba
   cerrada (12 testers durante 14 días).
+
+## 9. Publicación automática desde GitHub
+
+Con esto, **cada cambio que se sube al repositorio llega solo a Play
+Console**: GitHub compila las dos apps y sube cada `.aab` a la **prueba
+cerrada que estés usando** (la que ya tiene versiones), con el nombre de la
+versión (por ejemplo `1.0.15`) y las novedades de `docs/play/novedades.txt`
+(app normal) y `docs/play/pro/novedades.txt` (Pro). Google la revisa y les
+llega a los testers como actualización.
+
+Se configura **una sola vez** y sólo lo puedes hacer tú, porque se necesita
+entrar con tu cuenta de Google.
+
+### 9.1 Crear la cuenta de servicio (Google Cloud)
+
+1. Entra a <https://console.cloud.google.com> con la misma cuenta de Play
+   Console y crea un proyecto (arriba, *Seleccionar proyecto → Proyecto
+   nuevo*), por ejemplo **lector-hojas-play**.
+2. *APIs y servicios → Biblioteca* → busca **Google Play Android Developer
+   API** → **Habilitar**.
+3. *IAM y administración → Cuentas de servicio → Crear cuenta de servicio*:
+   nombre **publicador-github** → *Crear y continuar* → no le des ningún rol →
+   *Listo*.
+4. Abre la cuenta creada → pestaña *Claves* → *Agregar clave → Crear clave
+   nueva* → **JSON** → *Crear*. Se descarga un archivo `.json`: es una
+   contraseña, **no lo subas al repositorio ni lo compartas**.
+5. Copia el correo de la cuenta de servicio (termina en
+   `.iam.gserviceaccount.com`).
+
+### 9.2 Darle permiso en Play Console
+
+1. En Play Console, en el menú de la izquierda de la **cuenta** (no de una
+   app): *Usuarios y permisos → Invitar usuarios nuevos*.
+2. Pega el correo de la cuenta de servicio.
+3. En *Permisos de la app* → *Agregar app* → elige **Lector de Hojas** y
+   **Lector de Hojas Pro**, y marca:
+   - **Ver información de la app** (sólo lectura) — en inglés *View app
+     information*;
+   - **Lanzar en segmentos de prueba** — *Release to testing tracks*;
+   - (sólo si algún día quieres publicar en producción desde GitHub) **Lanzar
+     a producción** — *Release to production, exclude devices, and use Play
+     App Signing*.
+4. *Invitar usuario*. La cuenta de servicio no necesita aceptar la invitación.
+   El permiso puede tardar unas horas (a veces hasta un día) en funcionar.
+
+### 9.3 Guardar la clave en GitHub
+
+1. En el repositorio: *Settings → Secrets and variables → Actions → New
+   repository secret*.
+2. Nombre: **`PLAY_SERVICE_ACCOUNT_JSON`**. Valor: abre el archivo `.json` con
+   el Bloc de notas, copia **todo** su contenido y pégalo.
+3. *Add secret*. Después borra el archivo `.json` de tu computador (si se
+   pierde o se filtra, en Google Cloud se borra esa clave y se crea otra).
+
+### 9.4 Probar
+
+- En *Actions → App Android (APK) → Run workflow* (deja *Segmento* vacío) →
+  *Run workflow*. Al terminar, el resumen de la ejecución muestra el
+  recuadro **Google Play** con lo que se publicó en cada app.
+- Desde ahí, cada cambio que se sube al repositorio se publica solo.
+
+### Qué hace en cada caso
+
+| Situación | Qué pasa |
+| --- | --- |
+| Todo configurado | Sube la versión a la prueba cerrada en uso y la envía a revisión de Google. |
+| La app nunca se ha publicado (por ejemplo la Pro recién creada) | Google sólo acepta borradores: queda como **borrador** en la prueba cerrada y la primera vez la lanzas a mano (*Revisar versión → Lanzar*). |
+| La app todavía no tiene ningún `.aab` en Play Console | Aviso «Play Console no encontró la app»: sube el primer `.aab` a mano; desde la siguiente versión se publica sola. |
+| Google pide no enviar a revisión automáticamente | La versión queda lista y el aviso dice que entres a *Resumen de publicación → Enviar cambios a revisión*. |
+| Falta el secreto | Compila y publica en *Releases* como siempre, pero no sube nada a Play. |
+
+### Cambiar a qué prueba se publica
+
+Por omisión se usa la prueba cerrada que ya tiene versiones (o *Alpha* si
+ninguna tiene). Para cambiarlo, en *Settings → Secrets and variables →
+Actions → Variables → New repository variable* crea **`PLAY_TRACK`** con uno
+de estos valores:
+
+- `internal`: prueba interna;
+- `alpha`: prueba cerrada *Alpha*, o el nombre exacto de otra pista cerrada;
+- `beta`: prueba abierta;
+- `production`: producción (necesita el permiso de producción del paso 9.2);
+- `ninguno`: no publicar en Play.
+
+Al ejecutar el flujo a mano (*Run workflow*) también se puede elegir el
+segmento sólo para esa vez.
+
+**Novedades:** antes de subir un cambio importante, actualiza
+`docs/play/novedades.txt` y `docs/play/pro/novedades.txt` (máximo 500
+caracteres cada uno): es lo que ven los testers en Play Store.
+

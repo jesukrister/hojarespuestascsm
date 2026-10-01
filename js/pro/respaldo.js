@@ -1,11 +1,13 @@
 /*
- * Versión Pro · Respaldo completo (crear y restaurar) y traer la prueba desde
- * la versión normal (en el navegador, la primera vez).
+ * Versión Pro · Respaldo completo (crear, guardar en Google Drive y restaurar)
+ * y traer la prueba desde la versión normal (en el navegador, la primera vez).
+ * Las copias automáticas, el recordatorio y el respaldo automático están en copias.js.
  */
 (function () {
   'use strict';
   const Pro = window.LectorPro;
   const R = window.RespaldoCore;
+  const C = window.CopiasCore;
   if (!Pro || !R) return;
   const { app, L, $ } = Pro;
   const esc = app.esc;
@@ -41,9 +43,10 @@
       el.className = 'muted small';
     } else {
       const days = Math.floor((Date.now() - last) / 86400000);
-      const changed = (Pro.book.updatedAt || 0) > last;
+      const known = C && Pro.settings.lastBackupHash;
+      const changed = known ? C.hash(C.serialize(state, Pro.book)) !== Pro.settings.lastBackupHash : (Pro.book.updatedAt || 0) > last;
       el.textContent = `Último respaldo: ${app.fmtDateTime(last)}${days >= 1 ? ` (hace ${days} día${days === 1 ? '' : 's'})` : ''}.${
-        changed ? ' Hay cambios en el libro de notas después de ese respaldo.' : ''
+        changed ? (known ? ' Hay cambios después de ese respaldo.' : ' Hay cambios en el libro de notas después de ese respaldo.') : known ? ' Está al día.' : ''
       }`;
       el.className = changed && days >= 7 ? 'alert warn' : 'muted small';
     }
@@ -54,47 +57,114 @@
 
   /* ---------- Crear ---------- */
 
-  async function createBackup() {
-    const btn = $('#proBackupCreate');
-    btn.disabled = true;
-    try {
-      progress('Preparando el respaldo…');
-      await Pro.ready;
-      const images = [];
-      for (const r of state.results) {
+  const p2 = (n) => String(n).padStart(2, '0');
+  const backupName = (d) => `respaldo-lector-hojas-pro_${L.todayIso(d)}_${p2(d.getHours())}${p2(d.getMinutes())}.zip`;
+
+  /**
+   * Arma el archivo de respaldo (bytes del .zip) con los datos de este momento.
+   * withImages: incluye las imágenes de las hojas (el respaldo automático en
+   * Descargas va sin ellas para ser liviano).
+   */
+  async function buildBackupBytes({ withImages = true, onProgress } = {}) {
+    await Pro.ready;
+    const hash = C ? C.hash(C.serialize(state, Pro.book)) : '';
+    const snapshot = JSON.parse(JSON.stringify({ exam: state.exam, results: state.results }));
+    const book = JSON.parse(JSON.stringify(Pro.book));
+    const images = [];
+    if (withImages) {
+      for (const r of snapshot.results) {
         const rec = await app.imageStore.get(r.id);
         if (!rec || !rec.sheet) continue;
         images.push({ id: r.id, sheet: await toBytes(rec.sheet), photo: rec.photo ? await toBytes(rec.photo) : null, scale: rec.scale, overlay: rec.overlay });
-        progress(`Preparando el respaldo… (${images.length} de ${state.results.length} hojas)`);
+        if (onProgress) onProgress(`Preparando el respaldo… (${images.length} de ${snapshot.results.length} hojas)`);
       }
-      const assets = {};
-      for (const el of state.exam.doc.elements) {
-        if (el.type !== 'image') continue;
-        const v = await app.assetStore.get(el.id);
-        if (typeof v === 'string') assets[el.id] = v;
-      }
-      const now = new Date();
-      const bytes = R.buildBackup({
-        state: JSON.parse(JSON.stringify({ exam: state.exam, results: state.results })),
-        images,
-        assets,
-        book: Pro.book,
-        edition: 'pro',
-        date: now,
-      });
-      const p2 = (n) => String(n).padStart(2, '0');
-      const name = `respaldo-lector-hojas-pro_${L.todayIso(now)}_${p2(now.getHours())}${p2(now.getMinutes())}.zip`;
-      app.download(name, new Blob([bytes], { type: 'application/zip' }));
-      Pro.settings.lastBackupAt = now.getTime();
-      await Pro.saveSettings();
-      renderBackupInfo();
-      const mb = bytes.length / 1048576;
-      app.toast(`Respaldo creado (${mb < 1 ? '< 1' : mb.toFixed(1)} MB). Guárdalo en un lugar seguro.`);
+    }
+    const assets = {};
+    for (const el of snapshot.exam.doc.elements) {
+      if (el.type !== 'image') continue;
+      const v = await app.assetStore.get(el.id);
+      if (typeof v === 'string') assets[el.id] = v;
+    }
+    const date = new Date();
+    const bytes = R.buildBackup({ state: snapshot, images, assets, book, edition: 'pro', date });
+    return { bytes, date, hash };
+  }
+
+  /** Anota un respaldo hecho fuera de la memoria de la app (archivo, Drive, carpeta). */
+  async function markBackedUp(date, hash) {
+    Pro.settings.lastBackupAt = date.getTime();
+    Pro.settings.lastBackupHash = hash;
+    Pro.settings.snoozeUntil = 0;
+    await Pro.saveSettings();
+    renderBackupInfo();
+    if (Pro.backupChanged) Pro.backupChanged();
+  }
+
+  const sizeText = (bytes) => {
+    const mb = bytes.length / 1048576;
+    return `${mb < 1 ? '< 1' : mb.toFixed(1)} MB`;
+  };
+
+  function setBusy(on) {
+    for (const b of document.querySelectorAll('#proBackupCreate, [data-pro-backup-create], [data-pro-backup-drive]')) b.disabled = on;
+  }
+
+  async function createBackup() {
+    setBusy(true);
+    try {
+      progress('Preparando el respaldo…');
+      const { bytes, date, hash } = await buildBackupBytes({ onProgress: progress });
+      app.download(backupName(date), new Blob([bytes], { type: 'application/zip' }));
+      await markBackedUp(date, hash);
+      app.toast(`Respaldo creado (${sizeText(bytes)}). Guárdalo en un lugar seguro.`);
     } catch (e) {
       console.error(e);
       app.toast('No se pudo crear el respaldo: ' + e.message);
     } finally {
-      btn.disabled = false;
+      setBusy(false);
+      progress('');
+    }
+  }
+
+  /**
+   * Guardar en Google Drive: en el celular abre el menú Compartir (ahí aparece
+   * «Drive»); en el computador, el menú Compartir del sistema si existe o, si
+   * no, se descarga el archivo para subirlo a drive.google.com.
+   */
+  async function saveToDrive() {
+    setBusy(true);
+    try {
+      progress('Preparando el respaldo…');
+      const { bytes, date, hash } = await buildBackupBytes({ onProgress: progress });
+      const name = backupName(date);
+      const blob = new Blob([bytes], { type: 'application/zip' });
+      progress('');
+      if (window.NativeApp && window.NativeApp.share) {
+        if (await window.NativeApp.share(name, blob)) {
+          await markBackedUp(date, hash);
+          app.toast('En el menú, elige «Drive» (Guardar en Drive) y luego Guardar.');
+        }
+        return;
+      }
+      const file = typeof File === 'function' ? new File([blob], name, { type: 'application/zip' }) : null;
+      if (file && navigator.canShare && navigator.share && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: name });
+          await markBackedUp(date, hash);
+          return;
+        } catch (e) {
+          if (e && e.name === 'AbortError') return; // se cerró el menú sin compartir
+          console.error(e);
+        }
+      }
+      app.download(name, blob);
+      await markBackedUp(date, hash);
+      app.toast(`Respaldo descargado (${sizeText(bytes)}): súbelo a drive.google.com o arrástralo a tu carpeta de Google Drive.`);
+    } catch (e) {
+      console.error(e);
+      app.toast('No se pudo crear el respaldo: ' + e.message);
+    } finally {
+      setBusy(false);
       progress('');
     }
   }
@@ -117,31 +187,48 @@
       return;
     }
     progress('');
+    await restoreData(data, { title: 'Restaurar respaldo', safety: 'restaurar' });
+  }
+
+  /**
+   * Trae al equipo lo que el usuario elija de un respaldo (o de una copia
+   * automática: fromCopy, sin imágenes). Antes guarda una copia automática
+   * del estado actual, por si hay que volver atrás.
+   */
+  async function restoreData(data, { title, safety }) {
     await Pro.ready;
+    const fromCopy = !!data.fromCopy;
     const book = data.book ? L.sanitizeBook(data.book) : null;
     const nEvals = book ? book.courses.reduce((s, c) => s + c.evaluations.length, 0) : 0;
     const exam = data.state ? data.state.exam : null;
     const nResults = data.state ? data.state.results.length : 0;
     const created = data.created ? app.fmtDateTime(Date.parse(data.created)) : 'fecha desconocida';
-    let html = `<p>Respaldo creado el <b>${esc(created)}</b>. Elige qué traer a este equipo:</p>`;
+    let html = `<p>${fromCopy ? 'Copia automática' : 'Respaldo creado'} el <b>${esc(created)}</b>. Elige qué traer${fromCopy ? '' : ' a este equipo'}:</p>`;
     if (book && book.courses.length) {
       html += `<label class="choice"><input type="checkbox" id="rsBook" checked><span><b>Cursos y libro de notas</b>: ${book.courses.length} curso(s), ${nEvals} evaluación(es).</span></label>
         <div class="sub">
-          <label><input type="radio" name="rsMode" value="merge" checked> Combinar con los de este equipo (si algo está en los dos, queda lo más reciente)</label>
-          <label><input type="radio" name="rsMode" value="replace"> Reemplazar los de este equipo</label>
+          <label><input type="radio" name="rsMode" value="${fromCopy ? 'replace' : 'merge'}" checked> ${
+            fromCopy ? 'Volver a como estaban en esa copia' : 'Combinar con los de este equipo (si algo está en los dos, queda lo más reciente)'
+          }</label>
+          <label><input type="radio" name="rsMode" value="${fromCopy ? 'merge' : 'replace'}"> ${
+            fromCopy ? 'Combinar con los actuales (sólo recupera lo que falta)' : 'Reemplazar los de este equipo'
+          }</label>
         </div>`;
     }
     if (exam) {
       const cur = state.results.length;
-      html += `<label class="choice"><input type="checkbox" id="rsExam"${proIsEmpty() ? ' checked' : ''}><span><b>Prueba y hojas escaneadas</b>: «${esc(
+      html += `<label class="choice"><input type="checkbox" id="rsExam"${proIsEmpty() || fromCopy ? ' checked' : ''}><span><b>Prueba y hojas escaneadas</b>: «${esc(
         exam.title || 'Prueba sin título'
-      )}», ${nResults} hoja(s). Reemplaza la prueba de este equipo${cur ? ` y sus ${cur} hoja(s) escaneada(s)` : ''}.</span></label>`;
+      )}», ${nResults} hoja(s)${fromCopy ? ' (las respuestas leídas y las notas; las imágenes de las hojas sólo si siguen en el equipo)' : ''}. Reemplaza la prueba actual${
+        cur ? ` y sus ${cur} hoja(s) escaneada(s)` : ''
+      }.</span></label>`;
     }
     if (!(book && book.courses.length) && !exam) {
-      await Pro.confirm({ title: 'Restaurar respaldo', html: '<p>El respaldo está vacío.</p>', ok: 'Entendido', cancel: null });
+      await Pro.confirm({ title, html: `<p>${fromCopy ? 'La copia' : 'El respaldo'} está vacío.</p>`, ok: 'Entendido', cancel: null });
       return;
     }
-    const ok = await Pro.confirm({ title: 'Restaurar respaldo', html, ok: 'Restaurar' });
+    if (fromCopy) html += '<p class="muted small">Antes se guarda una copia de cómo está todo ahora, por si quieres volver.</p>';
+    const ok = await Pro.confirm({ title, html, ok: fromCopy ? 'Volver a esta copia' : 'Restaurar' });
     if (!ok) return;
     const doBook = !!($('#rsBook') && $('#rsBook').checked);
     const replace = !!document.querySelector('input[name="rsMode"][value="replace"]:checked');
@@ -149,35 +236,38 @@
     if (!doBook && !doExam) return app.toast('No elegiste nada para restaurar.');
     try {
       progress('Restaurando…');
+      if (Pro.safetyCopy) await Pro.safetyCopy(safety);
       if (doBook) {
         Pro.book = replace ? book : L.mergeBooks(Pro.book, book);
         await Pro.saveBook();
       }
       if (doExam) {
-        await app.imageStore.clear();
-        for (const im of data.images) {
-          await app.imageStore.put(im.id, {
-            sheet: new Blob([im.sheet], { type: 'image/jpeg' }),
-            photo: im.photo ? new Blob([im.photo], { type: 'image/jpeg' }) : null,
-            scale: im.scale,
-            overlay: im.overlay,
-          });
+        if (!fromCopy) {
+          await app.imageStore.clear();
+          for (const im of data.images) {
+            await app.imageStore.put(im.id, {
+              sheet: new Blob([im.sheet], { type: 'image/jpeg' }),
+              photo: im.photo ? new Blob([im.photo], { type: 'image/jpeg' }) : null,
+              scale: im.scale,
+              overlay: im.overlay,
+            });
+          }
         }
-        for (const [id, v] of Object.entries(data.assets)) {
+        for (const [id, v] of Object.entries(data.assets || {})) {
           if (typeof v === 'string' && v.startsWith('data:image/')) await app.assetStore.put(id, v);
         }
         localStorage.setItem(app.STORE_KEY, JSON.stringify({ exam: data.state.exam, results: data.state.results }));
-        reloadWith(`Respaldo restaurado: ${doBook ? 'cursos, libro de notas, ' : ''}prueba y ${nResults} hoja(s).`);
+        reloadWith(`${fromCopy ? 'Copia recuperada' : 'Respaldo restaurado'}: ${doBook ? 'cursos, libro de notas, ' : ''}prueba y ${nResults} hoja(s).`);
         return;
       }
       progress('');
       Pro.renderAll();
       renderBackupInfo();
-      app.toast('Cursos y libro de notas restaurados.');
+      app.toast(fromCopy ? 'Cursos y libro de notas recuperados.' : 'Cursos y libro de notas restaurados.');
     } catch (e) {
       console.error(e);
       progress('');
-      app.toast('No se pudo restaurar el respaldo: ' + e.message);
+      app.toast('No se pudo restaurar: ' + e.message);
     }
   }
 
@@ -256,6 +346,7 @@
     }
     try {
       progress('Copiando la prueba de la versión normal…');
+      if (Pro.safetyCopy) await Pro.safetyCopy('normal');
       const elements = d.exam.doc && Array.isArray(d.exam.doc.elements) ? d.exam.doc.elements : [];
       const { images, assets } = await readNormalImages(
         results.map((r) => r.id),
@@ -278,6 +369,8 @@
   /* ---------- Eventos ---------- */
 
   $('#proBackupCreate').addEventListener('click', createBackup);
+  for (const b of document.querySelectorAll('[data-pro-backup-create]')) b.addEventListener('click', createBackup);
+  for (const b of document.querySelectorAll('[data-pro-backup-drive]')) b.addEventListener('click', saveToDrive);
   $('#proBackupInput').addEventListener('change', (e) => {
     const f = e.target.files[0];
     e.target.value = '';
@@ -295,6 +388,8 @@
   app.on('save', () => {
     if (!$('#proImportBanner').hidden && !proIsEmpty()) $('#proImportBanner').hidden = true;
   });
+
+  Pro.backup = { build: buildBackupBytes, markBackedUp, restoreData, renderInfo: renderBackupInfo, progress };
 
   Pro.ready.then(renderBackupInfo);
   try {

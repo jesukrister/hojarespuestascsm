@@ -150,6 +150,19 @@ input[type="date"] {
 #pePasteBox { padding: 10px 12px; margin-bottom: 8px; border-radius: 8px; background: var(--surface-2); }
 
 .pro-backup p { max-width: 80ch; }
+.pro-reminder strong { display: block; margin-bottom: 2px; }
+.pro-reminder .actions { margin-top: 10px; }
+.pro-backup-opts { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); display: grid; gap: 12px; }
+.pro-backup-opts .choice { display: flex; flex-direction: row; align-items: flex-start; gap: 8px; font-weight: 500; }
+.pro-backup-opts .choice input { margin-top: 4px; flex: none; }
+.pro-opt p { margin: 4px 0 0 26px; }
+#proFolderRow p { margin-left: 0; }
+.pro-copies { margin-top: 14px; }
+.pro-copies summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+.pro-copies-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.pro-copies-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; }
+.pro-copies-list li.muted { border-style: dashed; }
+.pc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
 @media (max-width: 560px) {
   .pro-grid .c-name { min-width: 118px; max-width: 150px; }

@@ -104,6 +104,18 @@ pestañas, manual…) es el mismo código, así que las mejoras llegan a las dos
   el correo y restaurarlo en otro equipo (el libro se combina con el que ya
   hay; la prueba se reemplaza). En el navegador, la primera vez se puede traer
   la prueba de la versión normal.
+- **Respaldo más seguro**: **Guardar en Google Drive** (en el celular abre el
+  menú Compartir, donde aparece Drive; en el computador usa el menú Compartir
+  del sistema o descarga el archivo), un **recordatorio** cuando hace días que
+  no se respalda y hay cambios (cada 3, 7, 14 o 30 días, o nunca) y un
+  **respaldo automático**: en la app, un archivo sin imágenes en
+  *Descargas/LectorHojas* que se reemplaza como máximo una vez por hora; en
+  Chrome o Edge, el respaldo completo en una carpeta elegida (por ejemplo la de
+  Google Drive para escritorio). Además, **copias automáticas** en el equipo
+  (al empezar el día, cada 2 horas con cambios y antes de borrar resultados,
+  eliminar un curso o una evaluación o restaurar), con *Volver a esta copia* y
+  descarga como respaldo; se conservan las 10 más recientes y una por día del
+  último mes (máximo 20).
 - **Casillas de desarrollo**: hasta 7 preguntas de desarrollo con una fila de
   casillas 0, 1, 2… (máximo 10 puntos cada una) al final de la hoja. El docente
   corrige la pregunta y marca el puntaje; el lector lo suma a las alternativas
@@ -465,6 +477,15 @@ pero no se publica. Cada versión publicada queda en **Releases → `app-android
 Play, una ficha por app). La guía para publicar en Google Play, con los textos de la ficha,
 está en [`docs/google-play.md`](docs/google-play.md).
 
+**Publicación automática en Google Play:** si el repositorio tiene el secreto
+`PLAY_SERVICE_ACCOUNT_JSON` (clave de una cuenta de servicio con permiso en
+Play Console), cada compilación sube los dos `.aab` a la prueba cerrada en uso
+con `scripts/play-upload.js` (API oficial de publicación de Google Play, sin
+dependencias), con las novedades de `docs/play/novedades.txt` y
+`docs/play/pro/novedades.txt`. La variable `PLAY_TRACK` elige otro segmento
+(`internal`, `alpha`, `beta`, `production` o `ninguno`). Cómo configurarlo:
+[`docs/google-play.md`](docs/google-play.md), sección 9.
+
 ## Donaciones
 
 La página web muestra un botón **❤ Apoya este proyecto** al pegar el enlace de
@@ -507,7 +528,8 @@ entregar una corrección equivocada sin avisar.
 | `index.html`, `css/styles.css` | Interfaz |
 | `pro.html` (generado), `pro/partes.html`, `css/pro.css`, `scripts/build-pro.js` | Versión Pro |
 | `js/pro/libro-core.js`, `js/pro/libro.js` | Cursos y libro de notas (lógica y pantalla) |
-| `js/pro/respaldo-core.js`, `js/pro/respaldo.js`, `js/pro/comun.js` | Respaldo completo y utilidades de la versión Pro |
+| `js/pro/respaldo-core.js`, `js/pro/respaldo.js`, `js/pro/comun.js` | Respaldo completo, Guardar en Google Drive y utilidades de la versión Pro |
+| `js/pro/copias-core.js`, `js/pro/copias.js` | Copias automáticas, recordatorio de respaldo y respaldo automático (Descargas o carpeta) |
 | `js/pro/desarrollo.js`, `js/pro/tickets.js`, `js/pro/nombres.js` | Casillas de desarrollo, tickets de salida y “Para reforzar”, hojas con nombre |
 | `js/pro/analisis-core.js`, `js/pro/analisis.js` | Calidad de las preguntas (discriminación, distractores, KR-20, anular) |
 | `js/pro/pie.js` | Estudiantes PIE: exigencia propia y versión adecuada de la prueba y de la hoja |
@@ -519,7 +541,8 @@ entregar una corrección equivocada sin avisar.
 | `js/native.js` | Integración con la app Android (descargas, impresión, botón Atrás) |
 | `android/`, `capacitor.config.json`, `scripts/build-www.mjs` | Proyecto de la app Android |
 | `js/donaciones.js` | Enlace del botón de donación (sólo web) |
-| `privacidad.html`, `LICENSE`, `docs/google-play.md`, `docs/play/` | Política de privacidad, licencia y material para Google Play |
+| `privacidad.html`, `LICENSE`, `docs/google-play.md`, `docs/play/` | Política de privacidad, licencia y material para Google Play (íconos, gráficos y novedades) |
+| `scripts/play-upload.js` | Publicación automática de los `.aab` en Google Play Console |
 | `vendor/math/` | KaTeX y MathLive (fórmulas), cargados sólo al usarse |
 | `js/layout.js` | Geometría de la hoja (compartida por el generador y el lector) |
 | `js/sheet.js` | Generación de la hoja en SVG |

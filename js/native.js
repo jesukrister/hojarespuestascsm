@@ -2,6 +2,7 @@
  * Integración con la app Android (Capacitor). En un navegador normal no hace
  * nada. Dentro de la app:
  *  - las descargas se guardan en Descargas/LectorHojas (con opción de compartir);
+ *    el respaldo automático de la Pro se sobrescribe allí mismo sin avisar;
  *  - window.print() usa el servicio de impresión de Android (también "Guardar como PDF");
  *  - el botón Atrás cierra cuadros de diálogo y vuelve a la pestaña anterior.
  */
@@ -64,8 +65,10 @@
   async function share(name, blob) {
     try {
       await call('compartir', { nombre: name, mime: blob.type || 'application/octet-stream', datos: await blobToBase64(blob) });
+      return true;
     } catch (e) {
       showNotice(e && e.message ? e.message : 'No se pudo compartir el archivo.');
+      return false;
     }
   }
 
@@ -82,6 +85,15 @@
       }
     },
     share,
+    /** Guarda sin avisar (respaldo automático); con replace, sobrescribe el anterior. */
+    async saveQuiet(name, blob, replace) {
+      try {
+        return await call('guardar', { nombre: name, mime: blob.type || 'application/octet-stream', datos: await blobToBase64(blob), reemplazar: !!replace });
+      } catch (e) {
+        console.error(e);
+        return null;
+      }
+    },
   };
 
   /* ---------- Imprimir ---------- */

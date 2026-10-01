@@ -13,6 +13,17 @@
 <!-- @@ tabs -->
 <button role="tab" data-tab="cursos" aria-selected="false"><span class="step">6</span>Cursos</button>
 
+<!-- @@ main -->
+<div id="proBackupReminder" class="card pro-banner pro-reminder" role="status" hidden>
+  <p><strong>💾 <span id="proRemindText"></span></strong> Si se pierde o se cambia el equipo, el respaldo es la única forma de recuperar los cursos y las notas.</p>
+  <div class="actions">
+    <button type="button" class="btn primary small" id="proRemindFolder" hidden>Permitir y respaldar</button>
+    <button type="button" class="btn primary small" data-pro-backup-drive>☁️ Guardar en Google Drive</button>
+    <button type="button" class="btn secondary small" data-pro-backup-create>💾 Crear respaldo</button>
+    <button type="button" class="btn ghost small" id="proRemindLater">Más tarde</button>
+  </div>
+</div>
+
 <!-- @@ prueba -->
 <div id="proImportBanner" class="card pro-banner" hidden>
   <p><strong>¿Traer tu prueba desde la versión normal?</strong> En este navegador tienes una prueba y hojas escaneadas en la versión normal. Puedes copiarlas a la versión Pro (la versión normal no cambia).</p>
@@ -276,18 +287,48 @@
     <p>Un solo archivo con todo: la prueba, las hojas escaneadas (con sus imágenes), los cursos y el libro de notas. Guárdalo en Google Drive, en tu correo o en un pendrive, y ábrelo en otro equipo para seguir trabajando allá.</p>
     <p id="proBackupLast" class="muted small"></p>
     <div class="actions">
-      <button type="button" class="btn primary" id="proBackupCreate">💾 Crear respaldo</button>
+      <button type="button" class="btn primary" data-pro-backup-drive>☁️ Guardar en Google Drive</button>
+      <button type="button" class="btn secondary" id="proBackupCreate">💾 Crear respaldo</button>
       <label class="btn secondary" for="proBackupInput">📂 Restaurar un respaldo…</label>
       <input id="proBackupInput" type="file" accept=".zip,application/zip,application/x-zip-compressed,application/octet-stream" hidden>
       <button type="button" class="btn ghost" id="proImportNormal" data-pro-import-normal hidden>Traer la prueba de la versión normal</button>
     </div>
     <p id="proBackupProgress" class="muted small" hidden></p>
+
+    <div class="pro-backup-opts">
+      <label class="inline-select">🔔 Recordarme respaldar
+        <select id="proRemindDays">
+          <option value="3">cada 3 días</option>
+          <option value="7">cada semana</option>
+          <option value="14">cada 2 semanas</option>
+          <option value="30">cada mes</option>
+          <option value="0">nunca</option>
+        </select>
+      </label>
+      <div id="proAutoFileRow" class="pro-opt" hidden>
+        <label class="choice"><input type="checkbox" id="proAutoFile"><span><b>Respaldo automático en el celular:</b> guarda sola una copia de los datos en <i>Descargas/LectorHojas</i> (sin las imágenes de las hojas), como máximo una vez por hora cuando hay cambios. En Android 10 o más nuevo queda aunque se desinstale la app.</span></label>
+        <p id="proAutoFileInfo" class="muted small"></p>
+      </div>
+      <div id="proFolderRow" class="pro-opt" hidden>
+        <div class="actions">
+          <button type="button" class="btn ghost" id="proFolderPick">📁 Respaldo automático en una carpeta…</button>
+          <button type="button" class="link-btn" id="proFolderStop" hidden>Dejar de usarla</button>
+        </div>
+        <p id="proFolderInfo" class="muted small"></p>
+      </div>
+    </div>
+
+    <details class="pro-copies">
+      <summary>🕘 Copias automáticas en este equipo (<span id="proCopiesCount">0</span>)</summary>
+      <p class="muted small">Se guardan solas: al empezar cada día, cada 2 horas mientras trabajas y antes de borrar los resultados, eliminar un curso o una evaluación o restaurar un respaldo. Guardan la prueba, las respuestas leídas, los cursos y las notas (no las imágenes de las hojas). Sirven para deshacer un error, pero <b>no reemplazan al respaldo</b>: si se pierde el equipo, se pierden con él.</p>
+      <ul id="proCopiesList" class="pro-copies-list"></ul>
+    </details>
   </div>
 </section>
 
 <!-- @@ manual-index -->
 <button type="button" data-man-go="cursos"><b>7</b>Cursos y libro de notas</button>
-<button type="button" data-man-go="respaldopro"><b>8</b>Respaldo completo</button>
+<button type="button" data-man-go="respaldopro"><b>8</b>Respaldo y copias automáticas</button>
 <button type="button" data-man-go="desarrollo"><b>9</b>Preguntas de desarrollo</button>
 <button type="button" data-man-go="tickets"><b>10</b>Tickets de salida</button>
 <button type="button" data-man-go="nombres"><b>11</b>Hojas con nombre</button>
@@ -337,15 +378,28 @@
 </article>
 
 <article class="card man-section" id="man-respaldopro" data-man="respaldopro">
-  <h2><span class="man-num">8</span>Respaldo completo y cambio de equipo</h2>
+  <h2><span class="man-num">8</span>Respaldo, copias automáticas y cambio de equipo</h2>
   <div class="man-video" data-video="respaldopro"></div>
   <p>El <b>respaldo</b> es un archivo que guarda todo: la prueba, las hojas escaneadas con sus imágenes, los cursos y el libro de notas. Sirve para no perder tu trabajo y para pasar de un equipo a otro (por ejemplo, del celular al computador).</p>
+  <h3>Guardar un respaldo</h3>
   <ol class="man-steps">
-    <li>En <b>Cursos</b>, sección <b>💾 Respaldo</b>, presiona <b>Crear respaldo</b>. En el celular, el archivo queda en <i>Descargas/LectorHojas</i> y puedes compartirlo a Google Drive, a tu correo o por WhatsApp.</li>
-    <li>En el otro equipo, abre la versión Pro y presiona <b>Restaurar un respaldo…</b>. Elige el archivo (no hace falta descomprimirlo).</li>
+    <li>En <b>Cursos</b>, sección <b>💾 Respaldo</b>, presiona <b>☁️ Guardar en Google Drive</b>. En el celular se abre el menú Compartir: elige <b>Drive</b> y luego <b>Guardar</b>. En el computador, si no aparece un menú para compartir, el archivo se descarga y lo subes a <i>drive.google.com</i>.</li>
+    <li>También puedes presionar <b>💾 Crear respaldo</b>: en el celular el archivo queda en <i>Descargas/LectorHojas</i> y desde ahí lo puedes enviar a tu correo o a un pendrive.</li>
+  </ol>
+  <h3>Recuperar un respaldo (u otro equipo)</h3>
+  <ol class="man-steps">
+    <li>Abre la versión Pro y presiona <b>Restaurar un respaldo…</b>. Elige el archivo (no hace falta descomprimirlo).</li>
     <li>Elige qué traer: los <b>cursos y el libro de notas</b> (se combinan con los que ya tienes en ese equipo) y, si quieres, la <b>prueba y sus hojas escaneadas</b> (reemplazan las de ese equipo).</li>
   </ol>
-  <p class="man-tip"><b>💡 Consejo:</b> crea un respaldo al terminar de guardar las notas de cada prueba. El respaldo contiene nombres y notas de estudiantes: guárdalo en un lugar seguro.</p>
+  <h3>Para no olvidarlo: recordatorio y respaldo automático</h3>
+  <ul>
+    <li><b>Recordatorio:</b> si hace días que no respaldas y hay cambios, aparece un aviso arriba con los botones para respaldar. Elige cada cuánto en <b>🔔 Recordarme respaldar</b> (cada semana, por omisión). <b>Más tarde</b> lo oculta por dos días.</li>
+    <li><b>En el celular:</b> con <b>Respaldo automático en el celular</b> activado (viene activado), la app guarda sola los datos en <i>Descargas/LectorHojas/respaldo-automatico-lector-hojas-pro.zip</i>, como máximo una vez por hora cuando hay cambios. No lleva las imágenes de las hojas, para que sea liviano.</li>
+    <li><b>En el computador</b> (Chrome o Edge): con <b>📁 Respaldo automático en una carpeta…</b> eliges una carpeta y el respaldo completo se guarda solo ahí. Si eliges la carpeta de <b>Google Drive para escritorio</b>, queda en Drive automáticamente. Si el navegador vuelve a pedir permiso, aparece un aviso con el botón <b>Permitir y respaldar</b>.</li>
+  </ul>
+  <h3>Copias automáticas: deshacer un error</h3>
+  <p>La plataforma guarda sola una copia al empezar cada día, cada 2 horas mientras trabajas y <b>antes</b> de borrar los resultados, eliminar un curso o una evaluación, restaurar un respaldo o traer la prueba de la versión normal. En <b>Cursos → 🕘 Copias automáticas en este equipo</b> presiona <b>↩ Volver a esta copia</b> para recuperar cómo estaba todo (antes se guarda una copia de cómo está ahora, por si te arrepientes) o <b>⬇</b> para descargarla como archivo de respaldo.</p>
+  <p class="man-tip"><b>💡 Consejo:</b> las copias automáticas guardan la prueba, las respuestas leídas, los cursos y las notas, pero no las imágenes de las hojas, y viven en el mismo equipo: si se pierde el celular, se pierden con él. Por eso el respaldo en Google Drive sigue siendo lo más seguro. El respaldo contiene nombres y notas de estudiantes: guárdalo en un lugar privado.</p>
   <p class="man-warn"><b>⚠️ Importante:</b> la versión Pro guarda sus datos aparte de la versión normal. En el navegador, la primera vez puedes traer la prueba de la versión normal con <b>Traer la prueba de la versión normal</b>.</p>
 </article>
 
@@ -686,9 +740,11 @@
 <!-- @@ scripts -->
 <script src="js/pro/libro-core.js"></script>
 <script src="js/pro/respaldo-core.js"></script>
+<script src="js/pro/copias-core.js"></script>
 <script src="js/pro/comun.js"></script>
 <script src="js/pro/libro.js"></script>
 <script src="js/pro/respaldo.js"></script>
+<script src="js/pro/copias.js"></script>
 <script src="js/pro/desarrollo.js"></script>
 <script src="js/pro/tickets.js"></script>
 <script src="js/pro/nombres.js"></script>

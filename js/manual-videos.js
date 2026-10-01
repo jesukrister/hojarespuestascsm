@@ -26,7 +26,7 @@ window.MANUAL_VIDEOS = {
   problemas: '', //   ?. Problemas frecuentes
   // Sólo en la versión Pro:
   cursos: '', //      7. Cursos y libro de notas
-  respaldopro: '', // 8. Respaldo completo
+  respaldopro: '', // 8. Respaldo y copias automáticas
   desarrollo: '', //  9. Preguntas de desarrollo
   tickets: '', //     10. Tickets de salida
   nombres: '', //     11. Hojas con nombre

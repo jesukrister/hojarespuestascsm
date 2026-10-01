@@ -1,9 +1,12 @@
 package cl.lectorhojas.app;
 
+import android.annotation.TargetApi;
 import android.content.ContentResolver;
+import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
@@ -32,12 +35,17 @@ public class ArchivosPlugin extends Plugin {
 
     private static final String CARPETA = "LectorHojas";
 
-    /** Guarda un archivo en Descargas/LectorHojas. */
+    /**
+     * Guarda un archivo en Descargas/LectorHojas. Con reemplazar=true se
+     * sobrescribe el archivo del mismo nombre que haya creado la app (respaldo
+     * automático) en lugar de crear "nombre (1)".
+     */
     @PluginMethod
     public void guardar(PluginCall call) {
         String nombre = limpiarNombre(call.getString("nombre", "archivo"));
         String mime = call.getString("mime", "application/octet-stream");
         String datos = call.getString("datos");
+        boolean reemplazar = Boolean.TRUE.equals(call.getBoolean("reemplazar", false));
         if (datos == null) {
             call.reject("No hay datos para guardar.");
             return;
@@ -47,6 +55,14 @@ public class ArchivosPlugin extends Plugin {
             JSObject ret = new JSObject();
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 ContentResolver resolver = getContext().getContentResolver();
+                Uri existente = reemplazar ? buscarPropio(resolver, nombre) : null;
+                if (existente != null && sobrescribir(resolver, existente, bytes)) {
+                    ret.put("ubicacion", "Descargas/" + CARPETA);
+                    ret.put("uri", existente.toString());
+                    ret.put("nombre", nombre);
+                    call.resolve(ret);
+                    return;
+                }
                 ContentValues values = new ContentValues();
                 values.put(MediaStore.MediaColumns.DISPLAY_NAME, nombre);
                 values.put(MediaStore.MediaColumns.MIME_TYPE, mime);
@@ -79,6 +95,32 @@ public class ArchivosPlugin extends Plugin {
         } catch (Exception e) {
             call.reject("No se pudo guardar el archivo: " + e.getMessage());
         }
+    }
+
+    /** Reemplaza el contenido de un archivo; si no se puede, se creará uno nuevo. */
+    private boolean sobrescribir(ContentResolver resolver, Uri uri, byte[] bytes) {
+        try (OutputStream out = resolver.openOutputStream(uri, "wt")) {
+            if (out == null) return false;
+            out.write(bytes);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** Archivo de Descargas/LectorHojas con ese nombre creado por esta app (o null). */
+    @TargetApi(Build.VERSION_CODES.Q)
+    private Uri buscarPropio(ContentResolver resolver, String nombre) {
+        Uri coleccion = MediaStore.Downloads.EXTERNAL_CONTENT_URI;
+        String carpeta = Environment.DIRECTORY_DOWNLOADS + "/" + CARPETA + "/";
+        String[] columnas = { MediaStore.MediaColumns._ID };
+        String filtro = MediaStore.MediaColumns.DISPLAY_NAME + "=? AND " + MediaStore.MediaColumns.RELATIVE_PATH + "=?";
+        try (Cursor c = resolver.query(coleccion, columnas, filtro, new String[] { nombre, carpeta }, null)) {
+            if (c != null && c.moveToFirst()) return ContentUris.withAppendedId(coleccion, c.getLong(0));
+        } catch (Exception e) {
+            return null;
+        }
+        return null;
     }
 
     /** Abre el menú de Android para compartir un archivo (WhatsApp, Drive, correo…). */

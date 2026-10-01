@@ -45,6 +45,7 @@
   const kv = {
     get: (key) => run('readonly', (st) => st.get(key)),
     put: (key, value) => run('readwrite', (st) => st.put(value, key)),
+    del: (key) => run('readwrite', (st) => st.delete(key)),
   };
 
   // Preferencias de pantalla (curso elegido, vista…): sólo comodidad, en este navegador.
