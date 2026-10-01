@@ -34,6 +34,7 @@ window.MANUAL_VIDEOS = {
   calidad: '', //     13. Calidad de las preguntas
   pie: '', //         14. Estudiantes PIE y versión adecuada
   utp: '', //         15. Informe para UTP
+  continuo: '', //    16. Escaneo continuo con la cámara
 };
 
 // true: donde todavía no hay video se muestra el aviso "Video próximamente".

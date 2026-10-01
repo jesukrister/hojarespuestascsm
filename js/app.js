@@ -4045,6 +4045,21 @@
     }
   }
 
+  /** Versión Pro (escaneo continuo): lee un cuadro de la cámara, sin guardarlo. */
+  function readFrame(canvas) {
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const gray = OMR.toGray(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
+    return scanAuto(gray);
+  }
+
+  /** Versión Pro (escaneo continuo): guarda una hoja leída de la cámara. Devuelve el resultado. */
+  async function addFrameResult(res, layout, canvas, name) {
+    const item = queueItem(name);
+    await addScanned(res, canvas, name, item, !!(layout && layout.pie));
+    renderResultsBadge();
+    return state.results[state.results.length - 1];
+  }
+
   /** Versión Pro: reemplaza la prueba actual (sin resultados), p. ej. para volver a usar una prueba del libro de notas. */
   function replaceExam(raw) {
     state.exam = sanitizeExam(raw);
@@ -4129,6 +4144,8 @@
       docVariantHTML,
       printDocVariant,
       docMcQuestions,
+      readFrame,
+      addFrameResult,
       sheetOptions,
       setPageStyle,
       fileToGray,

@@ -141,6 +141,10 @@ pestañas, manual…) es el mismo código, así que las mejoras llegan a las dos
   respuestas con una alternativa menos y una marca que el lector reconoce: se
   corrige con su clave, también mezclada con hojas normales en una foto o PDF.
   Las hojas con nombre les dan la hoja PIE a los estudiantes PIE.
+- **Escaneo continuo con la cámara** (en *Escanear*): la cámara queda abierta
+  y cada hoja que se le pone delante se lee y se guarda sola, con un pitido
+  (se guarda cuando dos cuadros seguidos dan la misma lectura; la misma hoja no
+  se guarda dos veces). Con linterna si el celular la tiene.
 - **Informe para UTP**: desde *Resultados* (de una prueba) o *Cursos* (de un
   curso en un semestre, trimestre o el año), un informe para imprimir o
   guardar en PDF con el resumen, la distribución de notas, el logro por OA y
@@ -508,6 +512,7 @@ entregar una corrección equivocada sin avisar.
 | `js/pro/analisis-core.js`, `js/pro/analisis.js` | Calidad de las preguntas (discriminación, distractores, KR-20, anular) |
 | `js/pro/pie.js` | Estudiantes PIE: exigencia propia y versión adecuada de la prueba y de la hoja |
 | `js/pro/informe-core.js`, `js/pro/informe.js` | Informe para UTP (cálculos, gráficos SVG y pantalla) |
+| `js/pro/camara.js` | Escaneo continuo con la cámara |
 | `vendor/pdf/` | pdf.js (lectura de PDF en la versión Pro; en Android sólo va en la app Pro) |
 | `js/app.js` | Lógica de la interfaz y almacenamiento |
 | `js/manual-videos.js` | Enlaces de los videos del manual |

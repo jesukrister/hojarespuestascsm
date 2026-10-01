@@ -502,6 +502,7 @@
             <input id="filesInput" type="file" accept="image/*" multiple hidden>
           </div>
           <p class="muted small center">También puedes arrastrar imágenes a esta sección. Puedes seleccionar varias fotos a la vez.</p>
+          <p class="center pro-live-line"><button type="button" class="btn primary" id="proLiveScan">🎥 Escaneo continuo con la cámara</button><br><span class="muted small">Apunta a las hojas una tras otra: cada una se lee y se guarda sola.</span></p>
           <p class="pro-scan-hint small center">📄 <b>Versión Pro:</b> también puedes subir el <b>PDF</b> de la fotocopiadora (todas las hojas del curso) y fotografiar <b>varias hojas o tickets juntos</b> en una misma foto.</p>
           <p class="center"><button id="btnTranscribe" class="btn ghost small" type="button">✍️ Transcribir una hoja dañada</button></p>
           <details class="tips-box">
@@ -754,6 +755,7 @@
             <button type="button" data-man-go="calidad"><b>13</b>Calidad de las preguntas</button>
             <button type="button" data-man-go="pie"><b>14</b>Estudiantes PIE</button>
             <button type="button" data-man-go="utp"><b>15</b>Informe para UTP</button>
+            <button type="button" data-man-go="continuo"><b>16</b>Escaneo continuo</button>
             <button type="button" data-man-go="problemas"><b>?</b>Problemas frecuentes</button>
           </nav>
           <p class="donate-wrap man-donate" hidden>¿Te sirve la plataforma? Es gratuita; si quieres, puedes apoyar su desarrollo: <a class="donate-link" target="_blank" rel="noopener">❤ Apoya este proyecto</a></p>
@@ -1117,6 +1119,19 @@ Núcleo = Contiene el material genético</pre>
             <li>Escribe tus <b>observaciones y acciones remediales</b> en el cuadro de arriba: se imprimen al final, junto a los espacios para firmar.</li>
           </ul>
           <p class="man-tip"><b>💡 Consejo:</b> las sugerencias se generan con los resultados; revísalas y compleméntalas con lo que sabes de tu curso.</p>
+        </article>
+
+        <article class="card man-section" id="man-continuo" data-man="continuo">
+          <h2><span class="man-num">16</span>Escaneo continuo con la cámara</h2>
+          <div class="man-video" data-video="continuo"></div>
+          <p>Para corregir un curso completo sin tomar una foto por hoja: la cámara queda abierta y lee cada hoja que le pongas delante.</p>
+          <ol class="man-steps">
+            <li>En <b>Escanear</b>, presiona <b>🎥 Escaneo continuo con la cámara</b> (la primera vez, permite el uso de la cámara).</li>
+            <li>Pon una hoja sobre la mesa y apunta el celular desde arriba, con las <b>cuatro esquinas negras</b> a la vista. Mantén quieto un momento.</li>
+            <li>Cuando suene el <b>pitido</b> (y el borde se ponga verde), la hoja ya está guardada: pon la siguiente encima.</li>
+            <li>Al terminar, presiona <b>Terminar</b>. Las hojas quedan en <b>Resultados</b>, igual que las fotografiadas, con su foto como evidencia.</li>
+          </ol>
+          <p class="man-tip"><b>💡 Consejos:</b> buena luz y sin sombras (si el celular tiene linterna, aparece el botón <b>🔦</b>). Una misma hoja no se guarda dos veces. Las hojas con marcas dudosas se guardan igual, marcadas para revisar.</p>
         </article>
 
         <!-- ? -->
@@ -1525,6 +1540,25 @@ Núcleo = Contiene el material genético</pre>
     </div>
   </dialog>
 
+  <dialog id="proLiveDialog" class="pro-live" aria-label="Escaneo continuo">
+    <div class="lv-stage">
+      <div id="lvBox" class="lv-box">
+        <video id="lvVideo" playsinline muted autoplay></video>
+        <div id="lvFrame" class="lv-frame" aria-hidden="true"></div>
+      </div>
+    </div>
+    <div class="lv-panel">
+      <p id="lvStatus" class="lv-status" role="status" aria-live="polite"></p>
+      <div class="lv-bar">
+        <span class="lv-count"><b id="lvCount">0</b> hoja(s) leída(s)</span>
+        <span class="spacer"></span>
+        <button type="button" class="btn ghost small" id="lvTorch" aria-pressed="false" hidden>🔦 Linterna</button>
+        <button type="button" class="btn primary" id="lvDone">Terminar</button>
+      </div>
+      <ul id="lvList" class="lv-list"></ul>
+    </div>
+  </dialog>
+
   <script src="js/native.js"></script>
   <script src="js/layout.js"></script>
   <script src="js/omr.js"></script>
@@ -1550,5 +1584,6 @@ Núcleo = Contiene el material genético</pre>
   <script src="js/pro/pie.js"></script>
   <script src="js/pro/informe-core.js"></script>
   <script src="js/pro/informe.js"></script>
+  <script src="js/pro/camara.js"></script>
 </body>
 </html>
