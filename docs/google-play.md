@@ -154,7 +154,11 @@ la normal, con estas diferencias:
   > para pasar tu trabajo a otro equipo. Además: casillas de puntaje para
   > preguntas de desarrollo, tickets de salida (8 por página), hojas con el
   > nombre de cada estudiante y lectura del PDF de la fotocopiadora o de
-  > varias hojas en una misma foto.
+  > varias hojas en una misma foto. Escaneo continuo: deja la cámara abierta y
+  > pasa las hojas una tras otra. Análisis de la calidad de cada pregunta
+  > (discriminación, distractores, cuáles anular), versión adecuada para
+  > estudiantes PIE (Decreto 83) con su propia exigencia, e informe para UTP
+  > listo para imprimir o guardar en PDF.
 
 - *Seguridad de los datos*: igual que la normal (no se recopilan datos; las
   notas, nombres y respaldos quedan en el teléfono).
