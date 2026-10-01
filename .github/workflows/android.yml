@@ -1,4 +1,6 @@
-# Compila las apps Android (normal y Pro) y las publica en "Releases" del repositorio.
+# Compila las apps Android (normal y Pro), las publica en "Releases" del
+# repositorio y las sube a Google Play Console (si está el secreto
+# PLAY_SERVICE_ACCOUNT_JSON; ver docs/google-play.md, sección 9).
 name: App Android (APK)
 
 on:
@@ -13,11 +15,17 @@ on:
       - 'vendor/**'
       - 'android/**'
       - 'scripts/**'
+      - 'docs/play/**'
       - 'capacitor.config.json'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/android.yml'
   workflow_dispatch:
+    inputs:
+      segmento:
+        description: 'Segmento de Google Play: vacío = la prueba cerrada en uso; internal, alpha, beta, production o ninguno'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -128,3 +136,20 @@ jobs:
             --title "App Android · versión 1.0.${{ github.run_number }}" \
             --notes "**LectorHojas.apk**: la app normal, para instalar directamente en un teléfono Android. **LectorHojasPro.apk**: la versión Pro (cursos, libro de notas y respaldo); se instala aparte y puede convivir con la normal. Los archivos **.aab** son los que se suben a Google Play Console (uno por app). Todos firmados con la llave oficial del proyecto. Compilado desde ${GITHUB_REF_NAME} (${GITHUB_SHA::7})." \
             --prerelease
+
+      # Sube los .aab a Google Play Console: por omisión a la prueba cerrada en
+      # uso (la que ya tiene versiones). Para cambiarlo, crea la variable del
+      # repositorio PLAY_TRACK (internal, alpha, beta, production o ninguno).
+      # Las novedades que ven los testers están en docs/play/novedades.txt y
+      # docs/play/pro/novedades.txt.
+      - name: Publicar en Google Play
+        if: steps.llave.outputs.firmado == 'true'
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          PLAY_TRACK: ${{ github.event.inputs.segmento || vars.PLAY_TRACK }}
+          PLAY_RELEASE_NAME: 1.0.${{ github.run_number }}
+          PLAY_VERSION_CODE: ${{ github.run_number }}
+        run: |
+          node scripts/play-upload.js \
+            cl.lectorhojas.app=LectorHojas-GooglePlay.aab,docs/play/novedades.txt \
+            cl.lectorhojas.app.pro=LectorHojasPro-GooglePlay.aab,docs/play/pro/novedades.txt
