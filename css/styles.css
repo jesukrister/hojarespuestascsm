@@ -38,7 +38,8 @@ h1, h2, h3 { margin: 0; line-height: 1.25; }
 h1 { font-size: 1.35rem; }
 h2 { font-size: 1.1rem; }
 
-.app-header { padding: 20px 0 12px; }
+.app-header { padding: 20px 0 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tour-start { flex: none; font-size: 1rem; }
 .brand { display: flex; align-items: center; gap: 12px; }
 .logo { width: 44px; height: 44px; flex: none; }
 .logo rect { fill: var(--primary); }
@@ -641,3 +642,46 @@ label.form-pick select { width: auto; min-width: 4.5em; }
 .ans.dev .qn { width: auto; min-width: 2.2em; }
 .tr-dev { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); }
 .tr-dev label.inline-select select { min-width: 4.2em; }
+
+/* ---------- Tutorial guiado (js/tutorial.js) ---------- */
+.tour-shade { position: fixed; inset: 0; z-index: 1000; background: transparent; }
+.tour-shade.dark { background: rgba(15, 23, 42, 0.62); }
+.tour-spot {
+  position: fixed; z-index: 1001; pointer-events: none; border-radius: 10px;
+  box-shadow: 0 0 0 4px #f6b93b, 0 0 0 200vmax rgba(15, 23, 42, 0.62);
+  transition: left 0.2s, top 0.2s, width 0.2s, height 0.2s;
+}
+.tour-bubble {
+  position: fixed; z-index: 1002; max-height: calc(100vh - 24px); overflow: auto;
+  background: #fff; color: #1c2430; border-radius: 16px; padding: 18px 20px 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35); font-size: 1.15rem; line-height: 1.5;
+}
+.tour-bubble[data-arrow="up"]::before, .tour-bubble[data-arrow="down"]::before {
+  content: ''; position: absolute; left: calc(var(--arrow-x, 50%) - 10px); width: 0; height: 0;
+  border: 10px solid transparent;
+}
+.tour-bubble[data-arrow="up"]::before { top: -20px; border-bottom-color: #fff; }
+.tour-bubble[data-arrow="down"]::before { bottom: -20px; border-top-color: #fff; }
+.tour-count { margin: 0 32px 4px 0; font-size: 0.95rem; font-weight: 700; color: #1f4e79; }
+.tour-title { margin: 0 32px 6px 0; font-size: 1.35rem; line-height: 1.25; color: #0e2a45; }
+.tour-text p { margin: 0 0 8px; }
+.tour-close {
+  position: absolute; top: 8px; right: 8px; width: 44px; height: 44px; border: 0; border-radius: 50%;
+  background: #eef2f7; color: #1c2430; font-size: 1.3rem; cursor: pointer;
+}
+.tour-close:hover, .tour-close:focus-visible { background: #dde5ef; }
+.tour-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 14px; }
+.tour-actions .btn { min-height: 52px; font-size: 1.1rem; padding: 10px 18px; }
+.tour-actions .tour-next { margin-left: auto; }
+.tour-menu { display: grid; gap: 8px; margin-top: 12px; }
+.tour-menu .btn { min-height: 50px; font-size: 1.05rem; justify-content: flex-start; text-align: left; white-space: normal; }
+.tour-menu .btn.primary { justify-content: center; text-align: center; }
+.tour-menu small { font-weight: 400; opacity: 0.85; }
+.tour-or { margin: 6px 0 0; font-size: 0.95rem; color: #5d6877; }
+.tour-bubble .btn:focus-visible { outline: 3px solid #f6b93b; outline-offset: 2px; }
+@media (max-width: 520px) {
+  .app-header { align-items: flex-start; }
+  .tour-start { padding: 8px 12px; font-size: 0.95rem; }
+  .tour-bubble { font-size: 1.1rem; padding: 16px 16px 14px; }
+}
+@media print { .tour-shade, .tour-spot, .tour-bubble, .tour-start { display: none !important; } }

@@ -74,6 +74,12 @@ cualquier hosting de archivos estáticos.
   imágenes. También se puede exportar sólo un CSV.
 - **Lista del curso** opcional: el número de lista marcado en la hoja se asocia
   automáticamente con el nombre del estudiante.
+- **Tutorial guiado** (botón *🧭 Tutorial*, arriba y en el Manual): burbujas
+  que destacan un campo o botón a la vez y explican en palabras simples para
+  qué sirve, con letra y botones grandes. Se puede ver completo o por partes
+  (configurar, imprimir, corregir, notas; en la Pro también cursos y
+  respaldo) y se ofrece solo la primera vez que se abre la app. Esc o la ✕
+  (y el botón Atrás en Android) lo cierran.
 - **Manual de uso** (pestaña *Manual*): guía paso a paso en lenguaje simple,
   con un espacio para un video en cada parte, buscador, enlaces “¿Cómo se usa
   esta pestaña?” en cada pestaña y versión para imprimir.
@@ -540,6 +546,7 @@ entregar una corrección equivocada sin avisar.
 | `vendor/pdf/` | pdf.js (lectura de PDF en la versión Pro; en Android sólo va en la app Pro) |
 | `js/app.js` | Lógica de la interfaz y almacenamiento |
 | `js/manual-videos.js` | Enlaces de los videos del manual |
+| `js/tutorial.js` | Tutorial guiado con burbujas |
 | `js/native.js` | Integración con la app Android (descargas, impresión, botón Atrás) |
 | `android/`, `capacitor.config.json`, `scripts/build-www.mjs` | Proyecto de la app Android |
 | `js/donaciones.js` | Enlace del botón de donación (sólo web) |

@@ -132,6 +132,10 @@
   });
   if (typeof cap.addListener === 'function') {
     cap.addListener('App', 'backButton', () => {
+      if (window.LectorTutorial && window.LectorTutorial.active()) {
+        window.LectorTutorial.close();
+        return;
+      }
       const dialog = document.querySelector('dialog[open]');
       if (dialog) {
         dialog.close();
