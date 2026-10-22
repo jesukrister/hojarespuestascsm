@@ -578,9 +578,20 @@ entregar una corrección equivocada sin avisar.
    marcas dudosas. Si la hoja fue impresa en otro formato (hoja completa, media
    o cuarto de hoja, aunque se haya impreso ampliada) o papel, se detecta y se
    ofrece usar esa configuración.
+   **Marcas faltantes:** si no aparecen las cuatro esquinas (por ejemplo, una
+   hoja de papel oficio impresa en carta, que pierde la franja de abajo, o una
+   esquina rota o tapada), la hoja se ubica con las marcas que sí están: se
+   parte de dos marcas grandes supuestas esquinas, se buscan las demás
+   (esquinas y laterales) donde deberían estar y cada una se acepta sólo si
+   calza con las anteriores (error ≤ 2,5 mm); con 5 o más se ajusta una
+   homografía por mínimos cuadrados y se calculan las esquinas faltantes. La
+   ubicación debe mostrar la marca de orientación o el código, y la lectura
+   pasa por los mismos controles; la hoja queda con un aviso para revisarla.
 5. Se endereza la hoja, se normaliza la iluminación y cada columna de
    preguntas se alinea fila por fila con los contornos impresos de las
-   burbujas. Si la alineación no es confiable, la foto se rechaza.
+   burbujas. En filas anchas (el N° de lista) el ajuste puede variar de un
+   extremo al otro de la fila, para compensar una hoja algo curvada. Si la
+   alineación no es confiable, la foto se rechaza.
 6. Se lee la fila (A–D) en las tres celdas del margen izquierdo, con un código
    de paridad, y en los círculos “FILA A B C D” (el de la fila viene impreso
    relleno). Ambas lecturas deben coincidir; si una no se puede hacer vale la

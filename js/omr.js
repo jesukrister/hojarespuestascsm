@@ -288,20 +288,243 @@
     return found.slice(0, many ? 400 : 6).map((f) => f.pts);
   }
 
+  // Ventana del umbral adaptativo: lado mayor de la foto / div.
+  const THRESHOLDS = [
+    { div: 8, ratio: 0.8 },
+    { div: 14, ratio: 0.85 },
+    { div: 5, ratio: 0.72 },
+    { div: 3, ratio: 0.65 },
+  ];
+  // Manchas de cada umbral por imagen: la búsqueda con marcas faltantes usa
+  // las mismas que la búsqueda de las cuatro esquinas (no se calculan dos veces).
+  const blobCache = new WeakMap();
+  function blobsFor(img, t) {
+    let per = blobCache.get(img);
+    if (!per) blobCache.set(img, (per = []));
+    if (!per[t]) {
+      const { width: w, height: h } = img;
+      const a = THRESHOLDS[t];
+      per[t] = findBlobs(adaptiveThreshold(img, Math.round(Math.max(w, h) / a.div) | 1, a.ratio), w, h);
+    }
+    return per[t];
+  }
+
   function locateMarkers(img, layout, opts) {
     const { width: w, height: h } = img;
-    const maxSide = Math.max(w, h);
-    const attempts = [
-      { win: maxSide / 8, ratio: 0.8 },
-      { win: maxSide / 14, ratio: 0.85 },
-      { win: maxSide / 5, ratio: 0.72 },
-      { win: maxSide / 3, ratio: 0.65 },
-    ];
-    for (const a of attempts) {
-      const bin = adaptiveThreshold(img, Math.round(a.win) | 1, a.ratio);
-      const blobs = findBlobs(bin, w, h);
+    for (let t = 0; t < THRESHOLDS.length; t++) {
+      const blobs = blobsFor(img, t);
       const quads = findMarkerQuad(blobs, w, h, layout, opts);
       if (quads.length) return { quads, blobs };
+    }
+    return null;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Hoja con marcas faltantes (impresión cortada, esquina rota o tapada) */
+  /* ------------------------------------------------------------------ */
+
+  /** Producto de matrices 3×3 guardadas como arreglos de 9 números. */
+  function mul3(a, b) {
+    const r = new Array(9);
+    for (let i = 0; i < 3; i++)
+      for (let j = 0; j < 3; j++) r[i * 3 + j] = a[i * 3] * b[j] + a[i * 3 + 1] * b[3 + j] + a[i * 3 + 2] * b[6 + j];
+    return r;
+  }
+
+  /** Traslada y escala los puntos para que el ajuste sea numéricamente estable. */
+  function normalizer(pts) {
+    const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+    const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+    const d = pts.reduce((s, p) => s + Math.hypot(p.x - cx, p.y - cy), 0) / pts.length || 1;
+    const k = Math.SQRT2 / d;
+    return { T: [k, 0, -k * cx, 0, k, -k * cy, 0, 0, 1], Tinv: [1 / k, 0, cx, 0, 1 / k, cy, 0, 0, 1], k, cx, cy };
+  }
+
+  /**
+   * Transformación de la hoja (mm) a la foto (px) que mejor calza con los
+   * pares de puntos: semejanza con 2, afín con 3 y homografía (mínimos
+   * cuadrados) con 4 o más. Devuelve una matriz 3×3 como la de solveHomography.
+   */
+  function fitTransform(src, dst) {
+    const n = src.length;
+    const ns = normalizer(src);
+    const nd = normalizer(dst);
+    const S = src.map((p) => ({ x: ns.k * (p.x - ns.cx), y: ns.k * (p.y - ns.cy) }));
+    const D = dst.map((p) => ({ x: nd.k * (p.x - nd.cx), y: nd.k * (p.y - nd.cy) }));
+    let Hn;
+    if (n === 2) {
+      // x = a·X − b·Y + tx ; y = b·X + a·Y + ty
+      const dX = S[1].x - S[0].x, dY = S[1].y - S[0].y, dx = D[1].x - D[0].x, dy = D[1].y - D[0].y;
+      const den = dX * dX + dY * dY;
+      if (den < 1e-12) return null;
+      const a = (dX * dx + dY * dy) / den;
+      const b = (dX * dy - dY * dx) / den;
+      Hn = [a, -b, D[0].x - a * S[0].x + b * S[0].y, b, a, D[0].y - b * S[0].x - a * S[0].y, 0, 0, 1];
+    } else {
+      const m = n === 3 ? 6 : 8;
+      const AtA = Array.from({ length: m }, () => new Array(m).fill(0));
+      const Atb = new Array(m).fill(0);
+      const add = (row, v) => {
+        for (let i = 0; i < m; i++) {
+          Atb[i] += row[i] * v;
+          for (let j = 0; j < m; j++) AtA[i][j] += row[i] * row[j];
+        }
+      };
+      for (let i = 0; i < n; i++) {
+        const X = S[i].x, Y = S[i].y, x = D[i].x, y = D[i].y;
+        if (m === 6) {
+          add([X, Y, 1, 0, 0, 0], x);
+          add([0, 0, 0, X, Y, 1], y);
+        } else {
+          add([X, Y, 1, 0, 0, 0, -x * X, -x * Y], x);
+          add([0, 0, 0, X, Y, 1, -y * X, -y * Y], y);
+        }
+      }
+      const h = solveLinear(AtA, Atb);
+      if (!h) return null;
+      Hn = m === 6 ? h.concat([0, 0, 1]) : h.concat([1]);
+    }
+    const H = mul3(nd.Tinv, mul3(Hn, ns.T));
+    if (!H.every(Number.isFinite) || Math.abs(H[8]) < 1e-12) return null;
+    return H.map((v) => v / H[8]);
+  }
+
+  /**
+   * Ubica la hoja aunque falten marcas: parte de dos marcas grandes que se
+   * suponen esquinas de la hoja y, con la geometría conocida, busca las demás
+   * (esquinas y laterales) donde deberían estar; cada marca encontrada afina
+   * la geometría. Exige al menos 4 marcas reales y devuelve hipótesis
+   * { H, matched, err, missing } ordenadas de la más a la menos probable.
+   */
+  function locatePartialInBlobs(blobs, w, h, layout) {
+    const usable = [];
+    for (const b of blobs) {
+      if (b.border || b.area < 12) continue;
+      const bw = b.maxX - b.minX + 1;
+      const bh = b.maxY - b.minY + 1;
+      if (bw / bh < 0.4 || bw / bh > 2.5 || b.area / (bw * bh) < 0.45) continue;
+      usable.push(b);
+    }
+    const big = markerCandidates(blobs, w, h, 14);
+    if (big.length < 2) return [];
+    const fids = layout.markers
+      .map((p, i) => ({ x: p.x, y: p.y, size: layout.markerSize, corner: i }))
+      .concat(layout.sideMarks.map((sm) => ({ x: sm.x, y: sm.y, size: sm.size, corner: -1 })));
+    const seeds = [[0, 1], [1, 2], [2, 3], [3, 0], [0, 2], [1, 3]];
+    const out = [];
+    for (const a of big)
+      for (const b of big) {
+        if (a === b || a.area > b.area * 3 || b.area > a.area * 3) continue;
+        for (const [i, j] of seeds) {
+          const P = fids[i], Q = fids[j];
+          const mm = Math.hypot(Q.x - P.x, Q.y - P.y);
+          const ppm = Math.hypot(b.x - a.x, b.y - a.y) / mm;
+          const expMarker = Math.pow(layout.markerSize * ppm, 2);
+          if (a.area < expMarker * 0.3 || a.area > expMarker * 3 || b.area < expMarker * 0.3 || b.area > expMarker * 3) continue;
+          const T0 = fitTransform([P, Q], [{ x: a.x, y: a.y }, { x: b.x, y: b.y }]);
+          if (!T0) continue;
+          // Primero las marcas más cercanas a las ya encontradas (la predicción es más segura).
+          const rest = fids
+            .filter((f, k) => k !== i && k !== j)
+            .map((f) => ({ f, d: Math.min(Math.hypot(f.x - P.x, f.y - P.y), Math.hypot(f.x - Q.x, f.y - Q.y)) }))
+            .sort((u, v) => u.d - v.d)
+            .map((r) => r.f);
+          // La tercera marca se busca en una zona amplia, porque con sólo dos
+          // no se sabe cuánto "estira" la perspectiva la hoja (foto inclinada);
+          // se prueban sus mejores candidatas por separado.
+          const f3 = rest[0];
+          const p3 = project(T0, f3.x, f3.y);
+          const near3 = Math.min(Math.hypot(f3.x - P.x, f3.y - P.y), Math.hypot(f3.x - Q.x, f3.y - Q.y));
+          const tol3 = (5 + 0.35 * near3) * ppm;
+          const exp3 = Math.pow(f3.size * ppm, 2);
+          const third = usable
+            .filter((c) => c !== a && c !== b && c.area >= exp3 * 0.25 && c.area <= exp3 * 4 && Math.hypot(c.x - p3.x, c.y - p3.y) < tol3)
+            .map((c) => ({ c, s: Math.hypot(c.x - p3.x, c.y - p3.y) / tol3 + Math.abs(Math.log(c.area / exp3)) * 0.5 }))
+            .sort((u, v) => u.s - v.s)
+            .slice(0, 4)
+            .map((u) => u.c);
+          for (const c3 of [null].concat(third)) {
+            const src = [P, Q];
+            const dst = [{ x: a.x, y: a.y }, { x: b.x, y: b.y }];
+            const used = new Set([a, b]);
+            let T = T0;
+            let missing = 0;
+            if (c3) {
+              src.push(f3);
+              dst.push({ x: c3.x, y: c3.y });
+              used.add(c3);
+              T = fitTransform(src, dst) || T0;
+            } else if (third.length) {
+              continue; // sin tercera marca sólo si no hay ninguna candidata
+            } else if (f3.corner >= 0) {
+              missing++;
+            }
+            // Error máximo (mm) de una geometría en las marcas encontradas.
+            const maxErr = (M) => {
+              let e = 0;
+              for (let k = 0; k < src.length; k++) {
+                const q = project(M, src[k].x, src[k].y);
+                e = Math.max(e, Math.hypot(q.x - dst[k].x, q.y - dst[k].y) / ppm);
+              }
+              return e;
+            };
+            for (const f of rest.slice(1)) {
+              const near = Math.min(...src.map((s2) => Math.hypot(f.x - s2.x, f.y - s2.y)));
+              const p = project(T, f.x, f.y);
+              // Con 4 marcas ya hay perspectiva y la predicción es precisa: se busca más cerca.
+              const tol = (src.length >= 4 ? 3 + 0.03 * near : src.length === 3 ? 4 + 0.12 * near : 5 + 0.35 * near) * ppm;
+              const expArea = Math.pow(f.size * ppm, 2);
+              let best = null;
+              let bestScore = Infinity;
+              for (const c of usable) {
+                if (used.has(c) || c.area < expArea * 0.25 || c.area > expArea * 4) continue;
+                const d = Math.hypot(c.x - p.x, c.y - p.y);
+                if (d >= tol) continue;
+                // Cerca de lo previsto y del tamaño esperado.
+                const score = d / tol + Math.abs(Math.log(c.area / expArea)) * 0.5;
+                if (score < bestScore) {
+                  best = c;
+                  bestScore = score;
+                }
+              }
+              if (best) {
+                src.push(f);
+                dst.push({ x: best.x, y: best.y });
+                const T2 = fitTransform(src, dst);
+                // Una marca sólo se acepta si calza con las demás: así una
+                // burbuja rellena cerca de una esquina faltante no la reemplaza.
+                if (T2 && (src.length < 5 || maxErr(T2) <= 2.5)) {
+                  used.add(best);
+                  T = T2;
+                  continue;
+                }
+                src.pop();
+                dst.pop();
+              }
+              if (f.corner >= 0) missing++;
+            }
+            // Con 4 puntos la homografía calza siempre: se exige una marca más para verificarla.
+            if (src.length < 5) continue;
+            const err = maxErr(T);
+            if (err > 2.5) continue;
+            const area = polygonArea(layout.markers.map((m) => project(T, m.x, m.y)));
+            out.push({ H: T, matched: src.length, err, missing, area });
+          }
+        }
+      }
+    // Más marcas primero; con igual cantidad, la hoja más grande en la foto: la
+    // grilla de burbujas es tan regular que puede imitar las marcas de una
+    // "hoja chica" dentro de la real, pero nunca de una más grande.
+    out.sort((u, v) => v.matched - u.matched || v.area - u.area || u.err - v.err);
+    return out.slice(0, 24);
+  }
+
+  function locatePartial(img, layout) {
+    const { width: w, height: h } = img;
+    for (let t = 0; t < 3; t++) {
+      const blobs = blobsFor(img, t);
+      const hyps = locatePartialInBlobs(blobs, w, h, layout);
+      if (hyps.length) return { hyps, blobs };
     }
     return null;
   }
@@ -649,6 +872,51 @@
     return { shifts: out.map((sft) => ({ dx: sft.dx, dy: sft.dy })), score };
   }
 
+  /**
+   * Corrimiento (px) de una burbuja según el ajuste de su fila. En filas
+   * anchas el ajuste puede tener inclinación: cambia de un extremo al otro.
+   */
+  function bubbleShift(s, b) {
+    if (!s.tx && !s.ty) return { dx: s.dx, dy: s.dy };
+    return { dx: s.dx + s.tx * (b.x - s.x0), dy: s.dy + s.ty * (b.x - s.x0) };
+  }
+
+  /** Calce de una fila con su ajuste (incluida la inclinación), corrida ox, oy mm. */
+  function fitWithShift(dark, bubbles, s, ppm, ox, oy) {
+    const moved = bubbles.map((b) => {
+      const o = bubbleShift(s, b);
+      return { x: b.x + (ox || 0) + (o.dx - s.dx) / ppm, y: b.y + (oy || 0) + (o.dy - s.dy) / ppm, r: b.r };
+    });
+    return rowFit(dark, moved, ppm)(s.dx, s.dy);
+  }
+
+  /**
+   * Filas anchas (como el N° de lista): si la hoja está algo curvada, el
+   * corrimiento no es el mismo en ambos extremos de la fila. Se busca por
+   * separado en el tercio izquierdo y en el derecho y, si así la fila
+   * completa calza mejor, el corrimiento se interpola a lo largo de ella.
+   * La búsqueda es corta (menos de una burbuja), así que no puede saltar a
+   * la alternativa vecina.
+   */
+  function refineTilt(dark, bubbles, s, ppm) {
+    const n = bubbles.length;
+    if (n < 6) return s;
+    const k = Math.ceil(n / 3);
+    const step = Math.max(1, Math.round(ppm / 5));
+    const rad = Math.round(0.8 * ppm);
+    const left = bubbles.slice(0, k);
+    const right = bubbles.slice(n - k);
+    const L = searchShift(rowFit(dark, left, ppm), s.dx, s.dy, rad, rad, step, Infinity);
+    const R = searchShift(rowFit(dark, right, ppm), s.dx, s.dy, rad, rad, step, Infinity);
+    const xl = left.reduce((a, b) => a + b.x, 0) / k;
+    const xr = right.reduce((a, b) => a + b.x, 0) / k;
+    if (xr - xl < 1) return s;
+    const tilted = { dx: (L.dx + R.dx) / 2, dy: (L.dy + R.dy) / 2, tx: (R.dx - L.dx) / (xr - xl), ty: (R.dy - L.dy) / (xr - xl), x0: (xl + xr) / 2 };
+    const before = rowFit(dark, bubbles, ppm)(s.dx, s.dy);
+    const after = fitWithShift(dark, bubbles, tilted, ppm, 0, 0);
+    return after > before * 1.05 ? tilted : s;
+  }
+
   /** Umbral de Otsu sobre una lista de valores 0–1. */
   function otsu(values) {
     const bins = 100;
@@ -827,9 +1095,11 @@
     // orientación de una hoja de esta prueba.
     const many = !!opts.many;
 
-    const found = locateMarkers(img, layout, { many });
+    let found = locateMarkers(img, layout, { many });
     if (!found && many) return { ok: false, notFound: true, error: 'No se encontró otra hoja de esta prueba en la foto.' };
     if (!found) {
+      const partial = tryPartial();
+      if (partial) return partial;
       return {
         ok: false,
         error:
@@ -902,10 +1172,62 @@
       }
       return firstFail || { ok: false, notFound: true, error: 'No se encontró otra hoja de esta prueba en la foto.' };
     }
+    // Si ningún cuadrilátero se confirma (o la lectura falla), puede que a la
+    // hoja le falten marcas de las esquinas: se intenta ubicarla con las que hay.
+    // (Una lectura de "otro formato" con un cuadrilátero mal armado puede ser
+    // casual: por eso, si es la única confirmación, se prueba antes esta vía.)
+    const confirmed = best && (best.ev.decoded || best.ev.orientContrast >= 0.3);
+    if (!confirmed) {
+      const partial = tryPartial();
+      if (partial && partial.ok) return partial;
+    }
     if (!best) {
       return { ok: false, corners: quad, error: 'No se pudo calcular la geometría de la hoja.' };
     }
-    return readWith(best, quad, otherDecoded);
+    const first = readWith(best, quad, otherDecoded);
+    // Si la lectura falla (incluso si dice que es de otra prueba: con una
+    // esquina faltante, el cuadrilátero mal armado puede leer un código
+    // casual), se prueba con las marcas que calzan con esta prueba. Esa vía
+    // sólo acepta la hoja si pasa todos los controles de la lectura.
+    if (!first.ok && confirmed) {
+      const partial = tryPartial();
+      if (partial && partial.ok) return partial;
+    }
+    return first;
+
+    /**
+     * Lectura con marcas faltantes: entre las ubicaciones posibles se elige la
+     * que calza con más marcas y muestra la marca de orientación o el código;
+     * las esquinas que faltan se calculan con la geometría encontrada.
+     */
+    function tryPartial() {
+      const part = locatePartial(img, layout);
+      if (!part) return null;
+      // Ubicaciones confirmadas por la marca de orientación o el código, en el
+      // orden de locatePartial. Se lee con cada una hasta que una pase todos
+      // los controles de la lectura.
+      const picks = [];
+      for (const hyp of part.hyps) {
+        const ev = evaluateHypothesis(img, hyp.H, layout);
+        if (!ev.decoded && ev.orientContrast < 0.3) continue;
+        picks.push({ hyp, ev, score: hyp.matched * 10 + (ev.decoded ? 2 : 0) + ev.orientContrast });
+        if (picks.length >= 4) break;
+      }
+      let firstFail = null;
+      const prevFound = found;
+      for (const pick of picks) {
+        const dst = layout.markers.map((m) => project(pick.hyp.H, m.x, m.y));
+        found = { quads: [dst], blobs: part.blobs };
+        const r = readWith({ k: 0, H: pick.hyp.H, ev: pick.ev, score: pick.score, dst, partial: pick.hyp }, dst, null);
+        if (r.ok) {
+          r.partialMarks = true;
+          return r;
+        }
+        if (!firstFail) firstFail = r;
+      }
+      found = prevFound;
+      return firstFail;
+    }
 
     function readWith(best, quad, otherDecoded) {
     const d = best.dst;
@@ -979,6 +1301,13 @@
       };
     }
     if (decoded && layout.pie && decoded.pie !== true) warnings.push('No se pudo verificar la marca PIE de la hoja: revise que sea de la versión adecuada.');
+    if (best.partial) {
+      warnings.push(
+        best.partial.missing
+          ? `${best.partial.missing === 1 ? 'Falta una marca negra' : `Faltan ${best.partial.missing} marcas negras`} de las esquinas (por ejemplo, la impresión cortó una parte de la hoja): se ubicó con las demás marcas. Revise que las respuestas estén bien leídas.`
+          : 'Algunas marcas de la hoja no se reconocieron: se ubicó con las demás. Revise que las respuestas estén bien leídas.'
+      );
+    }
     if (!decoded) warnings.push('No se pudo verificar el código de la hoja; revise que corresponda a esta prueba.');
 
     // Lectura con un conjunto de marcas laterales. Si una marca lateral falta
@@ -1043,7 +1372,7 @@
           const alt = alignGroup(dark, groupRows, ppm, anchor, pitchMm, seed, 0.3);
           if (alt.score > best.score) best = alt;
         }
-        idxs.forEach((ri, k) => (shifts[ri] = best.shifts[k]));
+        idxs.forEach((ri, k) => (shifts[ri] = refineTilt(dark, rows[ri], best.shifts[k], ppm)));
       }
 
       // Control de alineación. Toda burbuja real tiene su contorno impreso y
@@ -1051,8 +1380,7 @@
       // a la derecha de la última alternativa) no hay burbujas. Si falta un
       // contorno donde debería estar, o aparece donde no debería, la lectura
       // quedó corrida: es preferible rechazar la foto que corregir mal.
-      const shiftedFit = (bubbles, s, ox, oy) =>
-        rowFit(dark, bubbles.map((b) => ({ x: b.x + ox, y: b.y + oy, r: b.r })), ppm)(s.dx, s.dy);
+      const shiftedFit = (bubbles, s, ox, oy) => fitWithShift(dark, bubbles, s, ppm, ox, oy);
       const misaligned = (reason) => ({
         ok: false,
         reason, // detalle interno (para diagnóstico)
@@ -1124,7 +1452,10 @@
       if (form.index === null) warn.push('No se pudo leer la fila de la hoja (A, B, C o D): indíquela manualmente.');
 
       const rowScores = rows.map((bubbles, i) =>
-        bubbles.map((b) => diskMean(dark, b.x * ppm + shifts[i].dx, b.y * ppm + shifts[i].dy, b.r * ppm * opts.innerRadius))
+        bubbles.map((b) => {
+          const o = bubbleShift(shifts[i], b);
+          return diskMean(dark, b.x * ppm + o.dx, b.y * ppm + o.dy, b.r * ppm * opts.innerRadius);
+        })
       );
 
       // Umbral.
@@ -1162,7 +1493,11 @@
       const idValue = idDigits.length ? idDigits.map((dg) => (dg.value === null ? '?' : String(dg.value))).join('') : null;
 
       // Posiciones en px (sobre la hoja enderezada) para dibujar resultados.
-      const toPx = (bubbles, s) => bubbles.map((b) => ({ x: b.x * ppm + s.dx, y: b.y * ppm + s.dy, r: b.r * ppm }));
+      const toPx = (bubbles, s) =>
+        bubbles.map((b) => {
+          const o = bubbleShift(s, b);
+          return { x: b.x * ppm + o.dx, y: b.y * ppm + o.dy, r: b.r * ppm };
+        });
       const overlay = {
         questions: layout.questions.map((q, i) => toPx(q.bubbles, shifts[i])),
         id: layout.idRows.map((row, j) => toPx(row.bubbles, shifts[layout.questions.length + j])),
@@ -1282,6 +1617,8 @@
     solveHomography,
     project,
     locateMarkers,
+    locatePartial,
+    fitTransform,
     rectify,
     darknessMap,
     otsu,
