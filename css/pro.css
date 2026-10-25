@@ -150,6 +150,15 @@ input[type="date"] {
 #pePasteBox { padding: 10px 12px; margin-bottom: 8px; border-radius: 8px; background: var(--surface-2); }
 
 .pro-backup p { max-width: 80ch; }
+.pro-cloud p { max-width: 80ch; }
+.pro-cloud-status { font-weight: 600; }
+.pro-cloud-status.warn { color: var(--warn); }
+.pro-cloud .link-btn.danger { color: var(--bad); }
+.pro-cloud-dialog .pro-dialog-body { display: grid; gap: 10px; max-width: 440px; }
+.pro-cloud-dialog .pro-dialog-body label:not(.choice) { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
+.pro-cloud-dialog .pro-dialog-body input[type=email], .pro-cloud-dialog .pro-dialog-body input[type=password], .pro-cloud-dialog .pro-dialog-body input[type=text] { font-size: 1.05rem; padding: 10px 12px; }
+.pro-cloud-dialog .pcl-show { display: flex; flex-direction: row; align-items: center; gap: 8px; font-weight: 400; }
+.pro-cloud-dialog p { margin: 0; }
 .pro-reminder strong { display: block; margin-bottom: 2px; }
 .pro-reminder .actions { margin-top: 10px; }
 .pro-backup-opts { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); display: grid; gap: 12px; }

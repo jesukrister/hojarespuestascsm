@@ -22,24 +22,35 @@
   <main>
     <article>
       <h1>Política de privacidad</h1>
-      <p class="muted">Lector de Hojas de Respuesta · Autor: Francesco Vivero · Vigente desde el 30 de septiembre de 2026</p>
+      <p class="muted">Lector de Hojas de Respuesta · Autor: Francesco Vivero · Vigente desde el 26 de octubre de 2026</p>
 
       <p>Lector de Hojas de Respuesta es una herramienta gratuita para que docentes creen evaluaciones, impriman hojas de respuesta, las fotografíen y obtengan la corrección. Esta política aplica a la página web y a las aplicaciones para Android, tanto en su versión normal como en la versión Pro.</p>
 
       <h2>Resumen</h2>
       <ul>
-        <li><strong>No recopilamos datos personales.</strong> La aplicación no tiene cuentas de usuario, publicidad ni herramientas de análisis o seguimiento.</li>
-        <li><strong>Todo se procesa en tu dispositivo.</strong> Las fotos de las hojas, las respuestas, los nombres de estudiantes y las notas no se envían a ningún servidor.</li>
+        <li><strong>Sin publicidad ni seguimiento.</strong> La aplicación no tiene publicidad ni herramientas de análisis o seguimiento.</li>
+        <li><strong>Todo se procesa en tu dispositivo.</strong> Las fotos de las hojas se leen en el teléfono o el computador y no se envían a ningún servidor.</li>
+        <li><strong>Nube opcional (sólo versión Pro).</strong> Si tú creas una cuenta con tu correo, tus cursos, notas y pruebas se guardan en nuestro servidor para que no los pierdas y puedas usarlos en otro equipo. Si no creas una cuenta, nada sale de tu dispositivo. Puedes borrar la cuenta y sus datos cuando quieras.</li>
       </ul>
 
       <h2>Datos que se guardan en tu dispositivo</h2>
       <p>Para que puedas continuar tu trabajo, la aplicación guarda en el almacenamiento del navegador o de la app, <strong>sólo en tu dispositivo</strong>: la configuración de las pruebas, las preguntas, la clave de respuestas, la lista del curso que escribas, los resultados y las imágenes de las hojas escaneadas y, en la versión Pro, los cursos (nombres, N° de lista y RUT, si los escribes) y el libro de notas. Nadie más tiene acceso a esa información. Puedes borrarla desde la propia aplicación (“Borrar resultados”, “Eliminar curso”), borrando los datos del navegador o desinstalando la app.</p>
       <p>Los archivos que exportas (planillas Excel, ZIP con evidencias, PDF, imágenes y, en la versión Pro, los archivos de respaldo) se guardan donde tú elijas o, en la app Android, en la carpeta Descargas/LectorHojas. En la versión Pro, para que no pierdas tu trabajo, la app guarda además copias automáticas dentro del propio dispositivo y, si lo dejas activado, un archivo de respaldo en esa misma carpeta. El botón «Guardar en Google Drive» sólo abre el menú Compartir de tu equipo: la app no se conecta a Google ni a ningún servidor, y el archivo llega a tu cuenta únicamente si tú lo eliges. Compartirlos es una decisión tuya.</p>
 
+      <h2>Nube de la versión Pro (opcional)</h2>
+      <p>En la versión Pro puedes crear una cuenta en <strong>Cursos → Guardar en la nube</strong>. Sólo si lo haces:</p>
+      <ul>
+        <li><strong>Qué se guarda:</strong> tu correo electrónico; una huella de tu contraseña (la contraseña nunca se envía ni se guarda tal cual); los cursos y el libro de notas (nombres de estudiantes, N° de lista, RUT si los escribes, evaluaciones y notas); la prueba actual con sus preguntas, clave de respuestas, imágenes de las preguntas y los resultados leídos (respuestas, puntajes, comentarios de retroalimentación). <strong>Las fotos de las hojas escaneadas no se suben.</strong> También se guardan la fecha del último cambio y el tipo de equipo desde donde se hizo (por ejemplo, «App Android»).</li>
+        <li><strong>Para qué:</strong> sólo para guardar tus datos y entregarlos a tus propios equipos cuando entras con tu cuenta. Tu correo se usa únicamente para enviarte los códigos para crear la cuenta, cambiar la contraseña o borrar la cuenta. No se usa para publicidad ni se entrega a nadie.</li>
+        <li><strong>Dónde:</strong> en un servidor de <strong>Cloudflare</strong> (Workers y base de datos D1), que actúa como proveedor de alojamiento. Los correos con códigos se envían con <strong>Google Apps Script</strong> (Gmail). Las conexiones van cifradas (HTTPS). Para proteger las cuentas se registra por un día la dirección IP de quien pide códigos o se equivoca de contraseña, para limitar los intentos.</li>
+        <li><strong>Cuánto tiempo:</strong> mientras la cuenta exista. Al borrarla se eliminan del servidor tu correo y todos tus datos de inmediato.</li>
+        <li><strong>Cómo borrar la cuenta:</strong> en la app, <strong>Cursos → Guardar en la nube → Borrar mi cuenta</strong>, o en la página <a href="https://lector-nube.colegiosm.workers.dev/borrar-cuenta">lector-nube.colegiosm.workers.dev/borrar-cuenta</a> (con un código que llega a tu correo). Borrar la cuenta no borra los datos de tus equipos. <strong>Cerrar sesión</strong> sólo deja de guardar en la nube desde ese equipo.</li>
+      </ul>
+
       <h2>Permisos de la app Android</h2>
       <ul>
         <li><strong>Cámara:</strong> sólo para fotografiar las hojas de respuesta cuando presionas “Tomar foto”. Las fotos se procesan en el teléfono.</li>
-        <li><strong>Internet:</strong> sólo para cargar contenido opcional que tú agregues o abras, como videos del manual o enlaces externos.</li>
+        <li><strong>Internet:</strong> para cargar contenido opcional que tú agregues o abras, como videos del manual o enlaces externos, y, en la versión Pro, para guardar en la nube si creaste una cuenta.</li>
       </ul>
 
       <h2>Servicios de terceros</h2>
@@ -50,7 +61,7 @@
       </ul>
 
       <h2>Estudiantes y menores de edad</h2>
-      <p>La aplicación está dirigida a docentes. Los estudiantes no la usan directamente: sólo rellenan una hoja de papel. Los datos de estudiantes que el docente ingrese (nombres, números de lista, RUT, respuestas y notas) quedan en el dispositivo del docente y son de su responsabilidad según la normativa de su establecimiento.</p>
+      <p>La aplicación está dirigida a docentes. Los estudiantes no la usan directamente: sólo rellenan una hoja de papel. Los datos de estudiantes que el docente ingrese (nombres, números de lista, RUT, respuestas y notas) quedan en el dispositivo del docente (y, si usa la nube de la versión Pro, en su cuenta) y son de su responsabilidad según la normativa de su establecimiento. Recomendamos usar una contraseña que no uses en otros sitios y no compartirla.</p>
 
       <h2>Cambios</h2>
       <p>Si esta política cambia, se publicará aquí con su nueva fecha de vigencia.</p>

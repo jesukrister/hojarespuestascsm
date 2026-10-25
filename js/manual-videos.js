@@ -36,6 +36,7 @@ window.MANUAL_VIDEOS = {
   utp: '', //         15. Informe para UTP
   continuo: '', //    16. Escaneo continuo con la cámara
   retro: '', //       17. Retroalimentación, rúbricas e informes PDF
+  nube: '', //        18. Guardar en la nube (cuenta con correo)
 };
 
 // true: donde todavía no hay video se muestra el aviso "Video próximamente".

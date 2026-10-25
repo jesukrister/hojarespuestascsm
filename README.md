@@ -122,6 +122,13 @@ pestañas, manual…) es el mismo código, así que las mejoras llegan a las dos
   eliminar un curso o una evaluación o restaurar), con *Volver a esta copia* y
   descarga como respaldo; se conservan las 10 más recientes y una por día del
   último mes (máximo 20).
+- **Nube (opcional)**: cuenta con correo y contraseña (código por correo para
+  crearla o recuperar la contraseña). Los cursos, el libro de notas y la prueba
+  con sus resultados se guardan solos (al abrir, tras cada cambio, al salir y
+  cada 5 minutos) y aparecen en otro equipo al entrar; los cambios de dos
+  equipos se combinan comparando con la última versión común. Las fotos de las
+  hojas no se suben. Servidor gratuito en Cloudflare (Worker + D1) y correos con
+  Google Apps Script: ver [`nube/GUIA.md`](nube/GUIA.md).
 - **Casillas de desarrollo**: hasta 7 preguntas de desarrollo con una fila de
   casillas 0, 1, 2… (máximo 10 puntos cada una) al final de la hoja. El docente
   corrige la pregunta y marca el puntaje; el lector lo suma a las alternativas
@@ -557,6 +564,8 @@ entregar una corrección equivocada sin avisar.
 | `js/pro/camara.js` | Escaneo continuo con la cámara |
 | `js/pro/pdf-core.js` | Generador de PDF mínimo (Helvetica WinAnsi, tablas, imágenes JPEG) |
 | `js/pro/retro-core.js`, `js/pro/retro.js` | Rúbricas, retroalimentación, informe PDF por estudiante y hojas del Excel |
+| `js/pro/nube-core.js`, `js/pro/nube.js` | Nube: cuenta, sincronización y combinación de cambios de dos equipos |
+| `nube/lector-nube.mjs`, `nube/correo.gs`, `nube/GUIA.md` | Servidor de la nube (Cloudflare Worker + D1), correos con código (Apps Script) y guía para activarlo |
 | `vendor/pdf/` | pdf.js (lectura de PDF en la versión Pro; en Android sólo va en la app Pro) |
 | `js/app.js` | Lógica de la interfaz y almacenamiento |
 | `js/manual-videos.js` | Enlaces de los videos del manual |

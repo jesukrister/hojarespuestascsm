@@ -14,6 +14,13 @@
 <button role="tab" data-tab="cursos" aria-selected="false"><span class="step">6</span>Cursos</button>
 
 <!-- @@ main -->
+<div id="proCloudBanner" class="card pro-banner pro-reminder" role="status" hidden>
+  <p><strong>☁️ La prueba cambió en otro equipo.</strong> Actualiza para traer esos cambios (lo que hiciste aquí también se guarda).</p>
+  <div class="actions">
+    <button type="button" class="btn primary small" data-cloud="update">⬇ Actualizar la prueba</button>
+    <button type="button" class="btn ghost small" data-cloud="later">Más tarde</button>
+  </div>
+</div>
 <div id="proBackupReminder" class="card pro-banner pro-reminder" role="status" hidden>
   <p><strong>💾 <span id="proRemindText"></span></strong> Si se pierde o se cambia el equipo, el respaldo es la única forma de recuperar los cursos y las notas.</p>
   <div class="actions">
@@ -281,6 +288,32 @@
     </div>
   </div>
 
+  <div class="card pro-cloud" id="proCloudCard">
+    <div class="card-head">
+      <h2>☁️ Guardar en la nube</h2>
+    </div>
+    <div id="proCloudOut">
+      <p>Crea una cuenta gratis con tu correo y tus <b>cursos, notas y pruebas se guardan solos en internet</b>, sin descargar respaldos. Si cambias o pierdes el equipo, entras con tu correo y contraseña y aparece todo. También sirve para trabajar en el celular y en el computador con los mismos datos.</p>
+      <p id="proCloudExpired" class="alert warn" hidden>Se cerró la sesión de la nube (cambiaste la contraseña o venció). Vuelve a entrar para seguir guardando.</p>
+      <div class="actions">
+        <button type="button" class="btn primary" data-cloud="crear">Crear cuenta</button>
+        <button type="button" class="btn secondary" data-cloud="entrar">Ya tengo cuenta: entrar</button>
+      </div>
+      <p class="muted small">Es opcional. Las fotos de las hojas escaneadas no se suben: quedan en cada equipo (para tenerlas en otro equipo, usa el respaldo de abajo).</p>
+    </div>
+    <div id="proCloudIn" hidden>
+      <p>Cuenta: <b id="proCloudEmail"></b></p>
+      <p id="proCloudStatus" class="pro-cloud-status" role="status"></p>
+      <div class="actions">
+        <button type="button" class="btn primary" id="proCloudUpdate" data-cloud="update" hidden>⬇ Actualizar la prueba</button>
+        <button type="button" class="btn secondary" data-cloud="sync">🔄 Guardar ahora</button>
+        <button type="button" class="btn ghost" data-cloud="salir">Cerrar sesión</button>
+        <button type="button" class="link-btn danger" data-cloud="borrar">Borrar mi cuenta…</button>
+      </div>
+      <p class="muted small">Se guarda solo al abrir, unos segundos después de cada cambio y al salir de la app. Las fotos de las hojas escaneadas quedan en cada equipo.</p>
+    </div>
+  </div>
+
   <div class="card pro-backup" id="proBackupCard">
     <div class="card-head">
       <h2>💾 Respaldo</h2>
@@ -339,6 +372,7 @@
 <button type="button" data-man-go="utp"><b>15</b>Informe para UTP</button>
 <button type="button" data-man-go="continuo"><b>16</b>Escaneo continuo</button>
 <button type="button" data-man-go="retro"><b>17</b>Retroalimentación e informes</button>
+<button type="button" data-man-go="nube"><b>18</b>Guardar en la nube</button>
 
 <!-- @@ manual -->
 <!-- Versión Pro -->
@@ -546,7 +580,47 @@
   <p class="man-tip"><b>💡 Para que aparezcan los enunciados</b>, la prueba debe estar armada en la pestaña <b>Evaluación</b> (y aplicada a la hoja). Si no, el informe y el Excel muestran sólo las letras: «marcaste B, la correcta era D». Si usas filas (A, B, C, D), cada estudiante ve las preguntas en el orden y con las letras de su propia fila.</p>
 </article>
 
+<article class="card man-section" id="man-nube" data-man="nube">
+  <h2><span class="man-num">18</span>Guardar en la nube (cuenta con correo)</h2>
+  <div class="man-video" data-video="nube"></div>
+  <p>Con una cuenta gratis, tus <b>cursos, notas y la prueba con sus resultados</b> se guardan solos en internet. No hay que descargar respaldos: si cambias o pierdes el celular, entras con tu correo y contraseña y aparece todo. Es opcional.</p>
+  <h3>Crear la cuenta</h3>
+  <ol class="man-steps">
+    <li>En <b>Cursos</b>, sección <b>☁️ Guardar en la nube</b>, presiona <b>Crear cuenta</b>.</li>
+    <li>Escribe tu correo y presiona <b>Enviarme el código</b>. Te llega un correo con <b>6 números</b> (si no aparece, mira en <i>Spam</i> o <i>Promociones</i>).</li>
+    <li>Escribe el código, elige una contraseña (al menos 6 letras o números), repítela y presiona <b>Crear cuenta</b>. Listo: desde ahora se guarda solo.</li>
+  </ol>
+  <h3>En otro equipo</h3>
+  <ol class="man-steps">
+    <li>Abre la versión Pro, ve a <b>Cursos</b> y presiona <b>Ya tengo cuenta: entrar</b>.</li>
+    <li>Escribe tu correo y tu contraseña. Aparecen tus cursos, notas y la prueba. Si en ese equipo ya tenías cursos, se juntan con los de la nube.</li>
+  </ol>
+  <h3>¿Cuándo se guarda?</h3>
+  <ul>
+    <li>Al abrir la app, unos segundos después de cada cambio, al salir de la app y cada 5 minutos. Debajo de tu correo dice <b>✔️ Todo guardado en la nube</b>.</li>
+    <li>Sin internet sigues trabajando normal: se sube cuando vuelve la conexión.</li>
+    <li>Si usas dos equipos a la vez, los cambios de los dos se juntan. Si la prueba cambió en el otro equipo mientras trabajabas, arriba aparece <b>⬇ Actualizar la prueba</b>.</li>
+    <li>Con todo guardado en la nube ya no aparece el recordatorio de respaldar.</li>
+  </ul>
+  <h3>Olvidé mi contraseña</h3>
+  <p>Presiona <b>Ya tengo cuenta: entrar → Olvidé mi contraseña</b>, escribe tu correo y te llega un código para elegir una contraseña nueva. En tus otros equipos tendrás que volver a entrar con la contraseña nueva.</p>
+  <p class="man-tip"><b>💡 Las fotos de las hojas escaneadas no se suben</b> (para no gastar datos ni espacio): quedan en el equipo donde escaneaste. Las respuestas leídas, los puntajes y las notas sí se guardan. Si necesitas las fotos en otro equipo, usa el <b>respaldo</b>.</p>
+  <p class="man-warn"><b>⚠️ Datos de estudiantes:</b> en la nube quedan los nombres, RUT y notas que escribiste, protegidos con tu contraseña. No compartas tu contraseña. Para borrar todo de la nube: <b>Borrar mi cuenta…</b> (los datos de tu equipo no se borran). <b>Cerrar sesión</b> sólo deja de guardar en ese equipo.</p>
+</article>
+
 <!-- @@ dialogs -->
+<dialog id="proCloudDialog" class="el-dialog pro-dialog pro-cloud-dialog" aria-labelledby="proCloudTitle">
+  <div class="el-head">
+    <h2 id="proCloudTitle">Nube</h2>
+    <button type="button" class="btn ghost small" data-pro-close aria-label="Cerrar">✕</button>
+  </div>
+  <div class="pro-dialog-body" id="proCloudBody"></div>
+  <div class="el-foot">
+    <span class="spacer"></span>
+    <button type="button" class="btn ghost" data-pro-close>Cancelar</button>
+    <button type="button" class="btn primary" id="proCloudOk">Continuar</button>
+  </div>
+</dialog>
 <dialog id="proCourseDialog" class="el-dialog pro-dialog" aria-labelledby="proCourseTitle">
   <div class="el-head">
     <h2 id="proCourseTitle">Nuevo curso</h2>
@@ -799,6 +873,8 @@
 <script src="js/pro/libro.js"></script>
 <script src="js/pro/respaldo.js"></script>
 <script src="js/pro/copias.js"></script>
+<script src="js/pro/nube-core.js"></script>
+<script src="js/pro/nube.js"></script>
 <script src="js/pro/desarrollo.js"></script>
 <script src="js/pro/pdf-core.js"></script>
 <script src="js/pro/retro-core.js"></script>

@@ -163,8 +163,24 @@ la normal, con estas diferencias:
   > estudiantes PIE (Decreto 83) con su propia exigencia, e informe para UTP
   > listo para imprimir o guardar en PDF.
 
-- *Seguridad de los datos*: igual que la normal (no se recopilan datos; las
-  notas, nombres y respaldos quedan en el teléfono).
+- *Seguridad de los datos* (la Pro tiene la **nube opcional** con cuenta, ver
+  `nube/GUIA.md`):
+  - ¿Recopila o comparte datos? **Sí, recopila** (no comparte: Cloudflare y
+    Google sólo son proveedores que alojan y envían correos por nosotros).
+  - ¿Datos cifrados en tránsito? **Sí** (HTTPS).
+  - ¿Los usuarios pueden pedir que se borren? **Sí**. Cuenta: también hay que
+    marcar que la app permite crear cuentas y dar el **enlace para borrar la
+    cuenta**: `https://lector-nube.colegiosm.workers.dev/borrar-cuenta`.
+  - Tipos de datos (todos **opcionales**, sólo si se crea una cuenta, y con
+    finalidad **Funcionalidad de la app** y **Administración de la cuenta**):
+    *Información personal → Dirección de correo electrónico*;
+    *Información personal → Nombre* y *Otra información* (nombres y RUT de
+    estudiantes que escribe el docente); *Actividad en la app → Otro contenido
+    generado por el usuario* (cursos, notas, pruebas y resultados). No se
+    procesan de forma efímera. Las fotos **no** se recopilan.
+  - *Acceso a la app*: toda la funcionalidad está disponible sin iniciar
+    sesión (la cuenta de la nube es opcional), así que no hace falta dar una
+    cuenta de prueba.
 - Si tu cuenta es personal y nueva, esta app también necesita su propia prueba
   cerrada (12 testers durante 14 días).
 
