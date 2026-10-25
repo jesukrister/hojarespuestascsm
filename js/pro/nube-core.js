@@ -69,7 +69,12 @@
       try {
         res = await doFetch(url + path, { method, headers, body, cache: 'no-store' });
       } catch (e) {
-        throw new CloudError('Sin conexión con la nube. Se guardará cuando vuelva internet.', 0, { offline: true });
+        const online = typeof navigator === 'undefined' || navigator.onLine !== false;
+        throw new CloudError(
+          online ? `No se pudo conectar con el servidor de la nube (${url}). Revisa tu internet; si sigue igual, puede que esta red bloquee esa dirección.` : 'Sin conexión a internet. Se guardará cuando vuelva la conexión.',
+          0,
+          { offline: true }
+        );
       }
       return res;
     }
