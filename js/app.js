@@ -2733,6 +2733,8 @@
       </div>`;
     const list = $('.answers-list', container);
     if (list) list.scrollTop = prevScroll;
+    // Versión Pro: retroalimentación del estudiante bajo el detalle.
+    emit('detail', { container, card: $('.detail', container), r, g });
     if (view) {
       drawOverlay($('canvas', container), r, g, view);
     } else {
@@ -3164,6 +3166,23 @@
     return v || fallback;
   }
 
+  /** Versión Pro: hoja corregida (JPEG, lado mayor máx. maxSide px) o null si no hay imagen. */
+  async function evidenceJpeg(r, maxSide, quality) {
+    const view = await getView(r.id);
+    if (!view) return null;
+    let cv = await renderEvidenceCanvas(r, view);
+    const k = maxSide ? Math.min(1, maxSide / Math.max(cv.width, cv.height)) : 1;
+    if (k < 1) {
+      const small = document.createElement('canvas');
+      small.width = Math.round(cv.width * k);
+      small.height = Math.round(cv.height * k);
+      small.getContext('2d').drawImage(cv, 0, 0, small.width, small.height);
+      cv = small;
+    }
+    const blob = await canvasToBlob(cv, 'image/jpeg', quality || 0.85);
+    return new Uint8Array(await blob.arrayBuffer());
+  }
+
   /** Nombre de archivo de la evidencia: 01_07_ana-aravena */
   function evidenceBaseName(r, index) {
     const n = String(index + 1).padStart(2, '0');
@@ -3359,6 +3378,9 @@
   }
 
   /** Planilla Excel con los resultados, hipervínculos a las imágenes y análisis por pregunta. */
+  // Versión Pro: agregados al paquete de evidencias ({ sheets, files, readme }).
+  const evidenceHooks = [];
+
   function buildWorkbook(rows, links) {
     const exam = state.exam;
     const sc = exam.scoring;
@@ -3511,6 +3533,8 @@
         { name: 'Resultados', rows: sheetRows, cols, freeze: { row: headerRow + 1, col: 3 }, autoFilter: `A${headerRow}:${lastCol}${headerRow + 1 + rows.length}` },
         ...sheets,
         { name: 'Análisis por pregunta', rows: aRows, cols: [6, 14, 8, 13].concat(new Array(c).fill(7), [10, 13]), freeze: { row: 3 } },
+        // Versión Pro: hojas adicionales (evaluación, respuestas por estudiante, retroalimentación).
+        ...evidenceHooks.flatMap((h) => (h.sheets ? h.sheets(rows, links) || [] : [])),
       ],
       { title: exam.title }
     );
@@ -3530,7 +3554,7 @@
       const { r } = rows[i];
       const base = evidenceBaseName(r, i);
       const view = await getView(r.id);
-      const link = {};
+      const link = { base };
       if (view) {
         const cv = await renderEvidenceCanvas(r, view);
         const blob = await canvasToBlob(cv, 'image/jpeg', 0.9);
@@ -3547,6 +3571,12 @@
       if (onProgress) onProgress(i + 1, rows.length);
       await nextFrame();
     }
+    // Versión Pro: archivos adicionales (por ejemplo, el informe PDF de cada estudiante).
+    const readme = [];
+    for (const h of evidenceHooks) {
+      if (h.files) files.push(...((await h.files(rows, links, files, onProgress)) || []));
+      if (h.readme) readme.push(...h.readme(rows, links));
+    }
     files.unshift({ path: 'resultados.xlsx', data: buildWorkbook(rows, links) });
     files.push({
       path: 'LEEME.txt',
@@ -3560,6 +3590,7 @@
           '                    que abren la imagen de cada estudiante.',
           'hojas_corregidas/   Hoja escaneada de cada estudiante con la corrección.',
           'fotos_originales/   Foto tal como fue tomada, sin procesar.',
+          ...readme,
           '',
           'Importante: si descargaste un ZIP, primero extrae todo su contenido',
           '(clic derecho > "Extraer todo") y abre el Excel desde la carpeta extraída.',
@@ -4180,6 +4211,14 @@
       docVariantHTML,
       printDocVariant,
       docMcQuestions,
+      formMap,
+      evidenceJpeg,
+      evidenceBaseName,
+      letters,
+      CHOICE_LABELS,
+      addEvidenceHook(h) {
+        evidenceHooks.push(h);
+      },
       readFrame,
       addFrameResult,
       sheetOptions,

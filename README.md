@@ -163,6 +163,18 @@ pestañas, manual…) es el mismo código, así que las mejoras llegan a las dos
   y cada hoja que se le pone delante se lee y se guarda sola, con un pitido
   (se guarda cuando dos cuadros seguidos dan la misma lectura; la misma hoja no
   se guarda dos veces). Con linterna si el celular la tiene.
+- **Retroalimentación e informes por estudiante**: rúbrica opcional para cada
+  pregunta de desarrollo (criterios × niveles de logro con puntaje; se puede
+  pegar desde Excel, Word o Google Docs). En el detalle de cada estudiante se
+  marca el nivel de cada criterio (el puntaje se calcula solo y, si la rúbrica
+  suma otro total, se lleva a la escala de la pregunta) y se escriben
+  comentarios por pregunta y uno general. Cada estudiante tiene un **informe
+  PDF** (generado en el navegador, sin servicios externos) con su nota, sus
+  respuestas junto a la correcta, las preguntas a revisar con su enunciado y
+  alternativas (en el orden y las letras de su fila), el logro por OA, la
+  rúbrica con sus niveles, los comentarios y su hoja corregida. En el ZIP de
+  evidencias van todos los informes (carpeta *informes*) y el Excel suma las
+  hojas *Evaluación*, *Respuestas por estudiante* y *Retroalimentación*.
 - **Informe para UTP**: desde *Resultados* (de una prueba) o *Cursos* (de un
   curso en un semestre, trimestre o el año), un informe para imprimir o
   guardar en PDF con el resumen, la distribución de notas, el logro por OA y
@@ -543,6 +555,8 @@ entregar una corrección equivocada sin avisar.
 | `js/pro/pie.js` | Estudiantes PIE: exigencia propia y versión adecuada de la prueba y de la hoja |
 | `js/pro/informe-core.js`, `js/pro/informe.js` | Informe para UTP (cálculos, gráficos SVG y pantalla) |
 | `js/pro/camara.js` | Escaneo continuo con la cámara |
+| `js/pro/pdf-core.js` | Generador de PDF mínimo (Helvetica WinAnsi, tablas, imágenes JPEG) |
+| `js/pro/retro-core.js`, `js/pro/retro.js` | Rúbricas, retroalimentación, informe PDF por estudiante y hojas del Excel |
 | `vendor/pdf/` | pdf.js (lectura de PDF en la versión Pro; en Android sólo va en la app Pro) |
 | `js/app.js` | Lógica de la interfaz y almacenamiento |
 | `js/manual-videos.js` | Enlaces de los videos del manual |

@@ -35,6 +35,7 @@ window.MANUAL_VIDEOS = {
   pie: '', //         14. Estudiantes PIE y versión adecuada
   utp: '', //         15. Informe para UTP
   continuo: '', //    16. Escaneo continuo con la cámara
+  retro: '', //       17. Retroalimentación, rúbricas e informes PDF
 };
 
 // true: donde todavía no hay video se muestra el aviso "Video próximamente".

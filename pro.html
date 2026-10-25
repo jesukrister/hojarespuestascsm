@@ -798,6 +798,7 @@
             <button type="button" data-man-go="pie"><b>14</b>Estudiantes PIE</button>
             <button type="button" data-man-go="utp"><b>15</b>Informe para UTP</button>
             <button type="button" data-man-go="continuo"><b>16</b>Escaneo continuo</button>
+            <button type="button" data-man-go="retro"><b>17</b>Retroalimentación e informes</button>
             <button type="button" data-man-go="problemas"><b>?</b>Problemas frecuentes</button>
           </nav>
           <p class="donate-wrap man-donate" hidden>¿Te sirve la plataforma? Es gratuita; si quieres, puedes apoyar su desarrollo: <a class="donate-link" target="_blank" rel="noopener">❤ Apoya este proyecto</a></p>
@@ -1191,6 +1192,28 @@ Núcleo = Contiene el material genético</pre>
           <p class="man-tip"><b>💡 Consejos:</b> buena luz y sin sombras (si el celular tiene linterna, aparece el botón <b>🔦</b>). Una misma hoja no se guarda dos veces. Las hojas con marcas dudosas se guardan igual, marcadas para revisar.</p>
         </article>
 
+        <article class="card man-section" id="man-retro" data-man="retro">
+          <h2><span class="man-num">17</span>Retroalimentación, rúbricas e informes para los estudiantes</h2>
+          <div class="man-video" data-video="retro"></div>
+          <p>Cada estudiante puede recibir un <b>informe PDF</b> con su nota, sus respuestas junto a la correcta, las preguntas que debe revisar (con el enunciado y las alternativas), el puntaje de desarrollo con la rúbrica y tus comentarios. Va listo para mandarlo por WhatsApp o correo.</p>
+          <h3>Rúbrica de una pregunta de desarrollo (opcional)</h3>
+          <ol class="man-steps">
+            <li>En <b>Prueba → ✍️ Preguntas de desarrollo</b>, presiona <b>＋ Rúbrica</b> en la pregunta.</li>
+            <li>Escribe los <b>criterios</b> (filas) y los <b>niveles de logro</b> con su puntaje (columnas), o pega la tabla desde Excel, Word o Google Docs con <b>📋 Pegar una rúbrica</b> (fila de arriba: los niveles, por ejemplo «Logrado (3)»; primera columna: los criterios).</li>
+            <li>Presiona <b>Guardar rúbrica</b>. Si la rúbrica suma más (o menos) puntos que la pregunta, el puntaje se lleva solo a la escala de la pregunta: por ejemplo, 8 de 9 puntos en la rúbrica son 5 de 6 en la pregunta.</li>
+          </ol>
+          <h3>Retroalimentación de cada estudiante</h3>
+          <ol class="man-steps">
+            <li>En <b>Resultados</b>, toca al estudiante. Bajo su hoja aparece <b>💬 Retroalimentación para el estudiante</b>.</li>
+            <li>Si la pregunta tiene rúbrica, toca el nivel que logró en cada criterio: el puntaje y la nota se actualizan solos.</li>
+            <li>Escribe un <b>comentario</b> en cada pregunta de desarrollo (por qué obtuvo ese puntaje, qué mejorar) y, si quieres, un <b>comentario general</b>. Se guardan solos.</li>
+            <li>Con <b>📄 Informe PDF de este estudiante</b> descargas su informe.</li>
+          </ol>
+          <h3>Todos los informes y el Excel</h3>
+          <p>En <b>Resultados → Descargar evidencias (ZIP)</b>, la carpeta <i>informes</i> trae el PDF de cada estudiante. El Excel trae además tres hojas: <b>Evaluación</b> (enunciado y alternativas de cada pregunta, con la clave), <b>Respuestas por estudiante</b> (qué marcó cada uno en cada pregunta y cuál era la correcta) y <b>Retroalimentación</b> (puntajes, rúbrica, comentarios y el enlace a cada informe).</p>
+          <p class="man-tip"><b>💡 Para que aparezcan los enunciados</b>, la prueba debe estar armada en la pestaña <b>Evaluación</b> (y aplicada a la hoja). Si no, el informe y el Excel muestran sólo las letras: «marcaste B, la correcta era D». Si usas filas (A, B, C, D), cada estudiante ve las preguntas en el orden y con las letras de su propia fila.</p>
+        </article>
+
         <!-- ? -->
         <article class="card man-section" id="man-problemas" data-man="problemas">
           <h2><span class="man-num">?</span>Problemas frecuentes</h2>
@@ -1522,6 +1545,34 @@ Núcleo = Contiene el material genético</pre>
     </div>
   </dialog>
 
+  <dialog id="proRubricDialog" class="el-dialog pro-dialog pro-rubric-dialog" aria-labelledby="prbTitle">
+    <div class="el-head">
+      <h2 id="prbTitle">Rúbrica de <span id="prbLabel"></span></h2>
+      <button type="button" class="btn ghost small" data-pro-close aria-label="Cerrar">✕</button>
+    </div>
+    <div class="pro-dialog-body">
+      <p class="muted small">Escribe los <b>criterios</b> (filas) y los <b>niveles de logro</b> con su puntaje (columnas). Al revisar cada estudiante en Resultados marcas un nivel por criterio, el puntaje se calcula solo y el estudiante ve la rúbrica en su informe, con los niveles que obtuvo.</p>
+      <div class="table-wrap"><table id="prbTable" class="pro-rubric-table"></table></div>
+      <div class="actions">
+        <button type="button" class="btn secondary small" id="prbAddCrit">＋ Criterio</button>
+        <button type="button" class="btn ghost small" id="prbAddLevel">＋ Nivel</button>
+      </div>
+      <p id="prbTotal" class="muted small"></p>
+      <details id="prbPasteBox" class="pro-rubric-paste">
+        <summary>📋 Pegar una rúbrica desde Excel, Word o Google Docs</summary>
+        <p class="muted small">Selecciona la tabla completa, cópiala y pégala aquí. La primera fila debe tener los niveles con su puntaje, por ejemplo «Logrado (3)», y la primera columna, los criterios.</p>
+        <textarea id="prbPaste" rows="5" placeholder="Criterio&#9;Logrado (3)&#9;Medianamente logrado (2)&#9;Por lograr (1)"></textarea>
+        <button type="button" class="btn secondary small" id="prbPasteApply">Usar esta tabla</button>
+      </details>
+    </div>
+    <div class="el-foot">
+      <button type="button" class="btn ghost danger" id="prbRemove">Quitar rúbrica</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn ghost" data-pro-close>Cancelar</button>
+      <button type="button" class="btn primary" id="prbSave">Guardar rúbrica</button>
+    </div>
+  </dialog>
+
   <dialog id="proTicketDialog" class="el-dialog pro-dialog" aria-labelledby="proTicketTitle">
     <div class="el-head">
       <h2 id="proTicketTitle">🎟️ Nuevo ticket de salida</h2>
@@ -1640,6 +1691,9 @@ Núcleo = Contiene el material genético</pre>
   <script src="js/pro/respaldo.js"></script>
   <script src="js/pro/copias.js"></script>
   <script src="js/pro/desarrollo.js"></script>
+  <script src="js/pro/pdf-core.js"></script>
+  <script src="js/pro/retro-core.js"></script>
+  <script src="js/pro/retro.js"></script>
   <script src="js/pro/tickets.js"></script>
   <script src="js/pro/nombres.js"></script>
   <script src="js/pro/analisis-core.js"></script>

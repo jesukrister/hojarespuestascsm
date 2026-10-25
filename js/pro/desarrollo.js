@@ -49,12 +49,13 @@
           <td><input type="text" maxlength="5" value="${esc(d.label)}" data-f="label" aria-label="Rótulo" class="dev-label"></td>
           <td><select data-f="max" aria-label="Puntaje máximo">${opts.join('')}</select></td>
           <td class="muted small">casillas ${Array.from({ length: d.max + 1 }, (_, v) => v).join(' · ')}</td>
+          <td><button type="button" class="btn ghost small" data-rub="${i}">${Pro.rubricButtonLabel ? esc(Pro.rubricButtonLabel(i)) : 'Rúbrica…'}</button></td>
           <td><button type="button" class="btn ghost small danger" data-del aria-label="Quitar">✕</button></td>
         </tr>`;
       })
       .join('');
     $('#proDevTable').innerHTML = items.length
-      ? `<thead><tr><th>Rótulo</th><th>Puntaje máximo</th><th>En la hoja</th><th></th></tr></thead><tbody>${rows}</tbody>`
+      ? `<thead><tr><th>Rótulo</th><th>Puntaje máximo</th><th>En la hoja</th><th>Rúbrica <span class="muted small">(opcional)</span></th><th></th></tr></thead><tbody>${rows}</tbody>`
       : '';
     $('#proDevAdd').disabled = items.length >= LIMITS.maxDev;
     const cands = app.docDevCandidates();
@@ -75,6 +76,7 @@
     if (!cands.length) return;
     if (list().length && !confirm('Se reemplazarán las casillas de desarrollo actuales por las preguntas de desarrollo de la evaluación. ¿Continuar?')) return;
     const prev = list();
+    if (Pro.onDevReset) Pro.onDevReset();
     setDev(
       cands.map((c, i) => ({ label: `P${c.number}`, max: prev[i] ? prev[i].max : 4 })),
       `Se crearon ${cands.length} casilla(s), una por pregunta de desarrollo, con 4 puntos como máximo: ajusta el puntaje de cada una. ` + printedNote()
@@ -93,10 +95,14 @@
     const b = e.target.closest('[data-del]');
     if (!b) return;
     const items = list().slice();
-    items.splice(Number(b.closest('tr').dataset.i), 1);
+    const k = Number(b.closest('tr').dataset.i);
+    items.splice(k, 1);
+    // Las rúbricas y comentarios de las preguntas siguientes se corren con ellas.
+    if (Pro.onDevSplice) Pro.onDevSplice(k);
     setDev(items, printedNote());
   });
   // La lista cambia al importar o cargar otra prueba.
+  Pro.devRender = render;
   app.on('examForm', render);
   app.on('tab', (name) => {
     if (name === 'prueba') render();
