@@ -151,6 +151,26 @@ input[type="date"] {
 
 .pro-backup p { max-width: 80ch; }
 .pro-cloud p { max-width: 80ch; }
+.pro-lib-card p { margin: 0; max-width: 90ch; }
+.pro-lib-card .actions { margin-top: 8px; }
+.pro-lib-card #proLibLinked { margin-top: 6px; }
+.pro-lib-dialog { width: min(760px, 96vw); }
+.pl-tools { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.pl-tools input { flex: 1 1 220px; padding: 8px 10px; }
+#plList { display: grid; gap: 8px; max-height: 60vh; overflow: auto; }
+.pl-group { border: 1px solid var(--border); border-radius: 10px; padding: 4px 10px; }
+.pl-group summary { cursor: pointer; padding: 6px 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pl-folder { font-weight: 700; }
+.pl-folder-actions { margin-left: auto; display: flex; gap: 10px; }
+.pl-folder-actions .danger, .pl-actions .danger { color: var(--bad); }
+.pl-items { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 6px; }
+.pl-items li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.pl-items li.current { border-color: var(--primary); background: var(--primary-soft); }
+.pl-items li.muted { border-style: dashed; }
+.pl-info { flex: 1 1 260px; min-width: 0; }
+.pl-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.pl-move { max-width: 150px; padding: 5px 6px; }
+.pro-lib-mode { margin: 0; }
 .pro-cloud-status { font-weight: 600; }
 .pro-cloud-status.warn { color: var(--warn); }
 .pro-cloud .link-btn.danger { color: var(--bad); }

@@ -1,7 +1,8 @@
 /*
  * Versión Pro · Nube (opcional): cuenta con correo y contraseña para que los
  * cursos, el libro de notas y la prueba con sus resultados se guarden solos en
- * internet y aparezcan en otro equipo al entrar con la misma cuenta.
+ * internet y aparezcan en otro equipo al entrar con la misma cuenta. También
+ * «Mis evaluaciones» (biblioteca.js).
  *  - Crear cuenta y «Olvidé mi contraseña»: llega un código al correo.
  *  - Se sincroniza al abrir, unos segundos después de cada cambio, al salir de
  *    la app y cada 5 minutos. Los cambios de dos equipos se combinan (nube-core.js).
@@ -131,6 +132,26 @@
         },
       },
       {
+        name: 'biblioteca',
+        read: () => JSON.stringify(Pro.library ? Pro.library.get() : { folders: [], items: [] }),
+        isEmpty: (t) => {
+          const d = parse(t) || {};
+          return !(d.items || []).length && !(d.folders || []).length;
+        },
+        merge: (b, l, r) => ({
+          value: Object.assign({}, l, {
+            folders: N.mergeList(b && b.folders, l.folders, r && r.folders),
+            items: N.mergeList(b && b.items, l.items, r && r.items),
+          }),
+          lost: false,
+        }),
+        apply: async (text) => {
+          if (!Pro.library) return undefined;
+          await Pro.library.set(parse(text));
+          return JSON.stringify(Pro.library.get());
+        },
+      },
+      {
         name: 'recursos',
         read: () => sortedJson(assets),
         isEmpty: (t) => !Object.keys(parse(t) || {}).length,
@@ -178,6 +199,7 @@
 
   async function runSync({ pruebaPushOnly }) {
     await Pro.ready;
+    if (Pro.library) await Pro.library.ready;
     await loadAssets();
     const a = api();
     const list = await a.list();
@@ -409,7 +431,7 @@
   async function signedInWith(res) {
     meta = { correo: res.correo, sesion: res.sesion, docs: {}, at: 0 };
     for (const name of Object.keys(bases)) delete bases[name];
-    for (const name of ['libro', 'recursos', 'prueba']) await kv.del(BASE_KEY(name)).catch(() => {});
+    for (const name of ['libro', 'biblioteca', 'recursos', 'prueba']) await kv.del(BASE_KEY(name)).catch(() => {});
     await saveMeta();
     dlg().close();
     render('busy');
@@ -473,7 +495,7 @@
     meta = keepEmail && meta ? { correo: meta.correo, sesion: '', docs: {} } : null;
     behind = false;
     for (const name of Object.keys(bases)) delete bases[name];
-    for (const name of ['libro', 'recursos', 'prueba']) await kv.del(BASE_KEY(name)).catch(() => {});
+    for (const name of ['libro', 'biblioteca', 'recursos', 'prueba']) await kv.del(BASE_KEY(name)).catch(() => {});
     await saveMeta();
     render();
     renderBanner();
@@ -499,6 +521,7 @@
   app.on('save', changed);
   app.on('results', changed);
   app.on('resultsCleared', changed);
+  if (Pro.library) Pro.library.onChange(changed);
   const saveBook = Pro.saveBook;
   Pro.saveBook = (...args) => {
     changed();

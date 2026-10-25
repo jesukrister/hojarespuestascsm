@@ -69,6 +69,15 @@
           <p class="pro-ticket-line"><button type="button" class="btn secondary small" id="proNewTicket">🎟️ Crear un ticket de salida</button> <span class="muted small">Mini control de 3 a 10 preguntas para el final de la clase: 8 por página.</span></p>
           <p id="proTicketActive" class="alert pro-ticket-active" hidden>🎟️ Estás trabajando en un <b>ticket de salida</b> (8 por página, hasta 10 preguntas). Para una prueba normal, con más preguntas o alternativas: <button type="button" class="btn secondary small" id="proTicketExit">Volver a una prueba normal</button></p>
         </div>
+
+        <div class="card pro-lib-card" id="proLibCard">
+          <p><strong>📚 Mis evaluaciones</strong> <span class="muted small">Guarda esta prueba en una carpeta (preguntas, clave, objetivos, desarrollo y rúbricas) para volver a usarla, por ejemplo el próximo año.</span></p>
+          <div class="actions">
+            <button type="button" class="btn secondary small" id="proLibSave">💾 Guardar en Mis evaluaciones</button>
+            <button type="button" class="btn ghost small" id="proLibOpen">📂 Abrir Mis evaluaciones (<span id="proLibCount">0</span>)</button>
+          </div>
+          <p id="proLibLinked" class="muted small" hidden></p>
+        </div>
         <div class="card">
           <h2>Datos de la prueba</h2>
           <div class="form-grid">
@@ -833,6 +842,7 @@
             <button type="button" data-man-go="continuo"><b>16</b>Escaneo continuo</button>
             <button type="button" data-man-go="retro"><b>17</b>Retroalimentación e informes</button>
             <button type="button" data-man-go="nube"><b>18</b>Guardar en la nube</button>
+            <button type="button" data-man-go="biblioteca"><b>19</b>Mis evaluaciones (carpetas)</button>
             <button type="button" data-man-go="problemas"><b>?</b>Problemas frecuentes</button>
           </nav>
           <p class="donate-wrap man-donate" hidden>¿Te sirve la plataforma? Es gratuita; si quieres, puedes apoyar su desarrollo: <a class="donate-link" target="_blank" rel="noopener">❤ Apoya este proyecto</a></p>
@@ -1276,6 +1286,25 @@ Núcleo = Contiene el material genético</pre>
           <p class="man-warn"><b>⚠️ Datos de estudiantes:</b> en la nube quedan los nombres, RUT y notas que escribiste, protegidos con tu contraseña. No compartas tu contraseña. Para borrar todo de la nube: <b>Borrar mi cuenta…</b> (los datos de tu equipo no se borran). <b>Cerrar sesión</b> sólo deja de guardar en ese equipo.</p>
         </article>
 
+        <article class="card man-section" id="man-biblioteca" data-man="biblioteca">
+          <h2><span class="man-num">19</span>Mis evaluaciones: guardar pruebas en carpetas</h2>
+          <div class="man-video" data-video="biblioteca"></div>
+          <p>Guarda tus pruebas para volver a usarlas, por ejemplo la prueba de la Unidad 3 de 1° Medio para el próximo año. Se guarda la prueba completa: título, cantidad de preguntas y alternativas, clave, objetivos (OA), las preguntas escritas en <b>Evaluación</b> con sus imágenes, las filas (A, B…), las preguntas de desarrollo y sus rúbricas. <b>No</b> se guardan los estudiantes ni las hojas escaneadas.</p>
+          <h3>Guardar</h3>
+          <ol class="man-steps">
+            <li>En la pestaña <b>Prueba</b>, sección <b>📚 Mis evaluaciones</b>, presiona <b>💾 Guardar en Mis evaluaciones</b>.</li>
+            <li>Escribe un nombre (por ejemplo «Unidad 3 – Historia»), elige una carpeta o crea una nueva (por ejemplo «1° Medio») y, si quieres, una nota («la pregunta 7 salió difícil»). Presiona <b>Guardar</b>.</li>
+          </ol>
+          <h3>Volver a usarla</h3>
+          <ol class="man-steps">
+            <li>Presiona <b>📂 Abrir Mis evaluaciones</b>. Busca por nombre o abre la carpeta.</li>
+            <li>Presiona <b>📂 Usar</b>. La prueba reemplaza a la actual (antes se guarda una copia automática) y queda lista para imprimir y escanear. Revisa la fecha y el curso antes de imprimir.</li>
+            <li>Si le haces cambios y quieres conservarlos, presiona otra vez <b>💾 Guardar en Mis evaluaciones</b> y elige <b>Actualizar</b> (o guárdala como una prueba nueva, por ejemplo «Unidad 3 – 2027»).</li>
+          </ol>
+          <p>En la lista también puedes <b>mover</b> una prueba a otra carpeta, cambiarle el nombre (✏️) o eliminarla (🗑). Al eliminar una carpeta, sus pruebas no se borran: quedan en «Sin carpeta».</p>
+          <p class="man-tip"><b>💡 No se pierden:</b> Mis evaluaciones va en el <b>respaldo</b> y, si tienes cuenta, en la <b>nube</b>: al entrar en otro equipo aparecen ahí también.</p>
+        </article>
+
         <!-- ? -->
         <article class="card man-section" id="man-problemas" data-man="problemas">
           <h2><span class="man-num">?</span>Problemas frecuentes</h2>
@@ -1489,6 +1518,24 @@ Núcleo = Contiene el material genético</pre>
   <div id="printArea" class="print-area" aria-hidden="true"></div>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
+  <dialog id="proLibDialog" class="el-dialog pro-dialog pro-lib-dialog" aria-labelledby="proLibTitle">
+    <div class="el-head">
+      <h2 id="proLibTitle">📚 Mis evaluaciones</h2>
+      <button type="button" class="btn ghost small" data-pro-close aria-label="Cerrar">✕</button>
+    </div>
+    <div class="pro-dialog-body">
+      <div class="pl-tools">
+        <input id="plSearch" type="search" placeholder="🔍 Buscar (nombre, curso, unidad…)" aria-label="Buscar evaluación" autocomplete="off">
+        <button type="button" class="btn secondary small" id="plNewFolderBtn">＋ Nueva carpeta</button>
+      </div>
+      <div id="plList"></div>
+    </div>
+    <div class="el-foot">
+      <span class="muted small">Se guardan en este equipo, en el respaldo y, si tienes cuenta, en la nube.</span>
+      <span class="spacer"></span>
+      <button type="button" class="btn ghost" data-pro-close>Cerrar</button>
+    </div>
+  </dialog>
   <dialog id="proCloudDialog" class="el-dialog pro-dialog pro-cloud-dialog" aria-labelledby="proCloudTitle">
     <div class="el-head">
       <h2 id="proCloudTitle">Nube</h2>
@@ -1764,6 +1811,8 @@ Núcleo = Contiene el material genético</pre>
   <script src="js/pro/libro.js"></script>
   <script src="js/pro/respaldo.js"></script>
   <script src="js/pro/copias.js"></script>
+  <script src="js/pro/biblioteca-core.js"></script>
+  <script src="js/pro/biblioteca.js"></script>
   <script src="js/pro/nube-core.js"></script>
   <script src="js/pro/nube.js"></script>
   <script src="js/pro/desarrollo.js"></script>

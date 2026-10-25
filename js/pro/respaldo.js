@@ -86,7 +86,9 @@
       if (typeof v === 'string') assets[el.id] = v;
     }
     const date = new Date();
-    const bytes = R.buildBackup({ state: snapshot, images, assets, book, edition: 'pro', date });
+    if (Pro.library) await Pro.library.ready;
+    const library = Pro.library ? JSON.parse(JSON.stringify(Pro.library.get())) : null;
+    const bytes = R.buildBackup({ state: snapshot, images, assets, book, library, edition: 'pro', date });
     return { bytes, date, hash };
   }
 
@@ -223,7 +225,11 @@
         cur ? ` y sus ${cur} hoja(s) escaneada(s)` : ''
       }.</span></label>`;
     }
-    if (!(book && book.courses.length) && !exam) {
+    const libItems = data.library && Array.isArray(data.library.items) ? data.library.items.length : 0;
+    if (libItems && Pro.library) {
+      html += `<label class="choice"><input type="checkbox" id="rsLib" checked><span><b>Mis evaluaciones</b>: ${libItems} evaluación(es) guardada(s). Se juntan con las de este equipo.</span></label>`;
+    }
+    if (!(book && book.courses.length) && !exam && !libItems) {
       await Pro.confirm({ title, html: `<p>${fromCopy ? 'La copia' : 'El respaldo'} está vacío.</p>`, ok: 'Entendido', cancel: null });
       return;
     }
@@ -233,13 +239,19 @@
     const doBook = !!($('#rsBook') && $('#rsBook').checked);
     const replace = !!document.querySelector('input[name="rsMode"][value="replace"]:checked');
     const doExam = !!($('#rsExam') && $('#rsExam').checked);
-    if (!doBook && !doExam) return app.toast('No elegiste nada para restaurar.');
+    const doLib = !!($('#rsLib') && $('#rsLib').checked);
+    if (!doBook && !doExam && !doLib) return app.toast('No elegiste nada para restaurar.');
     try {
       progress('Restaurando…');
       if (Pro.safetyCopy) await Pro.safetyCopy(safety);
       if (doBook) {
         Pro.book = replace ? book : L.mergeBooks(Pro.book, book);
         await Pro.saveBook();
+      }
+      if (doLib) {
+        const cur = Pro.library.get();
+        const merge = window.NubeCore ? window.NubeCore.mergeList : (a, b) => a.concat(b.filter((x) => !a.some((y) => y.id === x.id)));
+        await Pro.library.set({ folders: merge(null, cur.folders, data.library.folders || []), items: merge(null, cur.items, data.library.items || []) });
       }
       if (doExam) {
         if (!fromCopy) {
@@ -257,13 +269,13 @@
           if (typeof v === 'string' && v.startsWith('data:image/')) await app.assetStore.put(id, v);
         }
         localStorage.setItem(app.STORE_KEY, JSON.stringify({ exam: data.state.exam, results: data.state.results }));
-        reloadWith(`${fromCopy ? 'Copia recuperada' : 'Respaldo restaurado'}: ${doBook ? 'cursos, libro de notas, ' : ''}prueba y ${nResults} hoja(s).`);
+        reloadWith(`${fromCopy ? 'Copia recuperada' : 'Respaldo restaurado'}: ${doBook ? 'cursos, libro de notas, ' : ''}${doLib ? 'Mis evaluaciones, ' : ''}prueba y ${nResults} hoja(s).`);
         return;
       }
       progress('');
       Pro.renderAll();
       renderBackupInfo();
-      app.toast(fromCopy ? 'Cursos y libro de notas recuperados.' : 'Cursos y libro de notas restaurados.');
+      app.toast(doBook ? (fromCopy ? 'Cursos y libro de notas recuperados.' : 'Cursos y libro de notas restaurados.') : 'Mis evaluaciones restauradas.');
     } catch (e) {
       console.error(e);
       progress('');

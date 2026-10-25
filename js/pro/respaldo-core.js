@@ -1,6 +1,6 @@
 /*
  * Versión Pro · Respaldo completo en un archivo ZIP:
- *   respaldo.json   prueba, resultados, cursos y libro de notas
+ *   respaldo.json   prueba, resultados, cursos, libro de notas y «Mis evaluaciones»
  *   imagenes/…      hoja corregida y foto original de cada resultado
  *   LEEME.txt
  * Sólo lógica (sin pantalla), para poder probarla aparte.
@@ -87,7 +87,7 @@
    *   state: { exam, results },
    *   images: [{ id, sheet: Uint8Array, photo: Uint8Array|null, scale, overlay }],
    *   assets: { idElemento: dataURL },
-   *   book, settings, edition, date
+   *   book, library, settings, edition, date
    * }
    * @returns Uint8Array (archivo .zip)
    */
@@ -118,6 +118,7 @@
       imagenes,
       assets: data.assets || {},
       libro: data.book || null,
+      biblioteca: data.library || null,
       ajustes: data.settings || {},
     };
     entries.unshift({ name: 'LEEME.txt', data: LEEME });
@@ -126,7 +127,7 @@
   }
 
   /**
-   * @returns { created, state, images: [{ id, sheet, photo, scale, overlay }], assets, book, settings }
+   * @returns { created, state, images: [{ id, sheet, photo, scale, overlay }], assets, book, library, settings }
    */
   async function parseBackup(input) {
     const files = await readZip(input);
@@ -157,6 +158,7 @@
       images,
       assets: m.assets && typeof m.assets === 'object' ? m.assets : {},
       book: m.libro && typeof m.libro === 'object' ? m.libro : null,
+      library: m.biblioteca && typeof m.biblioteca === 'object' ? m.biblioteca : null,
       settings: m.ajustes && typeof m.ajustes === 'object' ? m.ajustes : {},
     };
   }

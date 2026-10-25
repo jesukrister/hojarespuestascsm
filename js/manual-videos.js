@@ -37,6 +37,7 @@ window.MANUAL_VIDEOS = {
   continuo: '', //    16. Escaneo continuo con la cámara
   retro: '', //       17. Retroalimentación, rúbricas e informes PDF
   nube: '', //        18. Guardar en la nube (cuenta con correo)
+  biblioteca: '', //  19. Mis evaluaciones (carpetas)
 };
 
 // true: donde todavía no hay video se muestra el aviso "Video próximamente".

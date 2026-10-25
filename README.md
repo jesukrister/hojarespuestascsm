@@ -122,6 +122,10 @@ pestañas, manual…) es el mismo código, así que las mejoras llegan a las dos
   eliminar un curso o una evaluación o restaurar), con *Volver a esta copia* y
   descarga como respaldo; se conservan las 10 más recientes y una por día del
   último mes (máximo 20).
+- **Mis evaluaciones**: guarda la prueba completa (datos, clave, OA, preguntas
+  escritas con sus imágenes, filas, desarrollo y rúbricas; sin estudiantes ni
+  hojas escaneadas) en carpetas, con nombre y nota, para volver a usarla otro
+  año. Búsqueda, mover, renombrar y eliminar; va en el respaldo y en la nube.
 - **Nube (opcional)**: cuenta con correo y contraseña (código por correo para
   crearla o recuperar la contraseña). Los cursos, el libro de notas y la prueba
   con sus resultados se guardan solos (al abrir, tras cada cambio, al salir y
@@ -564,6 +568,7 @@ entregar una corrección equivocada sin avisar.
 | `js/pro/camara.js` | Escaneo continuo con la cámara |
 | `js/pro/pdf-core.js` | Generador de PDF mínimo (Helvetica WinAnsi, tablas, imágenes JPEG) |
 | `js/pro/retro-core.js`, `js/pro/retro.js` | Rúbricas, retroalimentación, informe PDF por estudiante y hojas del Excel |
+| `js/pro/biblioteca-core.js`, `js/pro/biblioteca.js` | Mis evaluaciones: pruebas guardadas en carpetas |
 | `js/pro/nube-core.js`, `js/pro/nube.js` | Nube: cuenta, sincronización y combinación de cambios de dos equipos |
 | `nube/lector-nube.mjs`, `nube/correo.gs`, `nube/GUIA.md` | Servidor de la nube (Cloudflare Worker + D1), correos con código (Apps Script) y guía para activarlo |
 | `vendor/pdf/` | pdf.js (lectura de PDF en la versión Pro; en Android sólo va en la app Pro) |

@@ -153,6 +153,7 @@
     copia: 'Antes de volver a una copia',
     nube: 'Antes de traer cambios de la nube',
     nubeOtra: 'Prueba que estaba en la nube',
+    biblioteca: 'Antes de abrir una evaluación guardada',
   };
 
   return { hash, serialize, summary, hasData, describe, copyReason, prune, reminder, fileDue, latest, dayKey, REASONS, COPY_EVERY, FILE_EVERY, DAY };
