@@ -21,7 +21,7 @@
   const state = app.state;
 
   // Dirección del servidor. Cuando haya dominio propio, se cambia aquí.
-  const DEFAULT_URL = 'https://lector-nube.colegiosm.workers.dev';
+  const DEFAULT_URL = 'https://lector-nube.colegiosmiqq.workers.dev';
   const serverUrl = () => {
     try {
       return localStorage.getItem('lectorHojasPro.nubeUrl') || DEFAULT_URL;

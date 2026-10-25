@@ -170,7 +170,7 @@ la normal, con estas diferencias:
   - ¿Datos cifrados en tránsito? **Sí** (HTTPS).
   - ¿Los usuarios pueden pedir que se borren? **Sí**. Cuenta: también hay que
     marcar que la app permite crear cuentas y dar el **enlace para borrar la
-    cuenta**: `https://lector-nube.colegiosm.workers.dev/borrar-cuenta`.
+    cuenta**: `https://lector-nube.colegiosmiqq.workers.dev/borrar-cuenta`.
   - Tipos de datos (todos **opcionales**, sólo si se crea una cuenta, y con
     finalidad **Funcionalidad de la app** y **Administración de la cuenta**):
     *Información personal → Dirección de correo electrónico*;

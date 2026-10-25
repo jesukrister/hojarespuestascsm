@@ -15,8 +15,8 @@ nombre y otra base de datos), así que no toca nada del colegio.
 1. Entra a <https://dash.cloudflare.com> → **Compute (Workers) → Workers y Pages → Crear → Worker**
    («Comenzar con Hello World»).
 2. Nombre: `lector-nube`. Presiona **Implementar** (Deploy).
-   La dirección queda así: `https://lector-nube.colegiosm.workers.dev`
-   (si tu subdominio de workers.dev no es `colegiosm`, lee el paso 8).
+   La dirección queda así: `https://lector-nube.colegiosmiqq.workers.dev`
+   (si tu subdominio de workers.dev no es `colegiosmiqq`, lee el paso 8).
 3. Presiona **Editar código**. Borra todo lo que aparece y pega el contenido completo del archivo
    [`nube/lector-nube.mjs`](lector-nube.mjs) de este repositorio. Presiona **Implementar**.
 
@@ -60,16 +60,16 @@ En Cloudflare, **lector-nube → Configuración → Variables y secretos → Agr
 Presiona **Implementar**.
 
 ## 7. Probar
-1. Abre `https://lector-nube.colegiosm.workers.dev/estado`. Debe decir `"ok":true` y
+1. Abre `https://lector-nube.colegiosmiqq.workers.dev/estado`. Debe decir `"ok":true` y
    `"correoConfigurado":true`.
 2. En la versión Pro: **Cursos → ☁️ Guardar en la nube → Crear cuenta**. Debe llegarte el código.
 3. Si el código no llega, vuelve a abrir `/estado`: en `ultimoCorreo.causa` aparece qué falló
    (clave distinta, acceso del script que no es «Cualquier usuario», URL que no termina en `/exec`…).
 4. La página para borrar la cuenta (la pide Google Play) es
-   `https://lector-nube.colegiosm.workers.dev/borrar-cuenta`.
+   `https://lector-nube.colegiosmiqq.workers.dev/borrar-cuenta`.
 
 ## 8. Si la dirección es otra (o cuando compres un dominio)
-La app usa `https://lector-nube.colegiosm.workers.dev`. Si tu servidor quedó con otra dirección,
+La app usa `https://lector-nube.colegiosmiqq.workers.dev`. Si tu servidor quedó con otra dirección,
 o cuando conectes un dominio propio (en **lector-nube → Configuración → Dominios y rutas**), hay
 que cambiarla en tres lugares y subir el cambio:
 - `js/pro/nube.js` → `DEFAULT_URL`.
