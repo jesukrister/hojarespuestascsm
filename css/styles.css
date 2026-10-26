@@ -285,6 +285,15 @@ label.range output { min-width: 3.2em; font-variant-numeric: tabular-nums; }
 .seg button { border: 0; border-left: 1px solid var(--border); background: transparent; color: var(--muted); font: inherit; font-weight: 600; padding: 8px 12px; cursor: pointer; white-space: nowrap; }
 .seg button:first-child { border-left: 0; }
 .seg button[aria-checked="true"] { background: var(--primary); color: #fff; }
+.mf-keys { display: grid; gap: 10px; margin-top: 12px; }
+.mf-keys:empty { display: none; }
+#formsOrderNote { margin: 12px 0 0; }
+@media (max-width: 480px) {
+  #formsCountSeg { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  #formsCountSeg button:nth-child(3) { border-left: 0; }
+  #formsCountSeg button:nth-child(n + 3) { border-top: 1px solid var(--border); }
+}
+.forms-hint { margin: 12px 0 0; }
 .seg button:not([aria-checked="true"]):hover { background: var(--primary-soft); color: var(--primary); }
 .pz-head-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 @media (max-width: 480px) { .pz-head-actions { flex-wrap: nowrap; } }
@@ -737,13 +746,16 @@ fieldset.checks legend { font-weight: 600; font-size: 0.92rem; padding: 0 4px; }
 /* ---------- Impresión ---------- */
 .print-area { display: none; }
 @media print {
-  body { background: #fff; }
+  /* Sin el relleno de la barra de abajo del celular ni otros márgenes: si no, sobra una página en blanco. */
+  html, body { margin: 0 !important; padding: 0 !important; height: auto !important; min-height: 0 !important; background: #fff; }
   .app, .toast, .native-notice { display: none !important; }
   .print-area { display: block; }
   .print-area svg { display: block; }
   .print-doc .td-q { break-inside: avoid; }
   .print-form + .print-form, .print-page + .print-page { break-before: page; }
-  .print-page svg { overflow: hidden; }
+  .print-page { break-inside: avoid; overflow: hidden; }
+  .print-page:not(.print-reparto) { display: flex; align-items: flex-start; justify-content: center; }
+  .print-page:not(.print-reparto) svg { overflow: hidden; max-width: 100%; max-height: 100%; width: auto; height: auto; }
   .el-dialog { display: none !important; }
 }
 

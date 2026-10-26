@@ -65,6 +65,7 @@
       levels: Object.assign({}, Grading.DEFAULT_LEVELS),
       doc: defaultDoc(),
       forms: null, // filas B–D: { maps: [{ order, perms }] } (ver sanitizeForms)
+      manualForms: null, // filas sin evaluación escrita: { keys: [clave fila B, …] } (ver manualFormMaps)
       dev: [], // versión Pro: casillas de puntaje de preguntas de desarrollo [{ label, max }]
     };
   }
@@ -125,6 +126,8 @@
     }
     exam.doc = sanitizeDoc(raw.doc);
     exam.forms = sanitizeForms(raw.forms, exam.numQuestions, exam.numChoices);
+    exam.manualForms = sanitizeManualForms(raw.manualForms, exam.numQuestions, exam.numChoices);
+    if (exam.manualForms) exam.forms = manualFormMaps(exam);
     exam.dev = PRO ? SheetLayout.normalizeDev(raw.dev) : [];
     if (PRO) exam.pie = sanitizePie(raw.pie, exam.numQuestions, exam.numChoices);
     // Datos de la versión Pro (curso y evaluación del libro de notas vinculados).
@@ -168,6 +171,37 @@
       if (!m || !isPerm(m.order, n) || !Array.isArray(m.perms) || m.perms.length !== n || !m.perms.every((p) => isPerm(p, c))) return null;
     }
     return { maps: raw.maps.map((m) => ({ order: m.order.slice(), perms: m.perms.map((p) => p.slice()) })) };
+  }
+
+  /** Filas sin evaluación escrita: la clave de cada fila B–D, escrita a mano. */
+  function sanitizeManualForms(raw, n, c) {
+    if (!raw || !Array.isArray(raw.keys) || raw.keys.length < 1 || raw.keys.length > 3) return null;
+    return { keys: raw.keys.map((k) => fitKey(Array.isArray(k) ? k : [], n, c)) };
+  }
+
+  /**
+   * Mapas de corrección de las filas escritas a mano: las preguntas van en el
+   * mismo orden y en cada una se intercambian la alternativa correcta de la
+   * fila A y la de la otra fila (así keyForForm da la clave escrita).
+   */
+  function manualFormMaps(exam) {
+    const { numQuestions: n, numChoices: c, key } = exam;
+    const ident = () => Array.from({ length: c }, (_, k) => k);
+    const order = Array.from({ length: n }, (_, q) => q);
+    const rows = exam.manualForms.keys.map((rk) => ({
+      order: order.slice(),
+      perms: order.map((q) => {
+        const p = ident();
+        const a = key[q];
+        const b = rk[q];
+        if (a !== null && b !== null && a !== b) {
+          p[b] = a;
+          p[a] = b;
+        }
+        return p;
+      }),
+    }));
+    return { maps: [{ order, perms: order.map(ident) }].concat(rows) };
   }
 
   function sameForms(a, b) {
@@ -280,6 +314,7 @@
   let selectedResultId = null;
 
   function save() {
+    if (state.exam.manualForms) state.exam.forms = manualFormMaps(state.exam);
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify(state));
     } catch (e) {
@@ -602,6 +637,7 @@
     $('#thrRange').value = e.threshold === null ? 0.35 : e.threshold;
     $('#thrValue').textContent = e.threshold === null ? 'auto' : e.threshold.toFixed(2);
     renderChoiceSeg();
+    renderManualForms();
     renderPruebaSummary();
     emit('examForm');
   }
@@ -794,6 +830,7 @@
     raw.oaText = '';
     raw.dev = [];
     raw.forms = null;
+    raw.manualForms = null;
     raw.pie = null;
     raw.doc.text = '';
     raw.doc.elements = [];
@@ -874,6 +911,8 @@
     if (wasTicket && cur.format !== 'ticket') cur.sheetFields = { curso: true, fecha: true, rut: true };
     cur.key = fitKey(cur.key, cur.numQuestions, cur.numChoices);
     cur.forms = sanitizeForms(cur.forms, cur.numQuestions, cur.numChoices);
+    cur.manualForms = sanitizeManualForms(cur.manualForms, cur.numQuestions, cur.numChoices);
+    if (cur.manualForms) cur.forms = manualFormMaps(cur);
     if (PRO) cur.pie = sanitizePie(cur.pie, cur.numQuestions, cur.numChoices);
     return true;
   }
@@ -952,7 +991,74 @@
     const set = key.filter((k) => k !== null).length;
     $('#keyStatus').textContent = set === n ? `✓ ${n} preguntas con clave` : `${set} de ${n} preguntas con clave`;
     renderFormKeys();
+    renderManualForms();
     renderPruebaSummary();
+  }
+
+  const FORMS_COUNT_LABELS = ['Sin filas', '2 (A y B)', '3 (A, B y C)', '4 (A a D)'];
+
+  /** Opción «Filas»: claves de las filas B–D escritas a mano (sin evaluación escrita). */
+  function renderManualForms() {
+    const box = $('#manualFormKeys');
+    if (!box) return;
+    const e = state.exam;
+    const fromDoc = !!e.forms && !e.manualForms;
+    const count = e.forms ? e.forms.maps.length : 1;
+    const letters = Array.from({ length: count }, (_, i) => formLetter(i));
+    $('#formsSummary').textContent = count < 2 ? 'Sólo fila A' : `Filas ${letters.slice(0, -1).join(', ')} y ${letters[count - 1]}${fromDoc ? ' (de Preguntas)' : ''}`;
+    $('#formsDocNote').hidden = !fromDoc;
+    $('#formsManualBox').hidden = fromDoc;
+    if (fromDoc) return;
+    const seg = $('#formsCountSeg');
+    if (!seg.children.length) {
+      seg.innerHTML = FORMS_COUNT_LABELS.map((l, i) => `<button type="button" role="radio" data-forms-count="${i + 1}">${l}</button>`).join('');
+    }
+    for (const btn of seg.children) btn.setAttribute('aria-checked', String(Number(btn.dataset.formsCount) === count));
+    $('#formsOrderNote').hidden = count < 2;
+    const keys = e.manualForms ? e.manualForms.keys : [];
+    const n = e.numQuestions;
+    const text = (k) => (k.some((v) => v !== null) ? keyToText(k) : '');
+    const status = (k) => {
+      const set = k.filter((v) => v !== null).length;
+      return set === n ? `✓ ${n}/${n}` : `${set}/${n} · las que falten se corrigen con la clave de la fila A`;
+    };
+    // Sólo se rehace si cambia la cantidad de filas (así no se pierde el foco ni el clic).
+    if (box.querySelectorAll('[data-mf]').length !== keys.length) {
+      box.innerHTML = keys
+        .map(
+          (k, i) => `<label>Clave fila ${formLetter(i + 1)} <span class="muted small" data-mf-status="${i}"></span>
+            <input type="text" data-mf="${i}" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Ej.: BADCC ADBCA …">
+          </label>`
+        )
+        .join('');
+    }
+    keys.forEach((k, i) => {
+      box.querySelector(`[data-mf-status="${i}"]`).textContent = status(k);
+      const input = box.querySelector(`[data-mf="${i}"]`);
+      if (input !== document.activeElement) input.value = text(k);
+    });
+  }
+
+  function setManualFormsCount(count) {
+    const e = state.exam;
+    const cur = e.forms ? e.forms.maps.length : 1;
+    if (count === cur || (e.forms && !e.manualForms)) return;
+    const lost = state.results.filter((r) => !r.pie && Number.isInteger(r.form) && r.form >= count).length;
+    if (lost && !confirm(`Hay ${lost} hoja(s) corregida(s) en las filas que se quitan: quedarán con «Fila ?» hasta que les elijas una fila. ¿Continuar?`)) return renderManualForms();
+    if (count < 2) {
+      e.manualForms = null;
+      e.forms = null;
+    } else {
+      const keys = e.manualForms ? e.manualForms.keys.slice(0, count - 1) : [];
+      while (keys.length < count - 1) keys.push(new Array(e.numQuestions).fill(null));
+      e.manualForms = { keys };
+    }
+    save();
+    renderKey();
+    renderResultsBadge();
+    emit('examForm');
+    const added = count > cur && $(`#manualFormKeys [data-mf="${count - 2}"]`);
+    if (added) added.focus();
   }
 
   /** Claves de las filas B–D (se derivan de la clave de la fila A). */
@@ -1055,6 +1161,7 @@
     const forms = state.exam.forms;
     wrap.hidden = !forms;
     $('#sheetFormStyleWrap').hidden = !forms;
+    $('#formsHint').hidden = !!forms || state.exam.format === 'ticket';
     $('#sheetFormStyle').value = state.exam.formStyle;
     if (!forms) return;
     const sel = $('#sheetForm');
@@ -1087,11 +1194,22 @@
     style.textContent = css;
   }
 
+  /**
+   * Página de impresión de las hojas de respuesta: sin márgenes y con cada hoja
+   * apenas más baja que la página, para que nada pase a una página en blanco.
+   */
+  function sheetPageStyle(width, height) {
+    setPageStyle(
+      `@page { size: ${width}mm ${height}mm; margin: 0; }\n` +
+        `@media print { .print-page:not(.print-reparto) { width: ${width}mm; height: ${(height - 0.5).toFixed(1)}mm; } }`
+    );
+  }
+
   function printSheet() {
     const pages = sheetPages();
     if (!pages) return toast(layoutError);
     const page = pages[0];
-    setPageStyle(`@page { size: ${page.width}mm ${page.height}mm; margin: 0; }`);
+    sheetPageStyle(page.width, page.height);
     $('#printArea').className = 'print-area';
     $('#printArea').innerHTML = pages.map((p) => `<div class="print-page">${p.svg}</div>`).join('');
     window.print();
@@ -1370,7 +1488,7 @@
   function formsSyncState() {
     const count = docForms.length;
     const mcCount = docQuestions.filter((q) => q.type === 'mc').length;
-    if (count < 2) return { ok: !state.exam.forms, maps: null, fits: true };
+    if (count < 2) return { ok: !state.exam.forms || !!state.exam.manualForms, maps: null, fits: true };
     if (!mcCount) return { ok: true, maps: null, fits: true };
     const maps = computeFormMaps(docForms, state.exam.numQuestions, state.exam.numChoices);
     if (!maps) return { ok: false, maps: null, fits: false };
@@ -1384,8 +1502,10 @@
     const noForms = docForms.length < 2;
     if ((st.fits || noForms) && !state.results.length) {
       state.exam.forms = noForms ? null : st.maps;
+      state.exam.manualForms = null;
       save();
       renderKey();
+      renderManualForms();
       return formsSyncState();
     }
     return st;
@@ -2019,7 +2139,11 @@
     if (!confirm(`Se configurará la hoja de respuestas con: ${changes.join(', ')}.${notes.length ? '\n\n' + notes.join('\n\n') : ''}\n\n¿Continuar?`)) return;
     if (!applyStructure(Object.assign({}, state.exam, { numQuestions: n, numChoices: c }))) return;
     if (withKey) state.exam.key = fitKey(qs.slice(0, n).map((q) => q.correct), n, c);
-    state.exam.forms = qs.length <= LIMITS.maxQuestions ? computeFormMaps(docForms, n, c) : null;
+    const docMaps = qs.length <= LIMITS.maxQuestions ? computeFormMaps(docForms, n, c) : null;
+    if (docMaps || !state.exam.manualForms) {
+      state.exam.forms = docMaps;
+      state.exam.manualForms = null;
+    }
     if (oaMap.size) {
       state.exam.oaText = Array.from(oaMap.entries())
         .map(([name, idx]) => `${name}: ${Grading.formatRanges(idx)}`)
@@ -2624,7 +2748,7 @@
   function printTranscribed() {
     if (!getLayout()) return toast(layoutError);
     const { layout, svg } = transcribedSheet();
-    setPageStyle(`@page { size: ${layout.width}mm ${layout.height}mm; margin: 0; }`);
+    sheetPageStyle(layout.width, layout.height);
     $('#printArea').className = 'print-area';
     $('#printArea').innerHTML = `<div class="print-page">${svg}</div>`;
     window.print();
@@ -4386,8 +4510,10 @@
       if (!e.target.closest('[data-forms-sync]')) return;
       const st = formsSyncState();
       state.exam.forms = docForms.length < 2 ? null : st.maps;
+      state.exam.manualForms = null;
       save();
       renderKey();
+      renderManualForms();
       renderDoc();
       renderResultsBadge();
       toast('La corrección usa ahora las filas de esta evaluación.');
@@ -4413,6 +4539,29 @@
       renderKey(true);
     });
     $('#keyText').addEventListener('blur', () => renderKey());
+    $('#formsCountSeg').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-forms-count]');
+      if (b) setManualFormsCount(Number(b.dataset.formsCount));
+    });
+    $('#manualFormKeys').addEventListener('input', (e) => {
+      const input = e.target.closest('[data-mf]');
+      const mf = state.exam.manualForms;
+      if (!input || !mf) return;
+      mf.keys[Number(input.dataset.mf)] = parseKeyText(input.value, state.exam.numQuestions, state.exam.numChoices);
+      save();
+      renderKey(true);
+    });
+    $('#manualFormKeys').addEventListener('focusout', (e) => {
+      const input = e.target.closest('[data-mf]');
+      const mf = state.exam.manualForms;
+      if (input && mf) renderManualForms();
+    });
+    $('#formsHintGo').addEventListener('click', () => {
+      showTab('prueba');
+      const opt = $('#optForms');
+      opt.open = true;
+      setTimeout(() => opt.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+    });
     $('#btnClearKey').addEventListener('click', () => {
       if (state.exam.key.some((k) => k !== null) && !confirm('¿Borrar toda la clave de respuestas?')) return;
       state.exam.key = state.exam.key.map(() => null);
@@ -4740,6 +4889,7 @@
       addFrameResult,
       sheetOptions,
       setPageStyle,
+      sheetPageStyle,
       fileToGray,
       canvasToBlob,
       renderKey,

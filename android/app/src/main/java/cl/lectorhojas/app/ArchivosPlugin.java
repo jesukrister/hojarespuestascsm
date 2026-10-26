@@ -169,7 +169,10 @@ public class ArchivosPlugin extends Plugin {
                 PrintManager pm = (PrintManager) getActivity().getSystemService(Context.PRINT_SERVICE);
                 WebView webView = getBridge().getWebView();
                 PrintDocumentAdapter adapter = webView.createPrintDocumentAdapter(titulo);
-                PrintAttributes.Builder attrs = new PrintAttributes.Builder();
+                // Sin márgenes de la impresora: la página ya trae los suyos (CSS @page) y
+                // así la hoja de respuestas no se corta ni deja una página en blanco.
+                PrintAttributes.Builder attrs = new PrintAttributes.Builder()
+                        .setMinMargins(PrintAttributes.Margins.NO_MARGINS);
                 if (ancho != null && alto != null && ancho > 0 && alto > 0) {
                     attrs.setMediaSize(tamano(ancho, alto));
                 }

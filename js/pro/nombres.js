@@ -155,7 +155,7 @@
     const pages = withSheets ? buildPages() : [];
     if (withSheets && !pages.length) return app.toast('No hay estudiantes para imprimir.');
     const tiling = SheetLayout.pageTiling(state.exam.paper, state.exam.format);
-    app.setPageStyle(`@page { size: ${tiling.width}mm ${tiling.height}mm; margin: 0; }`);
+    app.sheetPageStyle(tiling.width, tiling.height);
     const area = $('#printArea');
     area.className = 'print-area';
     area.innerHTML = pages.map((p) => `<div class="print-page">${p.svg}</div>`).join('') + (formsCount() || chosen().some(usesPie) ? repartoHtml() : '');

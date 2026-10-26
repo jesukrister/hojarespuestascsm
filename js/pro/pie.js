@@ -254,7 +254,7 @@
     const layout = app.pieLayout();
     if (!layout) return app.toast('No se pudo preparar la hoja PIE.');
     const page = SheetRenderer.renderPageSVG(layout, Pro.pieSheetOptions());
-    app.setPageStyle(`@page { size: ${page.width}mm ${page.height}mm; margin: 0; }`);
+    app.sheetPageStyle(page.width, page.height);
     const area = $('#printArea');
     area.className = 'print-area';
     area.innerHTML = `<div class="print-page">${page.svg}</div>`;
