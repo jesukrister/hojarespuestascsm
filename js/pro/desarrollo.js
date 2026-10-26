@@ -29,7 +29,7 @@
 
   function printedNote() {
     return state.results.length
-      ? 'Las hojas que ya imprimiste no tienen estos cambios: vuelve a imprimirlas. Las hojas ya escaneadas conservan sus respuestas; completa los puntajes de desarrollo en Resultados.'
+      ? 'Las hojas que ya imprimiste no tienen estos cambios: vuelve a imprimirlas. Las hojas ya escaneadas conservan sus respuestas; completa los puntajes de desarrollo en Corregir.'
       : 'Recuerda imprimir la hoja de respuestas después de configurar las casillas.';
   }
 

@@ -1,5 +1,5 @@
 /*
- * Versión Pro · Calidad de las preguntas (pestaña Resultados): dificultad,
+ * Versión Pro · Calidad de las preguntas (pestaña Corregir): dificultad,
  * discriminación y distractores de cada pregunta, confiabilidad de la prueba
  * y una sugerencia por pregunta. Permite anular una pregunta o cambiar su
  * clave, y deshacerlo después (la clave original queda en exam.pro.keyChanges).
@@ -326,11 +326,11 @@
     }
   });
   app.on('results', () => {
-    if (!$('#tab-resultados').hidden) render();
+    if (!$('#tab-corregir').hidden) render();
   });
   app.on('resultsCleared', () => detailOpen.clear());
-  // La página puede abrir directo en Resultados (antes de cargar este módulo).
-  if (!$('#tab-resultados').hidden) render();
+  // La página puede abrir directo en Corregir (antes de cargar este módulo).
+  if (!$('#tab-corregir').hidden) render();
 
   Pro.quality = { render, keyChanges, current: () => current };
 })();

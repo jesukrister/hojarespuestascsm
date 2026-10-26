@@ -23,7 +23,9 @@
   const MAX_IMAGE_SIDE = 2000;
   const PREVIEW_WIDTH = 1200;
   const PHOTO_MAX_SIDE = 1600;
-  const TABS = ['prueba', 'evaluacion', 'hoja', 'escanear', 'resultados'].concat(PRO ? ['cursos'] : [], ['manual']);
+  const TABS = ['prueba', 'evaluacion', 'hoja', 'corregir'].concat(PRO ? ['cursos'] : [], ['manual']);
+  // Nombres antiguos (enlaces y botones): Escanear y Resultados ahora son la pestaña Corregir.
+  const TAB_ALIAS = { escanear: 'corregir', resultados: 'corregir' };
 
   // Avisos para los módulos de la versión Pro (en la versión normal no hay nadie escuchando).
   const hooks = {};
@@ -418,6 +420,7 @@
   /* ------------------------------------------------------------------ */
 
   function showTab(name) {
+    name = TAB_ALIAS[name] || name;
     if (TABS.indexOf(name) < 0) name = 'prueba';
     for (const b of $$('.tabs button')) {
       b.setAttribute('aria-selected', String(b.dataset.tab === name));
@@ -427,7 +430,7 @@
     for (const t of TABS) $('#tab-' + t).hidden = t !== name;
     if (name === 'hoja') renderSheetPreview();
     if (name === 'evaluacion') renderDoc();
-    if (name === 'resultados') renderResults();
+    if (name === 'corregir') renderResults();
     if (name === 'manual') renderManualVideos();
     if (location.hash !== '#' + name) history.replaceState(null, '', '#' + name);
     emit('tab', name);
@@ -647,7 +650,7 @@
       if (!ok) return false;
       state.results = [];
       forgetAllImages();
-      selectedResultId = null;
+      closeResult();
       emit('resultsCleared');
     }
     Object.assign(cur, normalizeConfig(next));
@@ -2024,7 +2027,7 @@
     const g = grade(record);
     const who = record.code ? `Código ${record.code}` : name;
     item.ok(`${who}${record.pie ? ' (PIE)' : ''} · ${g.correct}/${g.items.length - g.excluded} correctas · nota ${fmt(g.grade, 1)}`, record.id);
-    renderDetail($('#scanDetail'), record.id);
+    showScanned(record.id);
   }
 
   /** Recorte de la foto con una sola hoja (la foto tenía varias). */
@@ -2411,7 +2414,7 @@
     const e = state.exam;
     if (!getLayout()) return toast(layoutError);
     const { layout, svg, id, form, pie } = transcribedSheet();
-    if (e.idDigits && id.some((v) => v === null) && !confirm('Falta el N° de lista o código del estudiante. ¿Agregar la hoja de todos modos? (Podrás completarlo después en Resultados).')) return;
+    if (e.idDigits && id.some((v) => v === null) && !confirm('Falta el N° de lista o código del estudiante. ¿Agregar la hoja de todos modos? (Podrás completarlo después en Corregir).')) return;
     if (TR.answers.every((m) => m.length === 0) && !confirm('No transcribiste ninguna respuesta. ¿Agregar la hoja de todos modos?')) return;
     const btn = $('#trAdd');
     btn.disabled = true;
@@ -2476,9 +2479,8 @@
       const g = grade(record);
       const who = record.code ? `Código ${record.code}` : record.name || 'Hoja transcrita';
       queueItem('Transcrita').ok(`✍️ ${who} (transcrita) · ${g.correct}/${g.items.length - g.excluded} correctas · nota ${fmt(g.grade, 1)}`, record.id);
-      renderDetail($('#scanDetail'), record.id);
+      showScanned(record.id);
       renderResultsBadge();
-      if (!$('#tab-resultados').hidden) renderResults();
       toast('Hoja transcrita agregada a los resultados.');
     } catch (err) {
       console.error(err);
@@ -2671,6 +2673,9 @@
     }
     const prevList = $('.answers-list', container);
     const prevScroll = prevList ? prevList.scrollTop : 0;
+    // Al redibujar (p. ej. tras corregir una respuesta) se queda donde estaba.
+    const sameResult = !!$(`.detail[data-id="${CSS.escape(r.id)}"]`, container);
+    const prevTop = sameResult ? container.scrollTop : 0;
     const g = grade(r);
     const fm = formMap(r);
     const sc = state.exam.scoring;
@@ -2792,7 +2797,11 @@
     // Versión Pro: retroalimentación del estudiante bajo el detalle.
     emit('detail', { container, card: $('.detail', container), r, g });
     if (view) {
-      drawOverlay($('canvas', container), r, g, view);
+      const drawn = drawOverlay($('canvas', container), r, g, view);
+      if (prevTop) {
+        container.scrollTop = prevTop;
+        drawn.then(() => (container.scrollTop = prevTop)).catch(() => {});
+      }
     } else {
       getView(r.id).then((v) => {
         const still = $(`.detail[data-id="${r.id}"]`, container);
@@ -2912,7 +2921,7 @@
   }
 
   function drawOverlay(canvas, r, g, view) {
-    loadPreviewImage(view).then((img) => {
+    return loadPreviewImage(view).then((img) => {
       canvas.width = img.width;
       canvas.height = img.height;
       paintCorrection(canvas.getContext('2d'), img, r, g, view);
@@ -2956,9 +2965,9 @@
       forgetImage(r.id);
       save();
       container.innerHTML = '';
-      if (selectedResultId === r.id) selectedResultId = null;
+      closeResult();
       renderResultsBadge();
-      if (!$('#tab-resultados').hidden) renderResults();
+      if (!$('#tab-corregir').hidden) renderResults();
       else emit('results');
       return;
     } else {
@@ -2967,12 +2976,12 @@
     save();
     renderDetail(container, r.id);
     renderResultsBadge();
-    if (!$('#tab-resultados').hidden) renderResultsTable();
+    if (!$('#tab-corregir').hidden) renderResultsTable();
     emit('results');
   }
 
   /* ------------------------------------------------------------------ */
-  /* 4. Resultados                                                       */
+  /* 4. Corregir: lista de resultados                                   */
   /* ------------------------------------------------------------------ */
 
   function renderResultsBadge() {
@@ -2981,6 +2990,47 @@
     b.textContent = n;
     b.hidden = n === 0;
     b.style.background = state.results.some(needsReview) ? '' : 'var(--ok)';
+    renderScanProgress();
+  }
+
+  /* Avance de la corrección: cuántos estudiantes de la lista faltan (con N° de lista). */
+  let scanProgressAll = false;
+  function renderScanProgress() {
+    const box = $('#scanProgress');
+    if (!box) return;
+    const e = state.exam;
+    const n = state.results.length;
+    const keySet = e.key.filter((k) => k !== null).length;
+    $('#corrTest').textContent =
+      `${e.title.trim() || 'Prueba sin título'} · ${e.numQuestions} preguntas` +
+      (keySet < e.numQuestions ? ` · ⚠ faltan ${e.numQuestions - keySet} respuesta${e.numQuestions - keySet === 1 ? '' : 's'} en la clave` : '');
+    const names = e.idDigits > 0 ? e.roster.split(/\r?\n/).map((l) => l.trim()) : [];
+    while (names.length && !names[names.length - 1]) names.pop();
+    const listed = names.filter(Boolean).length;
+    if (!listed) {
+      box.hidden = !n;
+      box.innerHTML = `<div class="sp-head"><b>${n} hoja${n === 1 ? '' : 's'} corregida${n === 1 ? '' : 's'}</b></div>`;
+      return;
+    }
+    const done = new Set();
+    for (const r of state.results) if (/^\d+$/.test(r.code || '')) done.add(parseInt(r.code, 10));
+    const missing = [];
+    names.forEach((name, i) => {
+      if (name && !done.has(i + 1)) missing.push({ n: i + 1, name });
+    });
+    const have = listed - missing.length;
+    const pct = Math.round((have / listed) * 100);
+    const shown = scanProgressAll ? missing : missing.slice(0, 8);
+    const short = (name) => name.split(/\s+/)[0];
+    box.hidden = false;
+    box.innerHTML =
+      `<div class="sp-head"><b>${have} de ${listed} estudiantes</b><span class="muted small">${pct} %</span></div>` +
+      `<div class="sp-bar"><i style="width:${pct}%"></i></div>` +
+      (missing.length
+        ? `<span class="muted small">Faltan:</span><div class="sp-missing">${shown
+            .map((m) => `<span title="${esc(m.name)}">${m.n} ${esc(short(m.name))}</span>`)
+            .join('')}${missing.length > shown.length ? `<button type="button" data-sp-all>+${missing.length - shown.length} más</button>` : ''}</div>`
+        : '<span class="small" style="color:var(--ok);font-weight:600">✔ Están todos los estudiantes de la lista.</span>');
   }
 
   function sortedResults() {
@@ -2999,62 +3049,146 @@
     $('#resultsContent').hidden = !has;
     if (has) {
       renderResultsTable();
-      if (selectedResultId) renderDetail($('#resultDetail'), selectedResultId);
-      else $('#resultDetail').innerHTML = '';
-    }
+      if (selectedResultId && $('#resultDialog').open) {
+        if (state.results.some((r) => r.id === selectedResultId)) renderDetail($('#resultDetail'), selectedResultId);
+        else closeResult();
+      }
+    } else closeResult();
+    renderScanProgress();
     emit('results');
   }
 
+  /* ---------- Hoja de cada estudiante (cuadro con «Anterior» y «Siguiente») ---------- */
+  let resultOrder = []; // ids en el orden de la lista que se ve
+  let lastScannedId = null;
+  const resultsFilter = { text: '', review: false };
+
+  function openResult(id) {
+    if (!state.results.some((r) => r.id === id)) return;
+    selectedResultId = id;
+    renderDetail($('#resultDetail'), id);
+    updateResultNav();
+    const dlg = $('#resultDialog');
+    if (!dlg.open) dlg.showModal();
+    $('#resultDetail').scrollTop = 0;
+    if (!$('#tab-corregir').hidden) renderResultsTable();
+  }
+
+  function closeResult() {
+    selectedResultId = null;
+    const dlg = $('#resultDialog');
+    if (dlg && dlg.open) dlg.close();
+  }
+
+  function navOrder() {
+    return resultOrder.indexOf(selectedResultId) >= 0 ? resultOrder : sortedResults().map((x) => x.r.id);
+  }
+
+  function updateResultNav() {
+    const order = navOrder();
+    const i = order.indexOf(selectedResultId);
+    $('#rdPos').textContent = i >= 0 ? `${i + 1} de ${order.length}` : '';
+    $('#resultDialog [data-rd="prev"]').disabled = i <= 0;
+    $('#resultDialog [data-rd="next"]').disabled = i < 0 || i >= order.length - 1;
+  }
+
+  function stepResult(d) {
+    const order = navOrder();
+    const i = order.indexOf(selectedResultId);
+    const next = order[i + d];
+    if (next) openResult(next);
+  }
+
+  /** Hoja recién escaneada: aparece resaltada en la lista. */
+  function showScanned(id) {
+    lastScannedId = id;
+    if (!$('#tab-corregir').hidden) renderResults();
+  }
+
+  const normText = (t) =>
+    String(t || '')
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLowerCase();
+
+  function answerStrip(g) {
+    return `<span class="strip" aria-hidden="true">${g.items.map((it) => `<i class="${it.status}"></i>`).join('')}</span>`;
+  }
+
   function renderResultsTable() {
-    const rows = sortedResults();
+    const all = sortedResults();
     const sc = state.exam.scoring;
-    const grades = rows.map((x) => x.g.grade).filter((g) => g !== null);
+    const grades = all.map((x) => x.g.grade).filter((g) => g !== null);
     const avg = (arr) => (arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null);
     const passed = grades.filter((g) => g >= sc.gradePass).length;
-    const review = rows.filter((x) => needsReview(x.r)).length;
+    const reviewCount = all.filter((x) => needsReview(x.r)).length;
+    if (!reviewCount) resultsFilter.review = false;
+
+    const items = renderItemAnalysis(all);
+    const oa = renderOaResults(all);
+    const hardest = items.filter((it) => it.correctPct !== null).sort((a, b) => a.correctPct - b.correctPct)[0];
+    const lowOa = oa && oa.filter((o) => o.average !== null).sort((a, b) => a.average - b.average)[0];
     $('#statsCards').innerHTML = `
-      <div class="stat"><b>${rows.length}</b><span>Hojas corregidas</span></div>
-      <div class="stat"><b>${fmt(avg(grades), 1)}</b><span>Nota promedio</span></div>
-      <div class="stat"><b>${fmt(avg(rows.map((x) => x.g.percent)), 0)}%</b><span>Logro promedio</span></div>
-      <div class="stat"><b>${grades.length ? fmt((passed / grades.length) * 100, 0) + '%' : '–'}</b><span>Aprobación (${passed}/${grades.length})</span></div>
-      <div class="stat"><b>${review}</b><span>Por revisar</span></div>`;
+      <div class="stat"><b>${fmt(avg(grades), 1)}</b><span>Nota promedio · ${all.length} hoja${all.length === 1 ? '' : 's'}</span></div>
+      <div class="stat"><b>${grades.length ? fmt((passed / grades.length) * 100, 0) + '%' : '–'}</b><span>Aprobación (${passed} de ${grades.length})</span></div>
+      ${
+        hardest
+          ? `<div class="stat stat-low"><b>P${hardest.question}</b><span>Pregunta más difícil (${fmt(hardest.correctPct, 0)} % de acierto)</span></div>`
+          : `<div class="stat"><b>${fmt(avg(all.map((x) => x.g.percent)), 0)}%</b><span>Logro promedio</span></div>`
+      }
+      ${
+        lowOa
+          ? `<div class="stat stat-low"><b>${esc(lowOa.name)}</b><span>Objetivo más bajo (${fmt(lowOa.average, 0)} %)</span></div>`
+          : `<div class="stat"><b>${fmt(avg(all.map((x) => x.g.percent)), 0)}%</b><span>Logro promedio</span></div>`
+      }`;
+
+    const rf = $('#reviewFilter');
+    rf.hidden = !reviewCount;
+    rf.textContent = resultsFilter.review ? `⚠ ${reviewCount} para revisar · ver todos` : `⚠ ${reviewCount} para revisar`;
+    rf.setAttribute('aria-pressed', String(resultsFilter.review));
+    rf.title = resultsFilter.review ? 'Mostrar todos los estudiantes' : 'Mostrar sólo las hojas que hay que revisar';
+
+    const q = normText(resultsFilter.text).trim();
+    const rows = all.filter((x) => (!resultsFilter.review || needsReview(x.r)) && (!q || normText(`${x.r.code || ''} ${displayName(x.r)} ${x.r.fileName}`).includes(q)));
+    resultOrder = rows.map((x) => x.r.id);
 
     const codeCount = {};
-    for (const x of rows) if (x.r.code) codeCount[x.r.code] = (codeCount[x.r.code] || 0) + 1;
-
+    for (const x of all) if (x.r.code) codeCount[x.r.code] = (codeCount[x.r.code] || 0) + 1;
+    const dev = state.exam.dev.length > 0;
     const body = rows
-      .map((x, i) => {
+      .map((x) => {
         const { r, g } = x;
         const tags = [];
-        if (needsReview(r)) tags.push('<span class="tag warn">revisar</span>');
+        const rev = needsReview(r);
+        if (rev) tags.push('<span class="tag warn">revisar</span>');
         if (r.code && codeCount[r.code] > 1) tags.push('<span class="tag bad">código repetido</span>');
         if (r.transcribed) tags.push('<span class="tag form">transcrita</span>');
         if (state.exam.forms && !r.pie) tags.push(`<span class="tag form">Fila ${formUnknown(r) ? '?' : formLetter(r.form || 0)}</span>`);
         const rule = ruleFor(r);
         if (r.pie || (rule && rule.tag)) tags.push(`<span class="tag pie" title="${esc((rule && rule.title) || 'Versión PIE')}">${esc((rule && rule.tag) || 'PIE')}</span>`);
         const gradeCls = g.grade === null ? '' : g.grade >= sc.gradePass ? 'grade-pass' : 'grade-fail';
-        return `<tr data-id="${esc(r.id)}"${r.id === selectedResultId ? ' class="selected"' : ''}>
-          <td class="num">${i + 1}</td>
-          <td>${esc(r.code || '–')}</td>
-          <td>${esc(displayName(r) || '')}${tags.join('')}</td>
-          <td class="num">${g.correct}</td>
-          <td class="num">${g.wrong + g.multiple}</td>
-          <td class="num">${g.blank}</td>
-          ${g.dev ? `<td class="num">${fmtScore(g.devPoints)}/${g.devMax}</td>` : ''}
-          <td class="num">${fmtScore(g.score)}</td>
-          <td class="num">${fmt(g.percent, 0)}%</td>
-          <td class="num ${gradeCls}">${fmt(g.grade, 1)}</td>
+        const cls = [r.id === selectedResultId ? 'selected' : '', rev ? 'review' : '', r.id === lastScannedId ? 'just' : ''].filter(Boolean).join(' ');
+        const name = displayName(r) || (r.code ? '' : r.fileName);
+        return `<tr data-id="${esc(r.id)}" tabindex="0"${cls ? ` class="${cls}"` : ''}>
+          <td class="num">${esc(r.code || '–')}</td>
+          <td><span class="who-name">${esc(name || 'Sin nombre')}</span>${tags.join('')}<span class="who-sub">${fmtScore(g.score)} de ${fmtScore(g.maxScore)} pts · ${g.correct} ✓ · ${g.wrong + g.multiple} ✗</span></td>
+          <td class="c-resp">${answerStrip(g)}<span class="strip-n">${g.correct} ✓ · ${g.wrong + g.multiple} ✗ · ${g.blank} ○</span></td>
+          ${dev ? `<td class="num c-dev">${g.dev ? `${fmtScore(g.devPoints)}/${g.devMax}` : '–'}</td>` : ''}
+          <td class="num c-score">${fmtScore(g.score)}/${fmtScore(g.maxScore)}</td>
+          <td class="num c-logro">${fmt(g.percent, 0)}%</td>
+          <td class="num"><span class="grade-chip ${gradeCls}">${fmt(g.grade, 1)}</span></td>
         </tr>`;
       })
       .join('');
     $('#resultsTable').innerHTML = `
       <thead><tr>
-        <th class="num">#</th><th>Código</th><th>Nombre</th><th class="num">Correctas</th><th class="num">Incorrectas</th>
-        <th class="num">Omitidas</th>${state.exam.dev.length ? '<th class="num">Desarrollo</th>' : ''}<th class="num">Puntaje</th><th class="num">Logro</th><th class="num">Nota</th>
+        <th class="num">N°</th><th>Estudiante</th><th class="c-resp">Respuestas</th>${dev ? '<th class="num c-dev">Desarrollo</th>' : ''}<th class="num c-score">Puntaje</th><th class="num c-logro">Logro</th><th class="num">Nota</th>
       </tr></thead><tbody>${body}</tbody>`;
-
-    renderItemAnalysis(rows);
-    renderOaResults(rows);
+    const none = $('#resultsNone');
+    none.hidden = rows.length > 0;
+    none.textContent = rows.length ? '' : `Ningún estudiante coincide con «${resultsFilter.text.trim()}».`;
+    if ($('#resultDialog').open) updateResultNav();
+    lastScannedId = null;
   }
 
   function renderItemAnalysis(rows) {
@@ -3088,13 +3222,14 @@
       devBody = `<tr><th colspan="6">Preguntas de desarrollo (puntaje promedio)</th></tr>` + devBody;
     }
     $('#itemTable').innerHTML = head + '<tbody>' + body + devBody + '</tbody>';
+    return stats;
   }
 
   function renderOaResults(rows) {
     const card = $('#oaResultsCard');
     const objectives = currentObjectives().objectives;
     card.hidden = !objectives.length;
-    if (!objectives.length) return;
+    if (!objectives.length) return null;
     const lv = state.exam.levels;
     const per = rows.map((x) => oaResults(x.g));
     const summary = Grading.objectiveSummary(per, objectives);
@@ -3125,6 +3260,7 @@
         )
         .join('') +
       '</tbody>';
+    return summary;
   }
 
   /** Columna de la fila (o de la versión PIE) al exportar: null si no hace falta. */
@@ -4044,7 +4180,7 @@
     }
     $('#scanQueue').addEventListener('click', (e) => {
       const b = e.target.closest('[data-view]');
-      if (b) renderDetail($('#scanDetail'), b.dataset.view);
+      if (b) openResult(b.dataset.view);
     });
     // Transcribir una hoja dañada.
     $('#btnTranscribe').addEventListener('click', () => openTranscribe());
@@ -4128,18 +4264,52 @@
       }
     });
 
-    for (const container of [$('#scanDetail'), $('#resultDetail')]) {
-      container.addEventListener('change', (e) => onDetailEvent(container, e));
-      container.addEventListener('click', (e) => onDetailEvent(container, e));
-    }
+    const detailBox = $('#resultDetail');
+    detailBox.addEventListener('change', (e) => onDetailEvent(detailBox, e));
+    detailBox.addEventListener('click', (e) => onDetailEvent(detailBox, e));
 
+    // Hoja de cada estudiante en un cuadro, con «Anterior» y «Siguiente».
     $('#resultsTable').addEventListener('click', (e) => {
       const tr = e.target.closest('tr[data-id]');
-      if (!tr) return;
-      selectedResultId = tr.dataset.id;
+      if (tr) openResult(tr.dataset.id);
+    });
+    $('#resultsTable').addEventListener('keydown', (e) => {
+      const tr = e.target.closest('tr[data-id]');
+      if (tr && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        openResult(tr.dataset.id);
+      }
+    });
+    const dlg = $('#resultDialog');
+    dlg.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-rd]');
+      if (b) {
+        if (b.dataset.rd === 'close') dlg.close();
+        else stepResult(b.dataset.rd === 'next' ? 1 : -1);
+      } else if (e.target === dlg) dlg.close();
+    });
+    dlg.addEventListener('keydown', (e) => {
+      if (e.target.closest('input, select, textarea')) return;
+      if (e.key === 'ArrowRight') stepResult(1);
+      if (e.key === 'ArrowLeft') stepResult(-1);
+    });
+    dlg.addEventListener('close', () => {
+      selectedResultId = null;
+      detailBox.innerHTML = '';
+      if (!$('#tab-corregir').hidden) renderResultsTable();
+    });
+    $('#resultsSearch').addEventListener('input', (e) => {
+      resultsFilter.text = e.target.value;
       renderResultsTable();
-      renderDetail($('#resultDetail'), selectedResultId);
-      $('#resultDetail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    $('#reviewFilter').addEventListener('click', () => {
+      resultsFilter.review = !resultsFilter.review;
+      renderResultsTable();
+    });
+    $('#scanProgress').addEventListener('click', (e) => {
+      if (!e.target.closest('[data-sp-all]')) return;
+      scanProgressAll = true;
+      renderScanProgress();
     });
     $('#btnExportCsv').addEventListener('click', exportCsv);
     $('#btnExportZip').addEventListener('click', downloadEvidenceZip);
@@ -4152,10 +4322,9 @@
       if (!confirm(`¿Eliminar los ${state.results.length} resultados? Esta acción no se puede deshacer.`)) return;
       state.results = [];
       forgetAllImages();
-      selectedResultId = null;
+      closeResult();
       emit('resultsCleared');
       save();
-      $('#scanDetail').innerHTML = '';
       $('#scanQueue').innerHTML = '';
       renderResults();
       renderResultsBadge();
@@ -4212,9 +4381,8 @@
     state.exam = sanitizeExam(raw);
     state.results = [];
     forgetAllImages();
-    selectedResultId = null;
+    closeResult();
     save();
-    $('#scanDetail').innerHTML = '';
     $('#scanQueue').innerHTML = '';
     fillExamForm();
     renderKey();
@@ -4240,7 +4408,7 @@
     updateLayoutError();
     renderResultsBadge();
     if (!$('#tab-hoja').hidden) renderSheetPreview();
-    if (!$('#tab-resultados').hidden) renderResults();
+    if (!$('#tab-corregir').hidden) renderResults();
   }
 
   // Lo que usan los módulos de la versión Pro (js/pro/). La versión normal no expone nada.

@@ -493,7 +493,7 @@
       } else {
         problems.push({
           label: en.label,
-          reason: code ? `el N° de lista está incompleto (${code}): corrígelo en Resultados.` : 'la hoja no tiene N° de lista: escríbelo en Resultados.',
+          reason: code ? `el N° de lista está incompleto (${code}): corrígelo en Corregir.` : 'la hoja no tiene N° de lista: escríbelo en Corregir.',
         });
         continue;
       }
@@ -510,7 +510,7 @@
     const rows = [];
     for (const { student, entry, dup } of byStudent.values()) {
       if (dup.length) {
-        problems.push({ label: [entry.label].concat(dup).join(', '), reason: `hay ${dup.length + 1} hojas con el N° de lista ${student.n} (${student.name}): deja sólo una en Resultados.` });
+        problems.push({ label: [entry.label].concat(dup).join(', '), reason: `hay ${dup.length + 1} hojas con el N° de lista ${student.n} (${student.name}): deja sólo una en Corregir.` });
         continue;
       }
       const before = ev ? ev.grades[student.id] || null : null;

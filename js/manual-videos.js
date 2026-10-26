@@ -20,8 +20,8 @@ window.MANUAL_VIDEOS = {
   evaluacion: '', //  2. Pestaña Evaluación
   filas: '', //       2b. Filas A, B, C y D
   hoja: '', //        3. Pestaña Hoja
-  escanear: '', //    4. Pestaña Escanear
-  resultados: '', //  5. Pestaña Resultados
+  escanear: '', //    4. Corregir: escanear las hojas
+  resultados: '', //  5. Corregir: notas y evidencias
   respaldo: '', //    6. Guardar y respaldar
   problemas: '', //   ?. Problemas frecuentes
   // Sólo en la versión Pro:

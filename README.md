@@ -50,8 +50,10 @@ cualquier hosting de archivos estáticos.
   **1, 2 o 4 hojas de respuestas por página** (media hoja o cuarto de hoja,
   con líneas de corte) para ahorrar papel y tinta, y elegir los campos del
   encabezado (curso, fecha, RUT).
-- **Escaneo** desde la cámara del celular o subiendo varias imágenes a la vez
-  (también se pueden arrastrar). Tolera fotos inclinadas, giradas (incluso
+- **Corregir** (escaneo y resultados en la misma pantalla): desde la cámara del
+  celular o subiendo varias imágenes a la vez (también se pueden arrastrar);
+  al lado se llena la lista del curso, con cuántos van y **quién falta** (si
+  hay lista del curso). Tolera fotos inclinadas, giradas (incluso
   al revés), en perspectiva, con iluminación irregular y con la hoja algo
   curvada.
 - **Hojas dañadas**: si una hoja está doblada, rayada o rota y no se puede
@@ -66,8 +68,11 @@ cualquier hosting de archivos estáticos.
   en amarillo las marcas dudosas. Cualquier respuesta se puede corregir a mano.
 - **Puntaje y nota**: puntos por correcta, descuento opcional por incorrecta,
   escala de nota con exigencia configurable (por defecto 1,0–7,0 con 60 %).
-- **Resultados**: tabla del curso con estadísticas y análisis por pregunta
-  (% de acierto y distribución de respuestas).
+- **Resultados**: lista del curso con una tira de respuestas por estudiante,
+  búsqueda y filtro «para revisar»; arriba, nota promedio, aprobación, la
+  pregunta más difícil y el objetivo más bajo. Cada hoja corregida se abre en
+  un cuadro con «Anterior» y «Siguiente». El análisis por pregunta (% de
+  acierto y distribución de respuestas) y por OA queda plegado más abajo.
 - **Evidencias para el docente**: descarga una carpeta con la planilla Excel
   (`resultados.xlsx`), la hoja corregida de cada estudiante en JPG y la foto
   original. En el Excel, cada estudiante tiene hipervínculos que abren sus
@@ -94,7 +99,7 @@ pestañas, manual…) es el mismo código, así que las mejoras llegan a las dos
 
 - **Cursos y libro de notas** (pestaña *Cursos*): cada curso tiene su lista
   (N° de lista, nombre y RUT, pegada desde Excel) y sus evaluaciones. Las
-  notas de una prueba escaneada se guardan en el libro desde *Resultados* (cada
+  notas de una prueba escaneada se guardan en el libro desde *Corregir* (cada
   hoja va al estudiante del N° de lista marcado); también se agregan **notas
   manuales** (trabajos, disertaciones…) escribiéndolas o pegando una columna de
   Excel. Calcula el promedio de cada semestre o trimestre con **ponderaciones**
@@ -142,7 +147,7 @@ pestañas, manual…) es el mismo código, así que las mejoras llegan a las dos
 - **Tickets de salida**: formato de 8 por página (medio cuarto de hoja,
   apaisado) para mini controles de 3 a 10 preguntas, que se crean en un paso
   (clave, objetivo y curso) y se guardan en el libro como formativos. En
-  *Resultados*, **Para reforzar** lista por objetivo a quienes quedaron en No
+  *Corregir*, **Para reforzar** lista por objetivo a quienes quedaron en No
   logrado o Medianamente logrado.
 - **Hojas con nombre**: una hoja (o ticket) por estudiante con su nombre, el
   curso y el N° de lista ya marcado; con filas, se asignan alternadas según el
@@ -151,7 +156,7 @@ pestañas, manual…) es el mismo código, así que las mejoras llegan a las dos
   [pdf.js](https://mozilla.github.io/pdf.js/), incluido en `vendor/pdf` y
   cargado sólo al usarse) y cada página se lee como una foto; en una foto o
   página con varias hojas (tickets, medias hojas) se leen todas.
-- **Calidad de las preguntas** (en *Resultados*): dificultad (% de acierto),
+- **Calidad de las preguntas** (en *Corregir*): dificultad (% de acierto),
   **discriminación** (27 % de mejor puntaje menos 27 % más bajo, y
   punto-biserial corregida), respuestas por alternativa en cada grupo,
   **confiabilidad KR-20** y una sugerencia por pregunta: revisar la clave (los
@@ -170,7 +175,7 @@ pestañas, manual…) es el mismo código, así que las mejoras llegan a las dos
   respuestas con una alternativa menos y una marca que el lector reconoce: se
   corrige con su clave, también mezclada con hojas normales en una foto o PDF.
   Las hojas con nombre les dan la hoja PIE a los estudiantes PIE.
-- **Escaneo continuo con la cámara** (en *Escanear*): la cámara queda abierta
+- **Escaneo continuo con la cámara** (en *Corregir*): la cámara queda abierta
   y cada hoja que se le pone delante se lee y se guarda sola, con un pitido
   (se guarda cuando dos cuadros seguidos dan la misma lectura; la misma hoja no
   se guarda dos veces). Con linterna si el celular la tiene.
@@ -186,7 +191,7 @@ pestañas, manual…) es el mismo código, así que las mejoras llegan a las dos
   rúbrica con sus niveles, los comentarios y su hoja corregida. En el ZIP de
   evidencias van todos los informes (carpeta *informes*) y el Excel suma las
   hojas *Evaluación*, *Respuestas por estudiante* y *Retroalimentación*.
-- **Informe para UTP**: desde *Resultados* (de una prueba) o *Cursos* (de un
+- **Informe para UTP**: desde *Corregir* (de una prueba) o *Cursos* (de un
   curso en un semestre, trimestre o el año), un informe para imprimir o
   guardar en PDF con el resumen, la distribución de notas, el logro por OA y
   por pregunta, los estudiantes que requieren apoyo (con su OA más
@@ -209,14 +214,15 @@ van las partes Pro y no cambian nada en la versión normal.
    100 %, sin encabezados del navegador). Con 2 o 4 por página, recorta por la
    línea punteada. Puedes descargar un *ejemplo rellenado* para probar el
    lector sin imprimir.
-4. **Escanear**: toma una foto de cada hoja respondida. Consejos:
+4. **Corregir**: toma una foto de cada hoja respondida. Consejos:
    - la hoja completa en la foto, con las **cuatro esquinas visibles**;
    - buena luz, sin sombras fuertes ni reflejos;
    - hoja lo más plana posible (una leve curvatura se corrige sola).
 
    Si una hoja no se puede escanear, usa **✍️ Transcribir una hoja dañada**.
-5. **Resultados**: revisa las hojas marcadas “revisar”, corrige si es necesario,
-   revisa el logro por OA y descarga las evidencias.
+   En la misma pestaña aparece cada estudiante con su nota: revisa las hojas
+   marcadas “revisar”, corrige si es necesario, revisa el logro por OA y
+   descarga las evidencias (**Descargar ▾**).
 
 ### Texto que reconoce el generador de evaluaciones
 
@@ -393,9 +399,9 @@ puede exportar/importar como JSON para usarla en otro dispositivo.
 
 ### Evidencias
 
-En **Resultados → Evidencias para el docente**:
+En **Corregir → Descargar ▾**:
 
-- **Descargar evidencias (ZIP)** (todos los navegadores). Al extraerlo queda:
+- **Evidencias (ZIP)** (todos los navegadores). Al extraerlo queda:
 
   ```
   prueba-de-historia_2026-09-22/

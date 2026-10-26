@@ -169,7 +169,7 @@
     app.save();
     $('#proRubricDialog').close();
     afterRubricChange();
-    app.toast('Rúbrica guardada. Al revisar cada estudiante en Resultados, marca el nivel de cada criterio.');
+    app.toast('Rúbrica guardada. Al revisar cada estudiante en Corregir, marca el nivel de cada criterio.');
   });
   $('#prbRemove').addEventListener('click', () => {
     if (!confirm('¿Quitar la rúbrica de esta pregunta? Los niveles marcados a los estudiantes se pierden (sus puntajes se mantienen).')) return;
@@ -237,7 +237,7 @@
       </label>
       <div class="actions">
         <button type="button" class="btn secondary small" data-fb-pdf>📄 Informe PDF de este estudiante</button>
-        <span class="muted small">El informe también va, para cada estudiante, en «Descargar evidencias (ZIP)».</span>
+        <span class="muted small">El informe también va, para cada estudiante, en «Descargar ▾ → Evidencias (ZIP)».</span>
       </div>`;
   }
 

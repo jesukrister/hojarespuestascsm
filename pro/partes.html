@@ -11,7 +11,7 @@
 <span class="pro-badge" title="Versión Pro">PRO</span>
 
 <!-- @@ tabs -->
-<button role="tab" data-tab="cursos" aria-selected="false"><span class="step">6</span>Cursos</button>
+<button role="tab" data-tab="cursos" aria-selected="false"><span class="step">5</span>Cursos</button>
 
 <!-- @@ main -->
 <div id="proCloudBanner" class="card pro-banner pro-reminder" role="status" hidden>
@@ -106,11 +106,11 @@
 </div>
 
 <!-- @@ escanear -->
-<p class="center pro-live-line"><button type="button" class="btn primary" id="proLiveScan">🎥 Escaneo continuo con la cámara</button><br><span class="muted small">Apunta a las hojas una tras otra: cada una se lee y se guarda sola.</span></p>
-<p class="pro-scan-hint small center">📄 <b>Versión Pro:</b> también puedes subir el <b>PDF</b> de la fotocopiadora (todas las hojas del curso) y fotografiar <b>varias hojas o tickets juntos</b> en una misma foto.</p>
+<button type="button" class="btn primary big pro-live-btn" id="proLiveScan">🎥 Escaneo continuo<small>Pasa las hojas una tras otra: se leen solas</small></button>
+<p class="pro-scan-hint small muted">📄 También puedes subir el <b>PDF</b> de la fotocopiadora y fotografiar <b>varias hojas o tickets juntos</b>.</p>
 
 <!-- @@ resultados-oa -->
-<details id="proReinforce" class="card" open hidden>
+<details id="proReinforce" class="card" hidden>
   <summary><h2>🎯 Para reforzar</h2><span class="muted small">según los objetivos de aprendizaje</span></summary>
   <div id="proReinforceBody"></div>
   <div class="actions">
@@ -119,7 +119,7 @@
 </details>
 
 <!-- @@ resultados-analisis -->
-<details id="proQuality" class="card pro-quality" open hidden>
+<details id="proQuality" class="card pro-quality" hidden>
   <summary><h2>🔬 Calidad de las preguntas</h2><span class="muted small">discriminación, distractores y preguntas para anular</span></summary>
   <div id="pqSummary" class="stats pro-stats"></div>
   <p id="pqNote" class="alert" hidden></p>
@@ -192,7 +192,7 @@
 </details>
 
 <!-- @@ resultados-acciones -->
-<button type="button" class="btn secondary" id="proReportTest">📄 Informe para UTP</button>
+<button type="button" id="proReportTest">📊 Informe para UTP (imprimir o PDF)</button>
 
 <!-- @@ roster -->
 <p id="proRosterNote" class="alert" hidden></p>
@@ -404,7 +404,7 @@
   <ol class="man-steps">
     <li>En la pestaña <b>Prueba</b>, elige el <b>curso de esta prueba</b>: la lista de estudiantes se toma del curso.</li>
     <li>Escanea las hojas como siempre.</li>
-    <li>En <b>Resultados</b>, en el recuadro <b>📚 Guardar en el libro de notas</b>, revisa el nombre, la fecha, el periodo y la ponderación, y presiona <b>Guardar notas en el libro</b>. Cada nota se guarda con el estudiante según el N° de lista marcado en la hoja.</li>
+    <li>En <b>Corregir</b>, bajo la lista de estudiantes, en el recuadro <b>📚 Guardar en el libro de notas</b>, revisa el nombre, la fecha, el periodo y la ponderación, y presiona <b>Guardar notas en el libro</b>. Cada nota se guarda con el estudiante según el N° de lista marcado en la hoja.</li>
     <li>Si después escaneas más hojas o corriges alguna, vuelve a presionar <b>Guardar notas en el libro</b>: se actualiza la misma evaluación.</li>
   </ol>
   <h3>Ver y corregir el libro</h3>
@@ -475,7 +475,7 @@
     <li>Escribe cuántas preguntas tiene, la clave (por ejemplo <code>ABCDA</code>) y el objetivo de aprendizaje. Si eliges el curso, puedes imprimir cada ticket con el nombre del estudiante.</li>
     <li>Imprime en la pestaña <b>Hoja</b> y recorta por las líneas.</li>
     <li>Al final de la clase, junta los tickets sobre la mesa y <b>fotografía varios a la vez</b> (o escanéalos juntos en la fotocopiadora): la plataforma lee cada uno.</li>
-    <li>En <b>Resultados</b>, el recuadro <b>🎯 Para reforzar</b> muestra quiénes no lograron el objetivo.</li>
+    <li>En <b>Corregir → 📈 Análisis de la prueba</b>, el recuadro <b>🎯 Para reforzar</b> muestra quiénes no lograron el objetivo.</li>
   </ol>
   <p class="man-tip"><b>💡 Consejo:</b> al guardar un ticket en el libro de notas, la ponderación sugerida es 0 (formativa: no se promedia).</p>
   <h3>Volver a una prueba normal</h3>
@@ -499,7 +499,7 @@
   <h2><span class="man-num">12</span>PDF de la fotocopiadora y varias hojas por foto</h2>
   <div class="man-video" data-video="lote"></div>
   <ul class="man-list">
-    <li><b>PDF:</b> escanea todas las hojas del curso en la fotocopiadora del colegio (un PDF con varias páginas) y súbelo en <b>Escanear → Subir imágenes o PDF</b>. Cada página se lee como una foto.</li>
+    <li><b>PDF:</b> escanea todas las hojas del curso en la fotocopiadora del colegio (un PDF con varias páginas) y súbelo en <b>Corregir → Subir imágenes o PDF</b>. Cada página se lee como una foto.</li>
     <li><b>Varias hojas por foto:</b> puedes fotografiar juntas dos medias hojas o varios tickets (o poner varias en el vidrio de la fotocopiadora). La plataforma encuentra cada hoja, la lee y guarda un recorte como evidencia.</li>
     <li>Para que funcione, las hojas no deben taparse entre sí: se deben ver completas sus cuatro esquinas y sus marcas laterales.</li>
   </ul>
@@ -509,7 +509,7 @@
 <article class="card man-section" id="man-calidad" data-man="calidad">
   <h2><span class="man-num">13</span>Calidad de las preguntas: discriminación y preguntas para anular</h2>
   <div class="man-video" data-video="calidad"></div>
-  <p>En <b>Resultados</b>, el recuadro <b>🔬 Calidad de las preguntas</b> revisa cada pregunta de la prueba con los resultados del curso y te sugiere qué hacer con ella.</p>
+  <p>En <b>Corregir → 📈 Análisis de la prueba</b>, el recuadro <b>🔬 Calidad de las preguntas</b> revisa cada pregunta de la prueba con los resultados del curso y te sugiere qué hacer con ella.</p>
   <ul class="man-list">
     <li><b>Acierto:</b> % de estudiantes que la respondió bien (su dificultad).</li>
     <li><b>Discriminación:</b> compara a los estudiantes de mejor puntaje con los de menor puntaje. Una buena pregunta la responden bien los que saben más (0,30 o más). Si es <b>negativa</b>, la respondieron mejor los de menor puntaje: suele estar ambigua o con la clave equivocada.</li>
@@ -534,7 +534,7 @@
   <ol class="man-steps">
     <li>En <b>Cursos → Estudiantes</b>, marca la casilla <b>PIE</b> de cada estudiante. Si alguno tiene una exigencia distinta (por ejemplo, según su PACI), escríbela en su fila.</li>
     <li>En <b>Prueba → Puntaje y nota</b>, revisa la <b>exigencia para estudiantes PIE</b> (50% por omisión).</li>
-    <li>Vincula la prueba al curso. En <b>Resultados</b> sus notas se calculan con su exigencia y llevan la etiqueta <span class="tag pie">PIE</span>.</li>
+    <li>Vincula la prueba al curso. En <b>Corregir</b> sus notas se calculan con su exigencia y llevan la etiqueta <span class="tag pie">PIE</span>.</li>
   </ol>
   <h3>Versión adecuada de la prueba</h3>
   <ol class="man-steps">
@@ -551,7 +551,7 @@
   <div class="man-video" data-video="utp"></div>
   <p>Un informe listo para entregar a la Unidad Técnico-Pedagógica, que puedes imprimir o <b>guardar en PDF</b> para enviarlo por correo.</p>
   <ul class="man-list">
-    <li><b>De una prueba:</b> en <b>Resultados</b>, presiona <b>📄 Informe para UTP</b>. Incluye el resumen (promedio, aprobación, logro), la distribución de notas, el logro por OA y por pregunta, los estudiantes que requieren apoyo con su OA más descendido, los estudiantes PIE, la calidad de la prueba y sugerencias.</li>
+    <li><b>De una prueba:</b> en <b>Corregir</b>, presiona <b>⬇ Descargar ▾ → 📊 Informe para UTP</b>. Incluye el resumen (promedio, aprobación, logro), la distribución de notas, el logro por OA y por pregunta, los estudiantes que requieren apoyo con su OA más descendido, los estudiantes PIE, la calidad de la prueba y sugerencias.</li>
     <li><b>De un curso:</b> en <b>Cursos</b>, presiona <b>📄 Informe del curso (UTP)</b> y elige el semestre, trimestre o el año. Incluye el promedio de cada evaluación, la distribución de promedios, el logro por OA acumulado, los estudiantes en riesgo (bajo 4,0 y limítrofes) y los estudiantes PIE.</li>
     <li>Escribe tus <b>observaciones y acciones remediales</b> en el cuadro de arriba: se imprimen al final, junto a los espacios para firmar.</li>
   </ul>
@@ -563,10 +563,10 @@
   <div class="man-video" data-video="continuo"></div>
   <p>Para corregir un curso completo sin tomar una foto por hoja: la cámara queda abierta y lee cada hoja que le pongas delante.</p>
   <ol class="man-steps">
-    <li>En <b>Escanear</b>, presiona <b>🎥 Escaneo continuo con la cámara</b> (la primera vez, permite el uso de la cámara).</li>
+    <li>En <b>Corregir</b>, presiona <b>🎥 Escaneo continuo</b> (la primera vez, permite el uso de la cámara).</li>
     <li>Pon una hoja sobre la mesa y apunta el celular desde arriba, con las <b>cuatro esquinas negras</b> a la vista. Mantén quieto un momento.</li>
     <li>Cuando suene el <b>pitido</b> (y el borde se ponga verde), la hoja ya está guardada: pon la siguiente encima.</li>
-    <li>Al terminar, presiona <b>Terminar</b>. Las hojas quedan en <b>Resultados</b>, igual que las fotografiadas, con su foto como evidencia.</li>
+    <li>Al terminar, presiona <b>Terminar</b>. Las hojas quedan en la lista de <b>Corregir</b>, igual que las fotografiadas, con su foto como evidencia.</li>
   </ol>
   <p class="man-tip"><b>💡 Consejos:</b> buena luz y sin sombras (si el celular tiene linterna, aparece el botón <b>🔦</b>). Una misma hoja no se guarda dos veces. Las hojas con marcas dudosas se guardan igual, marcadas para revisar.</p>
 </article>
@@ -583,13 +583,13 @@
   </ol>
   <h3>Retroalimentación de cada estudiante</h3>
   <ol class="man-steps">
-    <li>En <b>Resultados</b>, toca al estudiante. Bajo su hoja aparece <b>💬 Retroalimentación para el estudiante</b>.</li>
+    <li>En <b>Corregir</b>, toca al estudiante. Bajo su hoja aparece <b>💬 Retroalimentación para el estudiante</b>.</li>
     <li>Si la pregunta tiene rúbrica, toca el nivel que logró en cada criterio: el puntaje y la nota se actualizan solos.</li>
     <li>Escribe un <b>comentario</b> en cada pregunta de desarrollo (por qué obtuvo ese puntaje, qué mejorar) y, si quieres, un <b>comentario general</b>. Se guardan solos.</li>
     <li>Con <b>📄 Informe PDF de este estudiante</b> descargas su informe.</li>
   </ol>
   <h3>Todos los informes y el Excel</h3>
-  <p>En <b>Resultados → Descargar evidencias (ZIP)</b>, la carpeta <i>informes</i> trae el PDF de cada estudiante. El Excel trae además tres hojas: <b>Evaluación</b> (enunciado y alternativas de cada pregunta, con la clave), <b>Respuestas por estudiante</b> (qué marcó cada uno en cada pregunta y cuál era la correcta) y <b>Retroalimentación</b> (puntajes, rúbrica, comentarios y el enlace a cada informe).</p>
+  <p>En <b>Corregir → ⬇ Descargar ▾ → Evidencias (ZIP)</b>, la carpeta <i>informes</i> trae el PDF de cada estudiante. El Excel trae además tres hojas: <b>Evaluación</b> (enunciado y alternativas de cada pregunta, con la clave), <b>Respuestas por estudiante</b> (qué marcó cada uno en cada pregunta y cuál era la correcta) y <b>Retroalimentación</b> (puntajes, rúbrica, comentarios y el enlace a cada informe).</p>
   <p class="man-tip"><b>💡 Para que aparezcan los enunciados</b>, la prueba debe estar armada en la pestaña <b>Evaluación</b> (y aplicada a la hoja). Si no, el informe y el Excel muestran sólo las letras: «marcaste B, la correcta era D». Si usas filas (A, B, C, D), cada estudiante ve las preguntas en el orden y con las letras de su propia fila.</p>
 </article>
 
@@ -795,7 +795,7 @@
     <button type="button" class="btn ghost small" data-pro-close aria-label="Cerrar">✕</button>
   </div>
   <div class="pro-dialog-body">
-    <p class="muted small">Escribe los <b>criterios</b> (filas) y los <b>niveles de logro</b> con su puntaje (columnas). Al revisar cada estudiante en Resultados marcas un nivel por criterio, el puntaje se calcula solo y el estudiante ve la rúbrica en su informe, con los niveles que obtuvo.</p>
+    <p class="muted small">Escribe los <b>criterios</b> (filas) y los <b>niveles de logro</b> con su puntaje (columnas). Al revisar cada estudiante en Corregir marcas un nivel por criterio, el puntaje se calcula solo y el estudiante ve la rúbrica en su informe, con los niveles que obtuvo.</p>
     <div class="table-wrap"><table id="prbTable" class="pro-rubric-table"></table></div>
     <div class="actions">
       <button type="button" class="btn secondary small" id="prbAddCrit">＋ Criterio</button>

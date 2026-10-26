@@ -334,7 +334,7 @@
   // Con el libro cargado se conoce qué estudiantes son PIE: se recalculan las notas.
   Pro.ready.then(() => {
     renderScale();
-    if (!$('#tab-resultados').hidden) app.renderResults();
+    if (!$('#tab-corregir').hidden) app.renderResults();
     if (!$('#tab-evaluacion').hidden) render();
   });
 

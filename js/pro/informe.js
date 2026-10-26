@@ -1,6 +1,6 @@
 /*
  * Versión Pro · Informe para UTP (para imprimir o guardar en PDF):
- *  - de una prueba (pestaña Resultados): resumen, distribución de notas, logro
+ *  - de una prueba (pestaña Corregir): resumen, distribución de notas, logro
  *    por OA y por pregunta, estudiantes que requieren apoyo, PIE y sugerencias;
  *  - de un curso en un periodo (pestaña Cursos): promedios por evaluación,
  *    distribución de promedios, logro por OA acumulado, estudiantes en riesgo.

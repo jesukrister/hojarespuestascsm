@@ -204,7 +204,7 @@
       const ok = await Pro.confirm({
         title: '📂 Usar esta evaluación',
         html: `<p>Se abrirá <b>${esc(it.title)}</b> en lugar de la prueba actual${state.exam.title.trim() ? ` («${esc(state.exam.title)}»)` : ''}.</p>
-          ${n ? `<p class="alert warn">Las ${n} hoja(s) escaneada(s) de la prueba actual se quitarán. Si aún no las guardas en el libro de notas, hazlo antes desde <b>Resultados</b>.</p>` : ''}
+          ${n ? `<p class="alert warn">Las ${n} hoja(s) escaneada(s) de la prueba actual se quitarán. Si aún no las guardas en el libro de notas, hazlo antes desde <b>Corregir</b>.</p>` : ''}
           ${!linked && (state.exam.title.trim() || state.exam.doc.text.trim()) ? '<p class="muted small">La prueba actual no está en Mis evaluaciones: si la quieres conservar, cancela y guárdala primero.</p>' : ''}
           <p class="muted small">Antes se guarda una copia automática de cómo está todo ahora.</p>`,
         ok: 'Abrir',

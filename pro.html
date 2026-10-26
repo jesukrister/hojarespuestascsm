@@ -28,9 +28,8 @@
       <button role="tab" data-tab="prueba" aria-selected="true"><span class="step">1</span>Prueba</button>
       <button role="tab" data-tab="evaluacion" aria-selected="false"><span class="step">2</span>Evaluación</button>
       <button role="tab" data-tab="hoja" aria-selected="false"><span class="step">3</span>Hoja</button>
-      <button role="tab" data-tab="escanear" aria-selected="false"><span class="step">4</span>Escanear</button>
-      <button role="tab" data-tab="resultados" aria-selected="false"><span class="step">5</span>Resultados <span id="resultsBadge" class="badge" hidden>0</span></button>
-      <button role="tab" data-tab="cursos" aria-selected="false"><span class="step">6</span>Cursos</button>
+      <button role="tab" data-tab="corregir" aria-selected="false"><span class="step">4</span>Corregir <span id="resultsBadge" class="badge" hidden>0</span></button>
+      <button role="tab" data-tab="cursos" aria-selected="false"><span class="step">5</span>Cursos</button>
       <button role="tab" data-tab="manual" aria-selected="false" class="tab-manual"><span class="step">?</span>Manual</button>
     </nav>
 
@@ -544,156 +543,161 @@
         </div>
       </section>
 
-      <!-- 3. ESCANEAR ------------------------------------------------------>
-      <section id="tab-escanear" class="tab-panel" role="tabpanel" hidden>
+      <!-- 4. CORREGIR: escanear y resultados en la misma pantalla ----------->
+      <section id="tab-corregir" class="tab-panel" role="tabpanel" hidden>
         <p class="man-help"><button type="button" class="link-btn" data-manual="escanear">📘 ¿Cómo se usa esta pestaña?</button></p>
-        <div class="card">
-          <h2>Escanear hojas</h2>
-          <div class="scan-buttons">
-            <label class="btn primary big" for="cameraInput">📷 Tomar foto</label>
-            <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden>
-            <label class="btn secondary big" for="filesInput">🖼️ Subir imágenes</label>
-            <input id="filesInput" type="file" accept="image/*" multiple hidden>
+        <div class="corr-grid">
+          <div class="corr-side">
+            <div class="card scan-card">
+              <h2>Escanear hojas</h2>
+              <p id="corrTest" class="corr-test muted small"></p>
+              <div class="scan-buttons">
+                <label class="btn primary big" for="cameraInput">📷 Tomar foto</label>
+                <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden>
+                <label class="btn secondary big" for="filesInput">🖼️ Subir imágenes</label>
+                <input id="filesInput" type="file" accept="image/*" multiple hidden>
+              </div>
+              <button type="button" class="btn primary big pro-live-btn" id="proLiveScan">🎥 Escaneo continuo<small>Pasa las hojas una tras otra: se leen solas</small></button>
+              <p class="pro-scan-hint small muted">📄 También puedes subir el <b>PDF</b> de la fotocopiadora y fotografiar <b>varias hojas o tickets juntos</b>.</p>
+              <div id="scanProgress" class="scan-progress" hidden></div>
+              <ul id="scanQueue" class="scan-queue"></ul>
+              <div class="scan-more">
+                <button id="btnTranscribe" class="btn ghost small" type="button">✍️ Transcribir una hoja dañada</button>
+                <details class="tips-box">
+                  <summary>⚙️ Consejos para la foto y sensibilidad</summary>
+                  <ul class="tips">
+                    <li>Hoja sobre una superficie plana y de color contrastante, con las <strong>cuatro esquinas visibles</strong>.</li>
+                    <li>Buena luz, sin sombras fuertes ni reflejos sobre las burbujas.</li>
+                    <li>Toma la foto desde arriba; una inclinación moderada o la hoja girada no son problema.</li>
+                    <li>Evita que la hoja esté muy doblada o arrugada.</li>
+                  </ul>
+                  <div class="threshold-row">
+                    <label class="check"><input id="thrAuto" type="checkbox" checked> Sensibilidad automática</label>
+                    <label class="range" id="thrRangeWrap">Umbral de marca
+                      <input id="thrRange" type="range" min="0.15" max="0.7" step="0.01" disabled>
+                      <output id="thrValue">auto</output>
+                    </label>
+                  </div>
+                </details>
+              </div>
+              <p class="muted small center">También puedes arrastrar imágenes a esta pantalla. Puedes elegir varias fotos a la vez.</p>
+              <div id="dropHint" class="drop-hint" hidden>Suelta las imágenes para escanearlas</div>
+            </div>
           </div>
-          <p class="muted small center">También puedes arrastrar imágenes a esta sección. Puedes seleccionar varias fotos a la vez.</p>
-          <p class="center pro-live-line"><button type="button" class="btn primary" id="proLiveScan">🎥 Escaneo continuo con la cámara</button><br><span class="muted small">Apunta a las hojas una tras otra: cada una se lee y se guarda sola.</span></p>
-          <p class="pro-scan-hint small center">📄 <b>Versión Pro:</b> también puedes subir el <b>PDF</b> de la fotocopiadora (todas las hojas del curso) y fotografiar <b>varias hojas o tickets juntos</b> en una misma foto.</p>
-          <p class="center"><button id="btnTranscribe" class="btn ghost small" type="button">✍️ Transcribir una hoja dañada</button></p>
-          <details class="tips-box">
-            <summary>Consejos para una buena foto</summary>
-            <ul class="tips">
-              <li>Hoja sobre una superficie plana y de color contrastante, con las <strong>cuatro esquinas visibles</strong>.</li>
-              <li>Buena luz, sin sombras fuertes ni reflejos sobre las burbujas.</li>
-              <li>Toma la foto desde arriba; una inclinación moderada o la hoja girada no son problema.</li>
-              <li>Evita que la hoja esté muy doblada o arrugada.</li>
-            </ul>
-          </details>
-          <div class="threshold-row">
-            <label class="check"><input id="thrAuto" type="checkbox" checked> Sensibilidad automática</label>
-            <label class="range" id="thrRangeWrap">Umbral de marca
-              <input id="thrRange" type="range" min="0.15" max="0.7" step="0.01" disabled>
-              <output id="thrValue">auto</output>
-            </label>
-          </div>
-          <ul id="scanQueue" class="scan-queue"></ul>
-          <div id="dropHint" class="drop-hint" hidden>Suelta las imágenes para escanearlas</div>
-        </div>
-        <div id="scanDetail"></div>
-      </section>
 
-      <!-- 4. RESULTADOS ---------------------------------------------------->
-      <section id="tab-resultados" class="tab-panel" role="tabpanel" hidden>
-        <p class="man-help"><button type="button" class="link-btn" data-manual="resultados">📘 ¿Cómo se usa esta pestaña?</button></p>
-        <div id="resultsEmpty" class="card empty">
-          <p>Aún no hay hojas escaneadas.</p>
-          <button class="btn primary" type="button" data-goto="escanear">Escanear hojas</button>
-        </div>
-        <div id="resultsContent" hidden>
-          <div id="statsCards" class="stats"></div>
-          <div class="card">
-            <div class="card-head">
-              <h2>Estudiantes</h2>
-              <div class="actions">
-                <button type="button" class="btn secondary" id="proReportTest">📄 Informe para UTP</button>
-                <button id="btnClearResults" class="btn danger ghost" type="button">Borrar resultados</button>
-              </div>
+          <div class="corr-main">
+            <div id="resultsEmpty" class="card empty">
+              <p><strong>Aún no hay hojas corregidas.</strong></p>
+              <p class="muted">Toma una foto o sube las imágenes: cada estudiante va apareciendo aquí con su nota.</p>
             </div>
-            <div class="export-box">
-              <div>
-                <strong>Evidencias para el docente</strong>
-                <p class="muted small">Carpeta con la planilla Excel (<code>resultados.xlsx</code>), cada hoja corregida en JPG y la foto original. En el Excel, cada estudiante tiene enlaces que abren sus imágenes.</p>
+            <div id="resultsContent" hidden>
+              <div id="statsCards" class="stats"></div>
+              <div class="card results-card">
+                <div class="card-head results-head">
+                  <h2>Estudiantes</h2>
+                  <button type="button" id="reviewFilter" class="review-filter" aria-pressed="false" hidden></button>
+                  <input id="resultsSearch" type="search" placeholder="🔍 Buscar" aria-label="Buscar estudiante" autocomplete="off">
+                  <details class="menu" id="dlMenu">
+                    <summary class="btn secondary small">⬇ Descargar ▾</summary>
+                    <div class="menu-list">
+                      <button id="btnExportZip" type="button">📦 Evidencias (ZIP): planilla Excel y cada hoja corregida</button>
+                      <button id="btnExportFolder" type="button" hidden>📁 Guardar las evidencias en una carpeta…</button>
+                      <button id="btnExportCsv" type="button">📄 Sólo la planilla (CSV)</button>
+                      <button type="button" id="proReportTest">📊 Informe para UTP (imprimir o PDF)</button>
+                      <hr>
+                      <button id="btnClearResults" type="button" class="danger">🗑 Borrar todos los resultados…</button>
+                    </div>
+                  </details>
+                </div>
+                <p id="exportProgress" class="muted small" hidden></p>
+                <div class="table-wrap">
+                  <table id="resultsTable" class="results-table"></table>
+                </div>
+                <p id="resultsNone" class="muted small" hidden></p>
+                <p class="muted small results-hint">Toca a un estudiante para ver su hoja corregida y cambiar una respuesta si se leyó mal.</p>
+                <div id="proBookBox" class="pro-book">
+                  <div class="pro-book-head">
+                    <strong>📚 Guardar en el libro de notas</strong>
+                    <p id="proBookStatus" class="muted small"></p>
+                  </div>
+                  <div id="proBookNoCourse" class="pro-book-empty" hidden>
+                    <p class="muted small">Para guardar estas notas, crea el curso con la lista de tus estudiantes.</p>
+                    <button type="button" class="btn secondary small" id="proBookCreateCourse">＋ Crear el curso</button>
+                  </div>
+                  <div id="proBookForm" class="pro-book-form" hidden>
+                    <label>Curso
+                      <select id="proBookCourse"></select>
+                    </label>
+                    <label>Evaluación
+                      <select id="proBookEval"></select>
+                    </label>
+                    <label class="pro-new-field">Nombre en el libro
+                      <input id="proBookTitle" type="text" maxlength="80" autocomplete="off">
+                    </label>
+                    <label class="pro-new-field">Fecha
+                      <input id="proBookDate" type="date">
+                    </label>
+                    <label class="pro-new-field">Periodo
+                      <select id="proBookPeriod"></select>
+                    </label>
+                    <label class="pro-new-field">Ponderación
+                      <input id="proBookWeight" type="number" min="0" step="any" value="1" inputmode="decimal">
+                    </label>
+                  </div>
+                  <div id="proBookActions" class="actions" hidden>
+                    <button type="button" class="btn primary" id="proBookSave">📚 Guardar notas en el libro</button>
+                    <button type="button" class="btn ghost" id="proBookOpen">Ver el libro</button>
+                  </div>
+                </div>
               </div>
-              <div class="actions">
-                <button id="btnExportZip" class="btn primary" type="button">📦 Descargar evidencias (ZIP)</button>
-                <button id="btnExportFolder" class="btn secondary" type="button" hidden>📁 Guardar en una carpeta…</button>
-                <button id="btnExportCsv" class="btn ghost" type="button">Sólo CSV</button>
-              </div>
-              <p id="exportProgress" class="muted small" hidden></p>
-            </div>
-            <div id="proBookBox" class="pro-book">
-              <div class="pro-book-head">
-                <strong>📚 Guardar en el libro de notas</strong>
-                <p id="proBookStatus" class="muted small"></p>
-              </div>
-              <div id="proBookNoCourse" class="pro-book-empty" hidden>
-                <p class="muted small">Para guardar estas notas, crea el curso con la lista de tus estudiantes.</p>
-                <button type="button" class="btn secondary small" id="proBookCreateCourse">＋ Crear el curso</button>
-              </div>
-              <div id="proBookForm" class="pro-book-form" hidden>
-                <label>Curso
-                  <select id="proBookCourse"></select>
-                </label>
-                <label>Evaluación
-                  <select id="proBookEval"></select>
-                </label>
-                <label class="pro-new-field">Nombre en el libro
-                  <input id="proBookTitle" type="text" maxlength="80" autocomplete="off">
-                </label>
-                <label class="pro-new-field">Fecha
-                  <input id="proBookDate" type="date">
-                </label>
-                <label class="pro-new-field">Periodo
-                  <select id="proBookPeriod"></select>
-                </label>
-                <label class="pro-new-field">Ponderación
-                  <input id="proBookWeight" type="number" min="0" step="any" value="1" inputmode="decimal">
-                </label>
-              </div>
-              <div id="proBookActions" class="actions" hidden>
-                <button type="button" class="btn primary" id="proBookSave">📚 Guardar notas en el libro</button>
-                <button type="button" class="btn ghost" id="proBookOpen">Ver el libro</button>
-              </div>
-            </div>
-            <div class="table-wrap">
-              <table id="resultsTable" class="results-table"></table>
+              <h2 class="corr-section">📈 Análisis de la prueba</h2>
+              <details id="oaResultsCard" class="card" hidden>
+                <summary><h2>Logro por objetivo de aprendizaje</h2></summary>
+                <div class="table-wrap"><table id="oaTable" class="item-table"></table></div>
+                <h3 class="sub-h">Logro de cada estudiante por objetivo</h3>
+                <div class="table-wrap"><table id="oaMatrix" class="results-table oa-matrix"></table></div>
+              </details>
+              <details id="proReinforce" class="card" hidden>
+                <summary><h2>🎯 Para reforzar</h2><span class="muted small">según los objetivos de aprendizaje</span></summary>
+                <div id="proReinforceBody"></div>
+                <div class="actions">
+                  <button type="button" class="btn ghost small" id="proReinforceCopy">📋 Copiar la lista</button>
+                </div>
+              </details>
+              <details class="card" id="itemCard">
+                <summary><h2>Análisis por pregunta</h2></summary>
+                <div class="table-wrap">
+                  <table id="itemTable" class="item-table"></table>
+                </div>
+              </details>
+              <details id="proQuality" class="card pro-quality" hidden>
+                <summary><h2>🔬 Calidad de las preguntas</h2><span class="muted small">discriminación, distractores y preguntas para anular</span></summary>
+                <div id="pqSummary" class="stats pro-stats"></div>
+                <p id="pqNote" class="alert" hidden></p>
+                <div class="pq-bar">
+                  <label class="inline-select">Mostrar
+                    <select id="pqFilter">
+                      <option value="review">Sólo las preguntas para revisar o mejorar</option>
+                      <option value="all">Todas las preguntas</option>
+                    </select>
+                  </label>
+                  <button type="button" class="btn ghost small" id="pqCopy">📋 Copiar la tabla</button>
+                </div>
+                <div class="table-wrap"><table id="pqTable" class="item-table pq-table"></table></div>
+                <p id="pqEmpty" class="pq-empty" hidden></p>
+                <details class="tips-box">
+                  <summary>¿Qué significa cada índice?</summary>
+                  <ul class="tips">
+                    <li><b>Acierto (dificultad):</b> % de estudiantes que respondió bien. Lo ideal es que la mayoría de las preguntas esté entre 30% y 85%.</li>
+                    <li><b>Discriminación (D):</b> % de acierto del 27% de estudiantes con mejor puntaje menos el del 27% con menor puntaje. 0,40 o más: muy buena · 0,30: buena · 0,20: regular · bajo 0,20: deficiente · negativa: la responden mejor los de menor puntaje (revisar).</li>
+                    <li><b>Respuestas:</b> % que eligió cada alternativa. En verde la clave; en rojo, un distractor que eligieron más que la clave; tachado, uno que nadie eligió (no aporta: conviene cambiarlo).</li>
+                    <li><b>Confiabilidad (KR-20):</b> qué tan consistente es la prueba en su conjunto. 0,80 o más es alta; entre 0,60 y 0,80 es lo habitual en pruebas de aula; bajo 0,60 conviene revisar varias preguntas.</li>
+                    <li><b>Anular:</b> la pregunta deja de contar para todos y el puntaje máximo baja. <b>Cambiar clave:</b> úsalo sólo si la clave estaba equivocada. Ambas cosas recalculan las notas y se deshacen con <b>Restaurar</b>.</li>
+                  </ul>
+                </details>
+              </details>
             </div>
           </div>
-          <div id="resultDetail"></div>
-          <details id="oaResultsCard" class="card" open hidden>
-            <summary><h2>Logro por objetivo de aprendizaje</h2></summary>
-            <div class="table-wrap"><table id="oaTable" class="item-table"></table></div>
-            <h3 class="sub-h">Logro de cada estudiante por objetivo</h3>
-            <div class="table-wrap"><table id="oaMatrix" class="results-table oa-matrix"></table></div>
-          </details>
-          <details id="proReinforce" class="card" open hidden>
-            <summary><h2>🎯 Para reforzar</h2><span class="muted small">según los objetivos de aprendizaje</span></summary>
-            <div id="proReinforceBody"></div>
-            <div class="actions">
-              <button type="button" class="btn ghost small" id="proReinforceCopy">📋 Copiar la lista</button>
-            </div>
-          </details>
-          <details class="card" open>
-            <summary><h2>Análisis por pregunta</h2></summary>
-            <div class="table-wrap">
-              <table id="itemTable" class="item-table"></table>
-            </div>
-          </details>
-          <details id="proQuality" class="card pro-quality" open hidden>
-            <summary><h2>🔬 Calidad de las preguntas</h2><span class="muted small">discriminación, distractores y preguntas para anular</span></summary>
-            <div id="pqSummary" class="stats pro-stats"></div>
-            <p id="pqNote" class="alert" hidden></p>
-            <div class="pq-bar">
-              <label class="inline-select">Mostrar
-                <select id="pqFilter">
-                  <option value="review">Sólo las preguntas para revisar o mejorar</option>
-                  <option value="all">Todas las preguntas</option>
-                </select>
-              </label>
-              <button type="button" class="btn ghost small" id="pqCopy">📋 Copiar la tabla</button>
-            </div>
-            <div class="table-wrap"><table id="pqTable" class="item-table pq-table"></table></div>
-            <p id="pqEmpty" class="pq-empty" hidden></p>
-            <details class="tips-box">
-              <summary>¿Qué significa cada índice?</summary>
-              <ul class="tips">
-                <li><b>Acierto (dificultad):</b> % de estudiantes que respondió bien. Lo ideal es que la mayoría de las preguntas esté entre 30% y 85%.</li>
-                <li><b>Discriminación (D):</b> % de acierto del 27% de estudiantes con mejor puntaje menos el del 27% con menor puntaje. 0,40 o más: muy buena · 0,30: buena · 0,20: regular · bajo 0,20: deficiente · negativa: la responden mejor los de menor puntaje (revisar).</li>
-                <li><b>Respuestas:</b> % que eligió cada alternativa. En verde la clave; en rojo, un distractor que eligieron más que la clave; tachado, uno que nadie eligió (no aporta: conviene cambiarlo).</li>
-                <li><b>Confiabilidad (KR-20):</b> qué tan consistente es la prueba en su conjunto. 0,80 o más es alta; entre 0,60 y 0,80 es lo habitual en pruebas de aula; bajo 0,60 conviene revisar varias preguntas.</li>
-                <li><b>Anular:</b> la pregunta deja de contar para todos y el puntaje máximo baja. <b>Cambiar clave:</b> úsalo sólo si la clave estaba equivocada. Ambas cosas recalculan las notas y se deshacen con <b>Restaurar</b>.</li>
-              </ul>
-            </details>
-          </details>
         </div>
       </section>
       <!-- 6. CURSOS (versión Pro) ------------------------------------------->
@@ -854,8 +858,8 @@
             <button type="button" data-man-go="evaluacion"><b>2</b>Evaluación</button>
             <button type="button" data-man-go="filas"><b>2b</b>Filas A, B, C y D</button>
             <button type="button" data-man-go="hoja"><b>3</b>Hoja de respuestas</button>
-            <button type="button" data-man-go="escanear"><b>4</b>Escanear</button>
-            <button type="button" data-man-go="resultados"><b>5</b>Resultados</button>
+            <button type="button" data-man-go="escanear"><b>4</b>Corregir: escanear las hojas</button>
+            <button type="button" data-man-go="resultados"><b>5</b>Corregir: notas y evidencias</button>
             <button type="button" data-man-go="respaldo"><b>6</b>Guardar y respaldar</button>
             <button type="button" data-man-go="cursos"><b>7</b>Cursos y libro de notas</button>
             <button type="button" data-man-go="respaldopro"><b>8</b>Respaldo y copias automáticas</button>
@@ -880,13 +884,12 @@
         <article class="card man-section" id="man-inicio" data-man="inicio">
           <h2><span class="man-num">0</span>Cómo funciona la plataforma</h2>
           <div class="man-video" data-video="inicio"></div>
-          <p>La plataforma corrige pruebas de alternativas a partir de una <strong>foto de la hoja de respuestas</strong>. Se usa en cinco pasos, uno por pestaña:</p>
+          <p>La plataforma corrige pruebas de alternativas a partir de una <strong>foto de la hoja de respuestas</strong>. Se usa en cuatro pasos, uno por pestaña:</p>
           <ol class="man-flow">
             <li><b>Prueba</b><span>Dices cuántas preguntas tiene y cuál es la respuesta correcta de cada una.</span></li>
             <li><b>Evaluación</b><span>(Opcional) Pegas tus preguntas y la plataforma arma la prueba lista para imprimir.</span></li>
             <li><b>Hoja</b><span>Imprimes las hojas de respuesta donde los estudiantes marcan.</span></li>
-            <li><b>Escanear</b><span>Le sacas una foto a cada hoja con el celular.</span></li>
-            <li><b>Resultados</b><span>Ves las notas del curso y descargas el Excel y las hojas corregidas.</span></li>
+            <li><b>Corregir</b><span>Le sacas una foto a cada hoja con el celular y al lado van apareciendo las notas del curso. Ahí descargas el Excel y las hojas corregidas.</span></li>
           </ol>
           <h3>Qué necesitas</h3>
           <ul class="man-list">
@@ -901,23 +904,29 @@
         <article class="card man-section" id="man-prueba" data-man="prueba">
           <h2><span class="man-num">1</span>Pestaña Prueba: configurar la prueba</h2>
           <div class="man-video" data-video="prueba"></div>
-          <p>Aquí le cuentas a la plataforma cómo es tu prueba.</p>
+          <p>Aquí le cuentas a la plataforma cómo es tu prueba. Arriba está lo básico; lo demás está plegado en <b>Más opciones</b> y, si no lo cambias, se usa lo de siempre.</p>
           <ol class="man-steps">
             <li><b>Escribe el título</b> (por ejemplo, “Prueba de Ciencias – Unidad 2”) y, si quieres, un subtítulo con el curso o el profesor.</li>
-            <li><b>Indica el N° de preguntas</b> (de 1 a 120) y cuántas <b>alternativas</b> tiene cada una (A–D, A–E, etc.).</li>
-            <li><b>Dígitos de identificación:</b> es el número que el estudiante marca en la hoja para saber quién es. Usa <b>2</b> si marcan su número de lista (01 a 99). Usa 0 si no quieres este recuadro.</li>
-            <li><b>Elige el papel:</b> carta, A4 u oficio, el mismo que usarás en la impresora.</li>
+            <li><b>Indica el N° de preguntas</b> (de 1 a 120; puedes usar los botones <b>−</b> y <b>＋</b>) y toca cuántas <b>alternativas</b> tiene cada una (4 = A a D, 5 = A a E, etc.).</li>
             <li><b>Ingresa la clave</b> (las respuestas correctas) de una de estas tres formas:
               <ul>
-                <li>haciendo clic en la letra correcta de cada pregunta;</li>
+                <li>haciendo clic en la letra correcta de cada pregunta (van en bloques de 5, como en la hoja);</li>
                 <li>escribiéndola seguida en “Escritura rápida”, por ejemplo <code>ABCDA BCDEA</code> (usa <code>-</code> para anular una pregunta);</li>
-                <li>rellenando una hoja con las respuestas correctas y usando <b>📷 Leer clave desde una hoja</b>.</li>
+                <li>rellenando una hoja con las respuestas correctas y usando <b>📷 Leerla de una hoja</b>.</li>
               </ul>
             </li>
-            <li><b>Revisa el puntaje y la nota:</b> puntos por respuesta correcta, descuento por incorrecta (0 = sin descuento), exigencia (por defecto 60 %) y la escala de notas (1,0 a 7,0).</li>
-            <li><b>(Opcional) Objetivos de aprendizaje:</b> escribe un objetivo por línea con sus preguntas, por ejemplo <code>OA12: 1-4</code> y <code>OA13: 5-8</code>. Así verás el logro de cada OA en los resultados.</li>
-            <li><b>(Opcional) Lista del curso:</b> pega los nombres en orden de lista, uno por línea. El número que marca el estudiante se cambia por su nombre automáticamente.</li>
+            <li>Presiona <b>Siguiente: imprimir la hoja →</b> (abajo). Ahí mismo te avisa si falta algo de la clave.</li>
           </ol>
+          <h3>Más opciones (plegadas)</h3>
+          <p>Cada opción muestra a la derecha cómo está. Tócala para abrirla:</p>
+          <ul class="man-list">
+            <li><b>🎯 Objetivos de aprendizaje (OA):</b> un objetivo por línea con sus preguntas, por ejemplo <code>OA12: 1-4</code> y <code>OA13: 5-8</code>. Así verás el logro de cada OA en los resultados.</li>
+            <li><b>🧮 Puntaje y nota:</b> puntos por respuesta correcta, descuento por incorrecta (0 = sin descuento), exigencia (por defecto 60 %) y la escala de notas (1,0 a 7,0).</li>
+            <li><b>🪪 Cómo se identifica el estudiante:</b> los dígitos que marca en la hoja. Con <b>2</b> marca su número de lista (01 a 99). Con 0 no hay recuadro.</li>
+            <li><b>👥 Lista del curso:</b> pega los nombres en orden de lista, uno por línea. El número que marca el estudiante se cambia por su nombre, y al corregir verás quién falta.</li>
+            <li><b>📄 Tamaño de papel:</b> carta, A4 u oficio, el mismo que usarás en la impresora.</li>
+          </ul>
+          <p>En el botón <b>⋯</b> (arriba a la derecha) están <b>Exportar</b> e <b>Importar configuración</b> y <b>Borrar la clave</b>.</p>
           <p class="man-warn"><b>⚠️ Importante:</b> si ya escaneaste hojas y cambias el número de preguntas, de alternativas, de dígitos o el papel, los resultados guardados se borran (la hoja ya no sería la misma).</p>
           <button class="btn secondary small" type="button" data-goto="prueba">Ir a la pestaña Prueba →</button>
         </article>
@@ -1009,19 +1018,20 @@ Núcleo = Contiene el material genético</pre>
             <li>Marcar su número de lista en el recuadro “N° de lista / código”.</li>
           </ul>
           <p class="man-warn"><b>⚠️ Importante:</b> los cuadrados negros de las esquinas, los de los costados y los cuadritos de abajo son los que permiten leer la hoja. No los recortes, no los cubras y no escribas encima.</p>
-          <p class="man-tip"><b>💡 Para practicar:</b> el botón <b>Descargar ejemplo rellenado</b> crea una imagen de una hoja ya marcada. Súbela en la pestaña Escanear para ver cómo funciona.</p>
+          <p class="man-tip"><b>💡 Para practicar:</b> el botón <b>Descargar ejemplo rellenado</b> crea una imagen de una hoja ya marcada. Súbela en la pestaña Corregir para ver cómo funciona.</p>
           <button class="btn secondary small" type="button" data-goto="hoja">Ir a la pestaña Hoja →</button>
         </article>
 
         <!-- 4 -->
         <article class="card man-section" id="man-escanear" data-man="escanear">
-          <h2><span class="man-num">4</span>Pestaña Escanear: fotografiar las hojas</h2>
+          <h2><span class="man-num">4</span>Pestaña Corregir: escanear las hojas</h2>
           <div class="man-video" data-video="escanear"></div>
           <ol class="man-steps">
-            <li>Abre la página en el celular y entra a <b>Escanear</b>.</li>
+            <li>Abre la página en el celular y entra a <b>Corregir</b>.</li>
             <li>Presiona <b>📷 Tomar foto</b> y fotografía una hoja. En el computador, usa <b>🖼️ Subir imágenes</b> para elegir varias fotos a la vez (o arrástralas a la página).</li>
-            <li>Espera unos segundos: aparece una línea verde con el código del estudiante, sus respuestas correctas y la nota.</li>
-            <li>Debajo verás la hoja con la corrección: <span class="man-dot ok"></span> verde = correcta, <span class="man-dot bad"></span> rojo = incorrecta, círculo azul punteado = la respuesta correcta.</li>
+            <li>Espera unos segundos: aparece una línea verde con el código del estudiante, sus respuestas correctas y la nota, y el estudiante se agrega (resaltado) a la lista de <b>Estudiantes</b>.</li>
+            <li>Si tienes la lista del curso, arriba ves <b>cuántos llevas y quién falta</b> (por número de lista).</li>
+            <li>Toca <b>Ver</b> (o el nombre en la lista) para ver la hoja con la corrección: <span class="man-dot ok"></span> verde = correcta, <span class="man-dot bad"></span> rojo = incorrecta, círculo azul punteado = la respuesta correcta.</li>
             <li>Si una pregunta tiene un <b>recuadro amarillo</b>, la marca era dudosa: mírala y, si hace falta, corrígela eligiendo la letra en la lista de la derecha.</li>
             <li>Sigue con la próxima hoja.</li>
           </ol>
@@ -1042,20 +1052,20 @@ Núcleo = Contiene el material genético</pre>
             <li>Si quieres la hoja en papel o PDF, presiona <b>🖨️ Hoja en PDF</b> (en la ventana de impresión elige “Guardar como PDF”).</li>
           </ol>
           <p class="man-tip"><b>💡 Consejo:</b> adjunta una foto de la hoja original dañada: queda guardada como evidencia junto a la hoja transcrita.</p>
-          <button class="btn secondary small" type="button" data-goto="escanear">Ir a la pestaña Escanear →</button>
+          <button class="btn secondary small" type="button" data-goto="corregir">Ir a la pestaña Corregir →</button>
         </article>
 
         <!-- 5 -->
         <article class="card man-section" id="man-resultados" data-man="resultados">
-          <h2><span class="man-num">5</span>Pestaña Resultados: notas, análisis y evidencias</h2>
+          <h2><span class="man-num">5</span>Pestaña Corregir: notas, análisis y evidencias</h2>
           <div class="man-video" data-video="resultados"></div>
           <ol class="man-steps">
-            <li>Arriba verás el <b>resumen del curso</b>: hojas corregidas, nota promedio, logro y aprobación.</li>
-            <li>En la tabla de <b>Estudiantes</b>, haz clic en un nombre para ver su hoja corregida. Ahí puedes escribir o corregir el nombre y el código.</li>
-            <li>Las hojas con la etiqueta <span class="tag warn">revisar</span> tienen algo dudoso: ábrelas y revísalas.</li>
-            <li>En <b>Logro por objetivo de aprendizaje</b> verás cada OA como Logrado (L), Medianamente logrado (ML) o No logrado (NL).</li>
-            <li>En <b>Análisis por pregunta</b> verás qué preguntas le costaron más al curso (en rojo, menos del 40 % de acierto) y qué alternativas marcaron.</li>
-            <li>Presiona <b>📦 Descargar evidencias (ZIP)</b> para guardar todo en tu computador.</li>
+            <li>Arriba verás el <b>resumen del curso</b>: nota promedio, aprobación, la pregunta más difícil y el objetivo más bajo.</li>
+            <li>En la lista de <b>Estudiantes</b> cada uno tiene una barrita con sus respuestas (verde = correcta, rojo = incorrecta, gris = omitida), su puntaje y su nota. Usa <b>🔍 Buscar</b> para encontrar a alguien.</li>
+            <li>Toca un nombre para ver su hoja corregida en un cuadro. Ahí puedes corregir el nombre, el código o una respuesta, y pasar al <b>Siguiente</b> o al <b>Anterior</b> sin cerrarlo (también con las flechas del teclado).</li>
+            <li>Las hojas con la etiqueta <span class="tag warn">revisar</span> tienen algo dudoso. Toca <b>⚠ … para revisar</b> para ver sólo esas.</li>
+            <li>Más abajo, en <b>📈 Análisis de la prueba</b>, están plegados el <b>Logro por objetivo de aprendizaje</b> (L, ML o NL) y el <b>Análisis por pregunta</b> (qué preguntas le costaron más al curso y qué alternativas marcaron).</li>
+            <li>Presiona <b>⬇ Descargar ▾ → Evidencias (ZIP)</b> para guardar todo en tu computador.</li>
           </ol>
           <h3>Qué trae la carpeta de evidencias</h3>
           <ul class="man-list">
@@ -1063,8 +1073,8 @@ Núcleo = Contiene el material genético</pre>
             <li><b>hojas_corregidas</b>: la hoja de cada estudiante con la corrección, en JPG.</li>
             <li><b>fotos_originales</b>: las fotos tal como se tomaron.</li>
           </ul>
-          <p class="man-tip"><b>💡 Consejo:</b> descomprime el ZIP antes de abrir el Excel, para que los enlaces a las imágenes funcionen. En Chrome o Edge también puedes usar <b>📁 Guardar en una carpeta…</b>, que guarda todo directamente, sin ZIP.</p>
-          <button class="btn secondary small" type="button" data-goto="resultados">Ir a la pestaña Resultados →</button>
+          <p class="man-tip"><b>💡 Consejo:</b> descomprime el ZIP antes de abrir el Excel, para que los enlaces a las imágenes funcionen. En Chrome o Edge, en <b>Descargar ▾</b> también está <b>📁 Guardar las evidencias en una carpeta…</b>, que guarda todo directamente, sin ZIP.</p>
+          <button class="btn secondary small" type="button" data-goto="corregir">Ir a la pestaña Corregir →</button>
         </article>
 
         <!-- 6 -->
@@ -1073,10 +1083,10 @@ Núcleo = Contiene el material genético</pre>
           <div class="man-video" data-video="respaldo"></div>
           <ul class="man-list">
             <li>Todo se guarda solo en <b>este navegador y este equipo</b>. Si abres la página en otro computador, no verás tu prueba.</li>
-            <li>Para usar la prueba en otro equipo (o compartirla con un colega), ve a la pestaña Prueba y presiona <b>Exportar configuración</b>. Se descarga un archivo que después abres con <b>Importar configuración</b>.</li>
+            <li>Para usar la prueba en otro equipo (o compartirla con un colega), ve a la pestaña Prueba, toca <b>⋯</b> y elige <b>Exportar configuración</b>. Se descarga un archivo que después abres con <b>⋯ → Importar configuración</b>.</li>
             <li>Al terminar de corregir, <b>descarga las evidencias (ZIP)</b>: es tu respaldo de las notas y las hojas.</li>
             <li>Si borras los datos de navegación del navegador, o usas una ventana de incógnito, se pierde lo guardado.</li>
-            <li>Para empezar una prueba nueva, cambia la configuración y usa <b>Borrar resultados</b> en la pestaña Resultados (después de descargar las evidencias).</li>
+            <li>Para empezar una prueba nueva, cambia la configuración y usa <b>Descargar ▾ → Borrar todos los resultados</b> en la pestaña Corregir (después de descargar las evidencias).</li>
           </ul>
         </article>
 
@@ -1096,7 +1106,7 @@ Núcleo = Contiene el material genético</pre>
           <ol class="man-steps">
             <li>En la pestaña <b>Prueba</b>, elige el <b>curso de esta prueba</b>: la lista de estudiantes se toma del curso.</li>
             <li>Escanea las hojas como siempre.</li>
-            <li>En <b>Resultados</b>, en el recuadro <b>📚 Guardar en el libro de notas</b>, revisa el nombre, la fecha, el periodo y la ponderación, y presiona <b>Guardar notas en el libro</b>. Cada nota se guarda con el estudiante según el N° de lista marcado en la hoja.</li>
+            <li>En <b>Corregir</b>, bajo la lista de estudiantes, en el recuadro <b>📚 Guardar en el libro de notas</b>, revisa el nombre, la fecha, el periodo y la ponderación, y presiona <b>Guardar notas en el libro</b>. Cada nota se guarda con el estudiante según el N° de lista marcado en la hoja.</li>
             <li>Si después escaneas más hojas o corriges alguna, vuelve a presionar <b>Guardar notas en el libro</b>: se actualiza la misma evaluación.</li>
           </ol>
           <h3>Ver y corregir el libro</h3>
@@ -1167,7 +1177,7 @@ Núcleo = Contiene el material genético</pre>
             <li>Escribe cuántas preguntas tiene, la clave (por ejemplo <code>ABCDA</code>) y el objetivo de aprendizaje. Si eliges el curso, puedes imprimir cada ticket con el nombre del estudiante.</li>
             <li>Imprime en la pestaña <b>Hoja</b> y recorta por las líneas.</li>
             <li>Al final de la clase, junta los tickets sobre la mesa y <b>fotografía varios a la vez</b> (o escanéalos juntos en la fotocopiadora): la plataforma lee cada uno.</li>
-            <li>En <b>Resultados</b>, el recuadro <b>🎯 Para reforzar</b> muestra quiénes no lograron el objetivo.</li>
+            <li>En <b>Corregir → 📈 Análisis de la prueba</b>, el recuadro <b>🎯 Para reforzar</b> muestra quiénes no lograron el objetivo.</li>
           </ol>
           <p class="man-tip"><b>💡 Consejo:</b> al guardar un ticket en el libro de notas, la ponderación sugerida es 0 (formativa: no se promedia).</p>
           <h3>Volver a una prueba normal</h3>
@@ -1191,7 +1201,7 @@ Núcleo = Contiene el material genético</pre>
           <h2><span class="man-num">12</span>PDF de la fotocopiadora y varias hojas por foto</h2>
           <div class="man-video" data-video="lote"></div>
           <ul class="man-list">
-            <li><b>PDF:</b> escanea todas las hojas del curso en la fotocopiadora del colegio (un PDF con varias páginas) y súbelo en <b>Escanear → Subir imágenes o PDF</b>. Cada página se lee como una foto.</li>
+            <li><b>PDF:</b> escanea todas las hojas del curso en la fotocopiadora del colegio (un PDF con varias páginas) y súbelo en <b>Corregir → Subir imágenes o PDF</b>. Cada página se lee como una foto.</li>
             <li><b>Varias hojas por foto:</b> puedes fotografiar juntas dos medias hojas o varios tickets (o poner varias en el vidrio de la fotocopiadora). La plataforma encuentra cada hoja, la lee y guarda un recorte como evidencia.</li>
             <li>Para que funcione, las hojas no deben taparse entre sí: se deben ver completas sus cuatro esquinas y sus marcas laterales.</li>
           </ul>
@@ -1201,7 +1211,7 @@ Núcleo = Contiene el material genético</pre>
         <article class="card man-section" id="man-calidad" data-man="calidad">
           <h2><span class="man-num">13</span>Calidad de las preguntas: discriminación y preguntas para anular</h2>
           <div class="man-video" data-video="calidad"></div>
-          <p>En <b>Resultados</b>, el recuadro <b>🔬 Calidad de las preguntas</b> revisa cada pregunta de la prueba con los resultados del curso y te sugiere qué hacer con ella.</p>
+          <p>En <b>Corregir → 📈 Análisis de la prueba</b>, el recuadro <b>🔬 Calidad de las preguntas</b> revisa cada pregunta de la prueba con los resultados del curso y te sugiere qué hacer con ella.</p>
           <ul class="man-list">
             <li><b>Acierto:</b> % de estudiantes que la respondió bien (su dificultad).</li>
             <li><b>Discriminación:</b> compara a los estudiantes de mejor puntaje con los de menor puntaje. Una buena pregunta la responden bien los que saben más (0,30 o más). Si es <b>negativa</b>, la respondieron mejor los de menor puntaje: suele estar ambigua o con la clave equivocada.</li>
@@ -1226,7 +1236,7 @@ Núcleo = Contiene el material genético</pre>
           <ol class="man-steps">
             <li>En <b>Cursos → Estudiantes</b>, marca la casilla <b>PIE</b> de cada estudiante. Si alguno tiene una exigencia distinta (por ejemplo, según su PACI), escríbela en su fila.</li>
             <li>En <b>Prueba → Puntaje y nota</b>, revisa la <b>exigencia para estudiantes PIE</b> (50% por omisión).</li>
-            <li>Vincula la prueba al curso. En <b>Resultados</b> sus notas se calculan con su exigencia y llevan la etiqueta <span class="tag pie">PIE</span>.</li>
+            <li>Vincula la prueba al curso. En <b>Corregir</b> sus notas se calculan con su exigencia y llevan la etiqueta <span class="tag pie">PIE</span>.</li>
           </ol>
           <h3>Versión adecuada de la prueba</h3>
           <ol class="man-steps">
@@ -1243,7 +1253,7 @@ Núcleo = Contiene el material genético</pre>
           <div class="man-video" data-video="utp"></div>
           <p>Un informe listo para entregar a la Unidad Técnico-Pedagógica, que puedes imprimir o <b>guardar en PDF</b> para enviarlo por correo.</p>
           <ul class="man-list">
-            <li><b>De una prueba:</b> en <b>Resultados</b>, presiona <b>📄 Informe para UTP</b>. Incluye el resumen (promedio, aprobación, logro), la distribución de notas, el logro por OA y por pregunta, los estudiantes que requieren apoyo con su OA más descendido, los estudiantes PIE, la calidad de la prueba y sugerencias.</li>
+            <li><b>De una prueba:</b> en <b>Corregir</b>, presiona <b>⬇ Descargar ▾ → 📊 Informe para UTP</b>. Incluye el resumen (promedio, aprobación, logro), la distribución de notas, el logro por OA y por pregunta, los estudiantes que requieren apoyo con su OA más descendido, los estudiantes PIE, la calidad de la prueba y sugerencias.</li>
             <li><b>De un curso:</b> en <b>Cursos</b>, presiona <b>📄 Informe del curso (UTP)</b> y elige el semestre, trimestre o el año. Incluye el promedio de cada evaluación, la distribución de promedios, el logro por OA acumulado, los estudiantes en riesgo (bajo 4,0 y limítrofes) y los estudiantes PIE.</li>
             <li>Escribe tus <b>observaciones y acciones remediales</b> en el cuadro de arriba: se imprimen al final, junto a los espacios para firmar.</li>
           </ul>
@@ -1255,10 +1265,10 @@ Núcleo = Contiene el material genético</pre>
           <div class="man-video" data-video="continuo"></div>
           <p>Para corregir un curso completo sin tomar una foto por hoja: la cámara queda abierta y lee cada hoja que le pongas delante.</p>
           <ol class="man-steps">
-            <li>En <b>Escanear</b>, presiona <b>🎥 Escaneo continuo con la cámara</b> (la primera vez, permite el uso de la cámara).</li>
+            <li>En <b>Corregir</b>, presiona <b>🎥 Escaneo continuo</b> (la primera vez, permite el uso de la cámara).</li>
             <li>Pon una hoja sobre la mesa y apunta el celular desde arriba, con las <b>cuatro esquinas negras</b> a la vista. Mantén quieto un momento.</li>
             <li>Cuando suene el <b>pitido</b> (y el borde se ponga verde), la hoja ya está guardada: pon la siguiente encima.</li>
-            <li>Al terminar, presiona <b>Terminar</b>. Las hojas quedan en <b>Resultados</b>, igual que las fotografiadas, con su foto como evidencia.</li>
+            <li>Al terminar, presiona <b>Terminar</b>. Las hojas quedan en la lista de <b>Corregir</b>, igual que las fotografiadas, con su foto como evidencia.</li>
           </ol>
           <p class="man-tip"><b>💡 Consejos:</b> buena luz y sin sombras (si el celular tiene linterna, aparece el botón <b>🔦</b>). Una misma hoja no se guarda dos veces. Las hojas con marcas dudosas se guardan igual, marcadas para revisar.</p>
         </article>
@@ -1275,13 +1285,13 @@ Núcleo = Contiene el material genético</pre>
           </ol>
           <h3>Retroalimentación de cada estudiante</h3>
           <ol class="man-steps">
-            <li>En <b>Resultados</b>, toca al estudiante. Bajo su hoja aparece <b>💬 Retroalimentación para el estudiante</b>.</li>
+            <li>En <b>Corregir</b>, toca al estudiante. Bajo su hoja aparece <b>💬 Retroalimentación para el estudiante</b>.</li>
             <li>Si la pregunta tiene rúbrica, toca el nivel que logró en cada criterio: el puntaje y la nota se actualizan solos.</li>
             <li>Escribe un <b>comentario</b> en cada pregunta de desarrollo (por qué obtuvo ese puntaje, qué mejorar) y, si quieres, un <b>comentario general</b>. Se guardan solos.</li>
             <li>Con <b>📄 Informe PDF de este estudiante</b> descargas su informe.</li>
           </ol>
           <h3>Todos los informes y el Excel</h3>
-          <p>En <b>Resultados → Descargar evidencias (ZIP)</b>, la carpeta <i>informes</i> trae el PDF de cada estudiante. El Excel trae además tres hojas: <b>Evaluación</b> (enunciado y alternativas de cada pregunta, con la clave), <b>Respuestas por estudiante</b> (qué marcó cada uno en cada pregunta y cuál era la correcta) y <b>Retroalimentación</b> (puntajes, rúbrica, comentarios y el enlace a cada informe).</p>
+          <p>En <b>Corregir → ⬇ Descargar ▾ → Evidencias (ZIP)</b>, la carpeta <i>informes</i> trae el PDF de cada estudiante. El Excel trae además tres hojas: <b>Evaluación</b> (enunciado y alternativas de cada pregunta, con la clave), <b>Respuestas por estudiante</b> (qué marcó cada uno en cada pregunta y cuál era la correcta) y <b>Retroalimentación</b> (puntajes, rúbrica, comentarios y el enlace a cada informe).</p>
           <p class="man-tip"><b>💡 Para que aparezcan los enunciados</b>, la prueba debe estar armada en la pestaña <b>Evaluación</b> (y aplicada a la hoja). Si no, el informe y el Excel muestran sólo las letras: «marcaste B, la correcta era D». Si usas filas (A, B, C, D), cada estudiante ve las preguntas en el orden y con las letras de su propia fila.</p>
         </article>
 
@@ -1341,7 +1351,7 @@ Núcleo = Contiene el material genético</pre>
               <p>La foto no muestra la hoja completa o hay poca luz. Vuelve a sacarla con las cuatro esquinas visibles, sobre una mesa oscura y sin sombras.</p></details>
             <details><summary>A la hoja le falta una parte (por ejemplo, la impresora cortó la franja de abajo).</summary>
               <p>Pasa si la hoja se configuró en un papel y se imprimió en otro más corto (por ejemplo, <b>oficio</b> impreso en <b>carta</b>: se pierden las marcas negras de abajo), o si una esquina está rota o tapada.</p>
-              <p>Igual puedes escanearla: si se ven al menos cinco de las marcas negras (por ejemplo, las dos de arriba y los cuadraditos de los costados), la plataforma ubica la hoja con ellas y avisa “Faltan … marcas negras”. Revisa esas hojas en Resultados. Si faltan más marcas, usa <b>✍️ Transcribir esta hoja</b>.</p>
+              <p>Igual puedes escanearla: si se ven al menos cinco de las marcas negras (por ejemplo, las dos de arriba y los cuadraditos de los costados), la plataforma ubica la hoja con ellas y avisa “Faltan … marcas negras”. Revisa esas hojas en Corregir. Si faltan más marcas, usa <b>✍️ Transcribir esta hoja</b>.</p>
               <p>Para la próxima evaluación, elige en la pestaña Prueba el mismo papel que tiene la impresora (o la fotocopiadora) y, al imprimir, escala 100 %.</p></details>
             <details><summary>Dice “Esta hoja corresponde a otra prueba”.</summary>
               <p>La hoja es de otra evaluación (otro número de preguntas, alternativas o dígitos que la prueba configurada con su clave). Si en realidad es la misma evaluación, presiona <b>Usar la configuración de esta hoja</b>: la plataforma se ajusta a la hoja y la vuelve a leer; después revisa la clave en la pestaña Prueba.</p>
@@ -1350,13 +1360,13 @@ Núcleo = Contiene el material genético</pre>
               <p>La hoja está muy doblada o curvada. Alísala sobre una mesa y vuelve a sacar la foto. La plataforma prefiere rechazar la foto antes que corregir mal.</p>
               <p>Si aun así no se puede leer, presiona <b>✍️ Transcribir esta hoja</b> y copia las respuestas del estudiante: la hoja se agrega a los resultados sin escanearla.</p></details>
             <details><summary>Una hoja está rota o rayada y no se puede escanear.</summary>
-              <p>En Escanear, presiona <b>✍️ Transcribir una hoja dañada</b>, escribe el N° de lista y copia las alternativas que marcó el estudiante. La plataforma genera su hoja rellenada, la corrige y la agrega a los resultados con la etiqueta “transcrita”, para que se sepa que la ingresó el docente.</p></details>
+              <p>En Corregir, presiona <b>✍️ Transcribir una hoja dañada</b>, escribe el N° de lista y copia las alternativas que marcó el estudiante. La plataforma genera su hoja rellenada, la corrige y la agrega a los resultados con la etiqueta “transcrita”, para que se sepa que la ingresó el docente.</p></details>
             <details><summary>Una pregunta tiene un recuadro amarillo (marca dudosa).</summary>
-              <p>El estudiante marcó muy suave, borró mal o marcó dos veces. Mira la hoja y elige la letra correcta en la lista de la derecha. Si muchas marcas salen dudosas, en Escanear puedes desmarcar “Sensibilidad automática” y ajustar el umbral.</p></details>
+              <p>El estudiante marcó muy suave, borró mal o marcó dos veces. Mira la hoja y elige la letra correcta en la lista de la derecha. Si muchas marcas salen dudosas, en Corregir abre <b>⚙️ Consejos para la foto y sensibilidad</b>, desmarca “Sensibilidad automática” y ajusta el umbral.</p></details>
             <details><summary>Aparece “código repetido”.</summary>
               <p>Dos hojas tienen el mismo número de lista: puede ser un error del estudiante o la misma hoja escaneada dos veces. Abre ambas, corrige el código o elimina la repetida.</p></details>
             <details><summary>No se pudo leer la fila (A, B, C o D).</summary>
-              <p>Quizás el borde izquierdo de la hoja quedó fuera de la foto. Abre la hoja en Resultados y elige la fila en el selector “Fila”, o vuelve a sacar la foto.</p></details>
+              <p>Quizás el borde izquierdo de la hoja quedó fuera de la foto. Abre la hoja en Corregir y elige la fila en el selector “Fila”, o vuelve a sacar la foto.</p></details>
             <details><summary>La hoja se imprimió más grande o más pequeña.</summary>
               <p>Al imprimir, elige escala 100 % o “Tamaño real” (no “Ajustar a la página”) y el mismo papel configurado en la pestaña Prueba.</p></details>
             <details><summary>Los términos pareados no aparecen como columnas.</summary>
@@ -1381,6 +1391,17 @@ Núcleo = Contiene el material genético</pre>
       <p class="legal">© 2026 Francesco Vivero · Uso gratuito. Prohibida su copia, modificación o redistribución sin autorización del autor. · <a href="privacidad.html">Política de privacidad</a></p>
     </footer>
   </div>
+
+  <dialog id="resultDialog" class="el-dialog result-dialog" aria-label="Hoja corregida del estudiante">
+    <div class="rd-bar">
+      <button type="button" class="btn ghost small" data-rd="prev">‹ Anterior</button>
+      <span id="rdPos" class="muted small"></span>
+      <button type="button" class="btn ghost small" data-rd="next">Siguiente ›</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn ghost small" data-rd="close" aria-label="Cerrar">✕ Cerrar</button>
+    </div>
+    <div id="resultDetail" class="rd-body"></div>
+  </dialog>
 
   <dialog id="trDialog" class="el-dialog tr-dialog" aria-labelledby="trDialogTitle">
     <div class="el-head">
@@ -1699,7 +1720,7 @@ Núcleo = Contiene el material genético</pre>
       <button type="button" class="btn ghost small" data-pro-close aria-label="Cerrar">✕</button>
     </div>
     <div class="pro-dialog-body">
-      <p class="muted small">Escribe los <b>criterios</b> (filas) y los <b>niveles de logro</b> con su puntaje (columnas). Al revisar cada estudiante en Resultados marcas un nivel por criterio, el puntaje se calcula solo y el estudiante ve la rúbrica en su informe, con los niveles que obtuvo.</p>
+      <p class="muted small">Escribe los <b>criterios</b> (filas) y los <b>niveles de logro</b> con su puntaje (columnas). Al revisar cada estudiante en Corregir marcas un nivel por criterio, el puntaje se calcula solo y el estudiante ve la rúbrica en su informe, con los niveles que obtuvo.</p>
       <div class="table-wrap"><table id="prbTable" class="pro-rubric-table"></table></div>
       <div class="actions">
         <button type="button" class="btn secondary small" id="prbAddCrit">＋ Criterio</button>

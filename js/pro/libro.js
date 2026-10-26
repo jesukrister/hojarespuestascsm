@@ -2,7 +2,7 @@
  * Versión Pro · Cursos y libro de notas:
  *  - pestaña Cursos (notas, evaluaciones y estudiantes de cada curso);
  *  - curso de la prueba (pestaña Prueba): la lista de estudiantes sale del curso;
- *  - "Guardar en el libro de notas" (pestaña Resultados).
+ *  - "Guardar en el libro de notas" (pestaña Corregir).
  */
 (function () {
   'use strict';
@@ -68,7 +68,7 @@
       state.exam.roster = text;
       app.save();
       $('#roster').value = text;
-      if (!$('#tab-resultados').hidden) app.renderResults();
+      if (!$('#tab-corregir').hidden) app.renderResults();
     }
   }
 
@@ -91,7 +91,7 @@
       `<option value="">— Sin curso —</option>` + courseOptions(c ? c.id : '') + `<option value="${NEW}">＋ Crear un curso nuevo…</option>`;
     sel.value = c ? c.id : '';
     $('#proExamCourseInfo').textContent = c
-      ? `La lista de estudiantes se toma de este curso (${L.activeStudents(c).length}). En Resultados podrás guardar las notas en su libro.`
+      ? `La lista de estudiantes se toma de este curso (${L.activeStudents(c).length}). En Corregir podrás guardar las notas en su libro.`
       : Pro.book.courses.length
         ? 'Elige el curso para usar su lista de estudiantes y guardar las notas en su libro.'
         : 'Crea el curso con la lista de tus estudiantes para guardar las notas de esta prueba en su libro.';
@@ -125,7 +125,7 @@
   }
 
   /* ------------------------------------------------------------------ */
-  /* Pestaña Resultados: guardar en el libro de notas                    */
+  /* Pestaña Corregir: guardar en el libro de notas                      */
   /* ------------------------------------------------------------------ */
 
   // Lo elegido en el recuadro (se guarda en la prueba al guardar las notas).
@@ -395,7 +395,7 @@
       const evs = L.periodEvaluations(c, period);
       const pct = L.weightPercents(c, period);
       empty.hidden = evs.length > 0;
-      empty.innerHTML = `Aún no hay notas en el ${esc(names[period - 1])}. Guarda una prueba desde <b>Resultados</b> o agrega una <b>nota manual</b>.`;
+      empty.innerHTML = `Aún no hay notas en el ${esc(names[period - 1])}. Guarda una prueba desde <b>Corregir</b> o agrega una <b>nota manual</b>.`;
       head += evs
         .map((e, i) => {
           const w = L.weightOf(e) === 0 ? 'formativa' : fmtPct(pct[e.id]);
@@ -918,7 +918,7 @@
     if (ev && ev.kind === 'escaneada') {
       const s = L.evaluationSummary(c, ev);
       info.hidden = false;
-      info.textContent = `Guardada desde Resultados${ev.source ? ` · ${ev.source.numQuestions} preguntas` : ''} · ${s.count} nota(s) · promedio ${
+      info.textContent = `Guardada desde Corregir${ev.source ? ` · ${ev.source.numQuestions} preguntas` : ''} · ${s.count} nota(s) · promedio ${
         s.average === null ? '–' : L.fmtGrade(s.average)
       }${ev.savedAt ? ` · última vez: ${app.fmtDateTime(ev.savedAt)}` : ''}.`;
     } else info.hidden = true;
@@ -1070,7 +1070,7 @@
     syncRosterFromCourse();
     renderAll();
     app.showTab('escanear');
-    app.toast(`Prueba «${ev.title}» cargada: escanea las hojas y guárdalas en el libro desde Resultados.`);
+    app.toast(`Prueba «${ev.title}» cargada: escanea las hojas y guárdalas en el libro desde Corregir.`);
   }
 
   /* ------------------------------------------------------------------ */

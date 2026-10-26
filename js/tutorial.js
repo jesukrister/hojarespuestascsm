@@ -21,7 +21,7 @@
         {
           target: '.tabs',
           title: 'Las pestañas',
-          text: 'Arriba están las pestañas. Se usan en orden, de izquierda a derecha: <b>1 Prueba</b> → <b>3 Hoja</b> → <b>4 Escanear</b> → <b>5 Resultados</b>. La <b>2 Evaluación</b> es opcional.',
+          text: 'Arriba están las pestañas. Se usan en orden, de izquierda a derecha: <b>1 Prueba</b> → <b>3 Hoja</b> → <b>4 Corregir</b>. La <b>2 Evaluación</b> es opcional.',
         },
         {
           target: '.tabs button[data-tab="manual"]',
@@ -115,32 +115,32 @@
       label: 'Paso 4 · Corregir con el celular',
       steps: [
         {
-          tab: 'escanear',
+          tab: 'corregir',
           target: 'label[for="cameraInput"]',
           title: 'Sacar la foto',
           text: 'Cuando tus estudiantes terminen, toca <b>Tomar foto</b> y fotografía cada hoja. La app la corrige al instante.',
         },
         {
-          tab: 'escanear',
+          tab: 'corregir',
           target: 'label[for="cameraInput"]',
           title: 'Para que salga bien',
           text: '✔ Hoja plana sobre la mesa.<br>✔ Que se vean las <b>4 esquinas negras</b>.<br>✔ Buena luz y sin la sombra del celular.<br>Si sale un poco chueca, no importa.',
         },
         {
-          tab: 'escanear',
+          tab: 'corregir',
           target: 'label[for="filesInput"]',
           title: 'Fotos que ya tienes',
           text: 'Si ya sacaste las fotos con la cámara del celular, súbelas aquí. Puedes elegir varias a la vez.',
         },
         {
           pro: true,
-          tab: 'escanear',
+          tab: 'corregir',
           target: '#proLiveScan',
           title: 'Escaneo continuo',
           text: 'Con este botón la cámara queda abierta: vas pasando las hojas una tras otra y suena un <b>pitido</b> por cada hoja corregida.',
         },
         {
-          tab: 'escanear',
+          tab: 'corregir',
           target: '#btnTranscribe',
           title: 'Si una hoja está rota',
           text: 'Si una hoja está rota o muy arrugada y la app no la puede leer, aquí copias sus respuestas a mano.',
@@ -149,25 +149,25 @@
     },
     {
       id: 'resultados',
-      label: 'Paso 5 · Ver las notas',
+      label: 'Paso 4 · Ver las notas',
       steps: [
         {
-          tab: 'resultados',
+          tab: 'corregir',
           target: ['#resultsTable', '#resultsEmpty'],
           title: 'Las notas',
-          text: 'Cuando escanees las hojas, aquí aparecen las notas de todo el curso. Toca a un estudiante para ver su hoja corregida. Si la app leyó mal una respuesta, puedes cambiarla ahí mismo y la nota se recalcula.',
+          text: 'En la misma pantalla, al lado, van apareciendo las notas de todo el curso mientras escaneas. Toca a un estudiante para ver su hoja corregida. Si la app leyó mal una respuesta, puedes cambiarla ahí mismo y la nota se recalcula.',
         },
         {
-          tab: 'resultados',
-          target: '#btnExportZip',
+          tab: 'corregir',
+          target: '#dlMenu > summary',
           optional: true,
           title: 'Descargar todo',
-          text: 'Con <b>Descargar evidencias</b> obtienes un Excel con todas las notas y la foto de cada hoja corregida, por si un apoderado pregunta.',
+          text: 'En <b>Descargar</b> está el ZIP de evidencias: un Excel con todas las notas y la foto de cada hoja corregida, por si un apoderado pregunta.',
         },
         {
           pro: true,
           optional: true,
-          tab: 'resultados',
+          tab: 'corregir',
           target: '#proBookSave',
           title: 'Al libro de notas',
           text: 'En la Pro, este botón guarda las notas de esta prueba en el libro de notas del curso.',
