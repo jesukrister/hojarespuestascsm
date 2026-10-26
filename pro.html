@@ -268,234 +268,258 @@
       <!-- 2. EVALUACIÓN --------------------------------------------------->
       <section id="tab-evaluacion" class="tab-panel" role="tabpanel" hidden>
         <p class="man-help"><button type="button" class="link-btn" data-manual="evaluacion">📘 ¿Cómo se usa esta pestaña?</button></p>
-        <div class="card">
-          <div class="card-head">
-            <h2>1. Pega las preguntas</h2>
-            <span id="docSummary" class="muted"></span>
-          </div>
-          <p class="muted small">Copia las preguntas y alternativas desde Word, PDF o cualquier documento, aunque vengan desordenadas o con formatos distintos: se ordenan automáticamente.</p>
-          <details class="tips-box">
-            <summary>¿Qué formatos se reconocen?</summary>
-            <ul class="tips">
-              <li>Preguntas numeradas como <code>1.</code> <code>1)</code> <code>1.-</code> <code>Pregunta 1:</code>, o sin número.</li>
-              <li>Alternativas <code>a)</code> <code>A)</code> <code>a.</code> <code>(a)</code>, una por línea o varias en la misma línea.</li>
-              <li>Marca la alternativa correcta con <code>*</code> (<code>*b) Santiago</code>) o agrega al final una línea <code>Clave: 1A 2C 3B…</code> para cargar la clave automáticamente.</li>
-              <li>Escribe <code>OA12</code> en una línea sola para asignar las preguntas siguientes a ese objetivo.</li>
-              <li><strong>Tipos de pregunta:</strong> separa la prueba en ítems con encabezados como <code>I. Selección múltiple</code>, <code>II. Verdadero o falso: Justifica las falsas.</code> o <code>III. Desarrollo (10 puntos)</code>. Sin encabezados: una pregunta sin alternativas es de desarrollo, y una afirmación que empieza con <code>____</code> o <code>( )</code> es de verdadero o falso.</li>
-              <li>Verdadero o falso: la respuesta puede ir al final como <code>(V)</code> o <code>(F)</code>, o en la clave (<code>Clave: 1A 2C 1V 2F</code>).</li>
-              <li>Desarrollo: indica el espacio con <code>[8 líneas]</code>, <code>[recuadro 10]</code> o <code>[en blanco 6]</code> al final de la pregunta (también se ajusta en la vista previa).</li>
-              <li>Un texto separado por una línea en blanco antes de una pregunta (por ejemplo, una lectura) se imprime junto a esa pregunta.</li>
-              <li><strong>Términos pareados:</strong> escribe un par por línea con <code>=</code> entre el término y su definición: <code>Fotosíntesis = Proceso por el cual…</code> (también sirven <code>:</code>, <code>-</code>, <code>→</code> o una tabla pegada de Word). Conviene ponerle un título al ítem, como <code>III. Términos pareados</code>. La columna B se desordena sola. También puedes escribir <code>Columna A</code> y <code>Columna B</code> por separado e indicar la respuesta al final del término: <code>1. Fotosíntesis (b)</code>. Un término sin pareja queda como distractor.</li>
-              <li><strong>Completación:</strong> bajo <code>IV. Completación</code>, escribe la respuesta entre corchetes: <code>La capital de Chile es [Santiago].</code> (o deja <code>____</code>). Las respuestas forman el banco de palabras; agrega distractores con una línea <code>Banco de palabras: Lima, Quito</code>.</li>
-              <li><strong>Ordenar secuencia:</strong> bajo <code>V. Ordenar secuencia</code>, escribe la pregunta y sus elementos (<code>a)</code>, <code>b)</code>… o <code>- </code>) <em>en el orden correcto</em>: al imprimir se desordenan y el estudiante escribe 1, 2, 3…</li>
-              <li><strong>Respuesta breve:</strong> un ítem <code>Respuesta breve</code> es de desarrollo con 2 líneas por pregunta.</li>
-            </ul>
-          </details>
-          <div id="docMathBar" class="math-bar" hidden>
-            <button id="docMathInsert" class="btn secondary small" type="button">∑ Insertar fórmula</button>
-            <span class="muted small">Para cambiar una fórmula ya escrita, pon el cursor sobre ella y presiona el botón.</span>
-          </div>
-          <textarea id="docText" rows="14" spellcheck="false" placeholder="1. ¿Cuál es la capital de Chile?&#10;a) Santiago  b) Lima  c) Quito  d) Bogotá&#10;&#10;2) ¿Qué océano baña las costas de Chile?&#10;A. Atlántico&#10;*B. Pacífico&#10;C. Índico"></textarea>
-          <label class="check" style="margin-top:8px"><input id="docSort" type="checkbox" checked> Ordenar según la numeración del texto (si las preguntas están desordenadas)</label>
-          <details class="more-tools">
-            <summary>Más herramientas</summary>
-            <label class="check"><input id="docMathTools" type="checkbox"> Activar el editor de fórmulas matemáticas</label>
-            <p class="muted small">Agrega el botón <strong>∑ Insertar fórmula</strong> sobre el cuadro de texto, con un teclado en pantalla para escribir fracciones, raíces, potencias y otros símbolos (Matemática, Física, Química…). Si no lo usas, déjalo desactivado.</p>
-          </details>
-          <ul id="docWarnings" class="warn-list" hidden></ul>
-          <div class="actions">
-            <button id="docApply" class="btn secondary" type="button">↪ Usar estas preguntas en la hoja de respuestas</button>
-          </div>
-          <p class="muted small">Ajusta la cantidad de preguntas y alternativas de la hoja, y carga la clave y los objetivos (OA) si vienen en el texto.</p>
-          <p class="alert">💡 Para agregar una <strong>imagen, tabla, gráfico o texto</strong> a una pregunta, usa el botón <strong>＋ Añadir elemento</strong> de esa pregunta en la vista previa (más abajo). Para editar o quitar un elemento, haz clic sobre él.</p>
+        <div class="seg ev-toggle" id="evToggle" role="radiogroup" aria-label="Mostrar">
+          <button type="button" role="radio" data-evmode="editar" aria-checked="true">✏️ Editar</button>
+          <button type="button" role="radio" data-evmode="ver" aria-checked="false">👁 Ver la prueba</button>
         </div>
+        <div class="ev-split" id="evSplit" data-mode="editar">
+          <div class="card ev-editor">
+            <div class="ev-tabs" role="tablist" aria-label="Partes de la evaluación">
+              <button type="button" role="tab" data-evtab="preguntas" aria-selected="true">Preguntas</button>
+              <button type="button" role="tab" data-evtab="membrete" aria-selected="false">Membrete</button>
+              <button type="button" role="tab" data-evtab="diseno" aria-selected="false">Diseño</button>
+              <button type="button" role="tab" data-evtab="filas" aria-selected="false">Filas</button>
+              <button type="button" role="tab" data-evtab="pie" aria-selected="false" title="Versión adecuada para estudiantes PIE (Decreto 83)">🧩 PIE</button>
+            </div>
+            <div class="ev-status">
+              <span id="docSummary" class="ev-sum"></span>
+              <button type="button" id="evWarnChip" class="ev-warn" hidden></button>
+            </div>
 
-        <div class="card">
-          <h2>2. Membrete y formato</h2>
-          <div class="form-grid">
-            <label class="span-2">Establecimiento
-              <input id="docSchool" type="text" maxlength="120" placeholder="Colegio …">
-            </label>
-            <label>Logo
-              <span class="logo-row">
-                <label class="btn ghost small" for="docLogoInput">Elegir imagen…</label>
-                <input id="docLogoInput" type="file" accept="image/*" hidden>
-                <img id="docLogoPreview" alt="" hidden>
-                <button id="docLogoRemove" class="btn ghost small" type="button" hidden>Quitar</button>
-              </span>
-            </label>
-            <label>Título de la evaluación
-              <input id="docTitle" type="text" maxlength="120" placeholder="(usa el título de la prueba)">
-            </label>
-            <label>Asignatura
-              <input id="docSubject" type="text" maxlength="80">
-            </label>
-            <label>Profesor(a)
-              <input id="docTeacher" type="text" maxlength="80">
-            </label>
-            <label>Curso / nivel
-              <input id="docCourse" type="text" maxlength="60">
-            </label>
-            <label>Papel
-              <select id="docPaper"></select>
-            </label>
-          </div>
-          <fieldset class="checks">
-            <legend>Datos que completa el estudiante</legend>
-            <label class="check"><input type="checkbox" data-docfield="nombre"> Nombre</label>
-            <label class="check"><input type="checkbox" data-docfield="curso"> Curso</label>
-            <label class="check"><input type="checkbox" data-docfield="fecha"> Fecha</label>
-            <label class="check"><input type="checkbox" data-docfield="rut"> RUT</label>
-            <label class="check"><input type="checkbox" data-docfield="puntaje"> Puntaje</label>
-            <label class="check"><input type="checkbox" data-docfield="nota"> Nota</label>
-          </fieldset>
-          <label>Objetivos de Aprendizaje
-            <textarea id="docObjectives" rows="3" placeholder="Uno por línea, por ejemplo:&#10;OA 5: Explicar el proceso de independencia de Chile.&#10;OA 6: Analizar fuentes históricas."></textarea>
-            <small>Se imprimen en un recuadro antes de las instrucciones. Déjalo vacío para no mostrarlo.
-              <button id="docObjectivesFromExam" class="btn ghost small" type="button">Usar los OA definidos en la prueba</button></small>
-          </label>
-          <label>Instrucciones
-            <textarea id="docInstructions" rows="3"></textarea>
-          </label>
-          <div class="form-grid" style="margin-top:12px">
-            <label>Tipo de letra
-              <select id="docFont"></select>
-            </label>
-            <label>Tamaño de letra
-              <select id="docFontSize">
-                <option value="10">10 pt</option><option value="11">11 pt</option><option value="12">12 pt</option>
-                <option value="13">13 pt</option><option value="14">14 pt</option><option value="16">16 pt</option>
-              </select>
-            </label>
-            <label>Columnas
-              <select id="docColumns"><option value="1">Una columna</option><option value="2">Dos columnas</option></select>
-            </label>
-            <label>Letras de las alternativas
-              <select id="docLetters"><option value="a)">a) b) c)</option><option value="A)">A) B) C)</option><option value="A.">A. B. C.</option><option value="(a)">(a) (b) (c)</option></select>
-            </label>
-            <label>Disposición de las alternativas
-              <select id="docOptLayout">
-                <option value="auto">Automática (según su largo)</option>
-                <option value="list">Una debajo de otra</option>
-                <option value="grid">En dos columnas</option>
-                <option value="row">En una fila</option>
-              </select>
-            </label>
-            <label>Numeración de las preguntas
-              <select id="docNumbering">
-                <option value="section">Reiniciar en cada ítem</option>
-                <option value="continuous">Continua en toda la prueba</option>
-              </select>
-            </label>
-            <label>Desarrollo: espacio por pregunta
-              <select id="docOpenLines"></select>
-              <small>Se puede cambiar en cada pregunta desde la vista previa.</small>
-            </label>
-            <label>Desarrollo: tipo de espacio
-              <select id="docOpenStyle">
-                <option value="lines">Con líneas</option>
-                <option value="box">Recuadro</option>
-                <option value="blank">En blanco</option>
-              </select>
-            </label>
-            <label>Verdadero o falso: líneas para justificar
-              <select id="docTfJustify">
-                <option value="0">Sin justificación</option>
-                <option value="1">1 línea</option>
-                <option value="2">2 líneas</option>
-                <option value="3">3 líneas</option>
-              </select>
-            </label>
-            <label>Puntaje total (opcional)
-              <input id="docTotalPoints" type="text" maxlength="12" placeholder="Ej.: 42">
-              <small>Se muestra junto a “Puntaje”. Si la prueba es sólo de alternativas, se calcula solo.</small>
-            </label>
-          </div>
-          <label class="check" style="margin-top:10px"><input id="docShowOA" type="checkbox"> Mostrar el OA junto a cada pregunta</label>
-          <label class="check"><input id="docFillBank" type="checkbox"> Completación: mostrar el banco de palabras</label>
-        </div>
+            <div class="ev-pane" data-evpane="preguntas">
+              <p class="muted small">Pega las preguntas y alternativas desde Word, PDF o cualquier documento, aunque vengan desordenadas o con formatos distintos: se ordenan solas.</p>
+              <details class="tips-box">
+                <summary>¿Qué formatos se reconocen?</summary>
+                <ul class="tips">
+                  <li>Preguntas numeradas como <code>1.</code> <code>1)</code> <code>1.-</code> <code>Pregunta 1:</code>, o sin número.</li>
+                  <li>Alternativas <code>a)</code> <code>A)</code> <code>a.</code> <code>(a)</code>, una por línea o varias en la misma línea.</li>
+                  <li>Marca la alternativa correcta con <code>*</code> (<code>*b) Santiago</code>) o agrega al final una línea <code>Clave: 1A 2C 3B…</code> para cargar la clave automáticamente.</li>
+                  <li>Escribe <code>OA12</code> en una línea sola para asignar las preguntas siguientes a ese objetivo.</li>
+                  <li><strong>Tipos de pregunta:</strong> separa la prueba en ítems con encabezados como <code>I. Selección múltiple</code>, <code>II. Verdadero o falso: Justifica las falsas.</code> o <code>III. Desarrollo (10 puntos)</code>. Sin encabezados: una pregunta sin alternativas es de desarrollo, y una afirmación que empieza con <code>____</code> o <code>( )</code> es de verdadero o falso.</li>
+                  <li>Verdadero o falso: la respuesta puede ir al final como <code>(V)</code> o <code>(F)</code>, o en la clave (<code>Clave: 1A 2C 1V 2F</code>).</li>
+                  <li>Desarrollo: indica el espacio con <code>[8 líneas]</code>, <code>[recuadro 10]</code> o <code>[en blanco 6]</code> al final de la pregunta (también se ajusta en la vista previa).</li>
+                  <li>Un texto separado por una línea en blanco antes de una pregunta (por ejemplo, una lectura) se imprime junto a esa pregunta.</li>
+                  <li><strong>Términos pareados:</strong> escribe un par por línea con <code>=</code> entre el término y su definición: <code>Fotosíntesis = Proceso por el cual…</code> (también sirven <code>:</code>, <code>-</code>, <code>→</code> o una tabla pegada de Word). Conviene ponerle un título al ítem, como <code>III. Términos pareados</code>. La columna B se desordena sola. También puedes escribir <code>Columna A</code> y <code>Columna B</code> por separado e indicar la respuesta al final del término: <code>1. Fotosíntesis (b)</code>. Un término sin pareja queda como distractor.</li>
+                  <li><strong>Completación:</strong> bajo <code>IV. Completación</code>, escribe la respuesta entre corchetes: <code>La capital de Chile es [Santiago].</code> (o deja <code>____</code>). Las respuestas forman el banco de palabras; agrega distractores con una línea <code>Banco de palabras: Lima, Quito</code>.</li>
+                  <li><strong>Ordenar secuencia:</strong> bajo <code>V. Ordenar secuencia</code>, escribe la pregunta y sus elementos (<code>a)</code>, <code>b)</code>… o <code>- </code>) <em>en el orden correcto</em>: al imprimir se desordenan y el estudiante escribe 1, 2, 3…</li>
+                  <li><strong>Respuesta breve:</strong> un ítem <code>Respuesta breve</code> es de desarrollo con 2 líneas por pregunta.</li>
+                </ul>
+              </details>
+              <div id="docMathBar" class="math-bar" hidden>
+                <button id="docMathInsert" class="btn secondary small" type="button">∑ Insertar fórmula</button>
+                <span class="muted small">Para cambiar una fórmula ya escrita, pon el cursor sobre ella y presiona el botón.</span>
+              </div>
+              <textarea id="docText" rows="16" spellcheck="false" placeholder="1. ¿Cuál es la capital de Chile?&#10;a) Santiago  b) Lima  c) Quito  d) Bogotá&#10;&#10;2) ¿Qué océano baña las costas de Chile?&#10;A. Atlántico&#10;*B. Pacífico&#10;C. Índico"></textarea>
+              <label class="check" style="margin-top:8px"><input id="docSort" type="checkbox" checked> Ordenar según la numeración del texto (si las preguntas están desordenadas)</label>
+              <details class="more-tools">
+                <summary>Más herramientas</summary>
+                <label class="check"><input id="docMathTools" type="checkbox"> Activar el editor de fórmulas matemáticas</label>
+                <p class="muted small">Agrega el botón <strong>∑ Insertar fórmula</strong> sobre el cuadro de texto, con un teclado en pantalla para escribir fracciones, raíces, potencias y otros símbolos (Matemática, Física, Química…). Si no lo usas, déjalo desactivado.</p>
+              </details>
+              <ul id="docWarnings" class="warn-list" hidden></ul>
+              <div class="actions">
+                <button id="docApply" class="btn secondary" type="button">↪ Usar estas preguntas en la hoja de respuestas</button>
+              </div>
+              <p class="muted small">Ajusta la cantidad de preguntas y alternativas de la hoja, y carga la clave y los objetivos (OA) si vienen en el texto.</p>
+              <p class="alert small">💡 Para agregar una <strong>imagen, tabla, gráfico o texto</strong> a una pregunta, usa <strong>＋ Añadir elemento</strong> en esa pregunta de la vista previa. Para editar o quitar un elemento, haz clic sobre él.</p>
+            </div>
 
-        <div class="card">
-          <div class="card-head">
-            <h2>3. Filas (versiones) para evitar la copia</h2>
-            <span id="docFormsInfo" class="muted"></span>
-          </div>
-          <div class="form-grid">
-            <label>Cantidad de filas
-              <select id="docForms">
-                <option value="1">Una sola versión</option>
-                <option value="2">2 filas (A y B)</option>
-                <option value="3">3 filas (A, B y C)</option>
-                <option value="4">4 filas (A, B, C y D)</option>
+            <div class="ev-pane" data-evpane="membrete" hidden>
+              <div class="form-grid">
+                <label class="span-2">Establecimiento
+                  <input id="docSchool" type="text" maxlength="120" placeholder="Colegio …">
+                </label>
+                <label>Logo
+                  <span class="logo-row">
+                    <label class="btn ghost small" for="docLogoInput">Elegir imagen…</label>
+                    <input id="docLogoInput" type="file" accept="image/*" hidden>
+                    <img id="docLogoPreview" alt="" hidden>
+                    <button id="docLogoRemove" class="btn ghost small" type="button" hidden>Quitar</button>
+                  </span>
+                </label>
+                <label>Título de la evaluación
+                  <input id="docTitle" type="text" maxlength="120" placeholder="(usa el título de la prueba)">
+                </label>
+                <label>Asignatura
+                  <input id="docSubject" type="text" maxlength="80">
+                </label>
+                <label>Profesor(a)
+                  <input id="docTeacher" type="text" maxlength="80">
+                </label>
+                <label>Curso / nivel
+                  <input id="docCourse" type="text" maxlength="60">
+                </label>
+              </div>
+              <fieldset class="checks">
+                <legend>Datos que completa el estudiante</legend>
+                <label class="check"><input type="checkbox" data-docfield="nombre"> Nombre</label>
+                <label class="check"><input type="checkbox" data-docfield="curso"> Curso</label>
+                <label class="check"><input type="checkbox" data-docfield="fecha"> Fecha</label>
+                <label class="check"><input type="checkbox" data-docfield="rut"> RUT</label>
+                <label class="check"><input type="checkbox" data-docfield="puntaje"> Puntaje</label>
+                <label class="check"><input type="checkbox" data-docfield="nota"> Nota</label>
+              </fieldset>
+              <label>Objetivos de Aprendizaje
+                <textarea id="docObjectives" rows="3" placeholder="Uno por línea, por ejemplo:&#10;OA 5: Explicar el proceso de independencia de Chile.&#10;OA 6: Analizar fuentes históricas."></textarea>
+                <small>Se imprimen en un recuadro antes de las instrucciones. Déjalo vacío para no mostrarlo.
+                  <button id="docObjectivesFromExam" class="btn ghost small" type="button">Usar los OA definidos en la prueba</button></small>
+              </label>
+              <label>Instrucciones
+                <textarea id="docInstructions" rows="3"></textarea>
+              </label>
+            </div>
+
+            <div class="ev-pane" data-evpane="diseno" hidden>
+              <p class="muted small">Elige un estilo (después puedes ajustarlo):</p>
+              <div class="ev-presets" role="radiogroup" aria-label="Estilo">
+                <button type="button" role="radio" class="ev-preset" data-preset="clasica" aria-checked="false"><span class="mini" aria-hidden="true"><i></i><i></i><i class="s"></i><i></i><i class="s"></i></span><b>Clásica</b><small>1 columna · 12 pt</small></button>
+                <button type="button" role="radio" class="ev-preset" data-preset="ahorro" aria-checked="false"><span class="mini two" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><b>Ahorra papel</b><small>2 columnas · 10 pt</small></button>
+                <button type="button" role="radio" class="ev-preset" data-preset="grande" aria-checked="false"><span class="mini big" aria-hidden="true"><i></i><i></i><i class="s"></i></span><b>Letra grande</b><small>1 columna · 14 pt</small></button>
+              </div>
+              <div class="ev-quick">
+                <div class="ev-q"><span class="field-label" id="docColumnsLbl">Columnas</span><span class="seg" data-seg-for="docColumns" role="radiogroup" aria-labelledby="docColumnsLbl"></span></div>
+                <div class="ev-q"><span class="field-label" id="docFontSizeLbl">Tamaño de letra</span><span class="seg" data-seg-for="docFontSize" role="radiogroup" aria-labelledby="docFontSizeLbl"></span></div>
+                <div class="ev-q"><span class="field-label" id="docLettersLbl">Letras de las alternativas</span><span class="seg" data-seg-for="docLetters" role="radiogroup" aria-labelledby="docLettersLbl"></span></div>
+              </div>
+              <select id="docColumns" class="visually-hidden" tabindex="-1" aria-hidden="true"><option value="1" data-short="1">Una columna</option><option value="2" data-short="2">Dos columnas</option></select>
+              <select id="docFontSize" class="visually-hidden" tabindex="-1" aria-hidden="true">
+                <option value="10">10</option><option value="11">11</option><option value="12">12</option>
+                <option value="13">13</option><option value="14">14</option><option value="16">16</option>
               </select>
-            </label>
-            <div class="forms-opts">
-              <label class="check"><input id="docShuffleQ" type="checkbox"> Cambiar el orden de las preguntas</label>
-              <label class="check"><input id="docShuffleO" type="checkbox"> Cambiar el orden de las alternativas</label>
-              <button id="docReshuffle" class="btn ghost small" type="button">🔀 Mezclar de nuevo</button>
+              <select id="docLetters" class="visually-hidden" tabindex="-1" aria-hidden="true"><option value="a)">a) b) c)</option><option value="A)">A) B) C)</option><option value="A.">A. B. C.</option><option value="(a)">(a) (b) (c)</option></select>
+              <details class="opt ev-more">
+                <summary><span class="opt-ic" aria-hidden="true">⚙️</span><span class="opt-t"><b>Más ajustes de diseño</b><span class="opt-v">letra, alternativas, numeración, desarrollo, papel…</span></span></summary>
+                <div class="opt-body">
+                  <div class="form-grid">
+                    <label>Tipo de letra
+                      <select id="docFont"></select>
+                    </label>
+                    <label>Disposición de las alternativas
+                      <select id="docOptLayout">
+                        <option value="auto">Automática (según su largo)</option>
+                        <option value="list">Una debajo de otra</option>
+                        <option value="grid">En dos columnas</option>
+                        <option value="row">En una fila</option>
+                      </select>
+                    </label>
+                    <label>Numeración de las preguntas
+                      <select id="docNumbering">
+                        <option value="section">Reiniciar en cada ítem</option>
+                        <option value="continuous">Continua en toda la prueba</option>
+                      </select>
+                    </label>
+                    <label>Desarrollo: espacio por pregunta
+                      <select id="docOpenLines"></select>
+                      <small>Se puede cambiar en cada pregunta desde la vista previa.</small>
+                    </label>
+                    <label>Desarrollo: tipo de espacio
+                      <select id="docOpenStyle">
+                        <option value="lines">Con líneas</option>
+                        <option value="box">Recuadro</option>
+                        <option value="blank">En blanco</option>
+                      </select>
+                    </label>
+                    <label>Verdadero o falso: líneas para justificar
+                      <select id="docTfJustify">
+                        <option value="0">Sin justificación</option>
+                        <option value="1">1 línea</option>
+                        <option value="2">2 líneas</option>
+                        <option value="3">3 líneas</option>
+                      </select>
+                    </label>
+                    <label>Puntaje total (opcional)
+                      <input id="docTotalPoints" type="text" maxlength="12" placeholder="Ej.: 42">
+                      <small>Se muestra junto a “Puntaje”. Si la prueba es sólo de alternativas, se calcula solo.</small>
+                    </label>
+                    <label>Papel
+                      <select id="docPaper"></select>
+                    </label>
+                  </div>
+                  <label class="check" style="margin-top:10px"><input id="docShowOA" type="checkbox"> Mostrar el OA junto a cada pregunta</label>
+                  <label class="check"><input id="docFillBank" type="checkbox"> Completación: mostrar el banco de palabras</label>
+                </div>
+              </details>
+            </div>
+
+            <div class="ev-pane" data-evpane="filas" hidden>
+              <p class="muted small">Filas (versiones) para evitar la copia. <span id="docFormsInfo"></span></p>
+              <div class="form-grid">
+                <label>Cantidad de filas
+                  <select id="docForms">
+                    <option value="1">Una sola versión</option>
+                    <option value="2">2 filas (A y B)</option>
+                    <option value="3">3 filas (A, B y C)</option>
+                    <option value="4">4 filas (A, B, C y D)</option>
+                  </select>
+                </label>
+                <div class="forms-opts">
+                  <label class="check"><input id="docShuffleQ" type="checkbox"> Cambiar el orden de las preguntas</label>
+                  <label class="check"><input id="docShuffleO" type="checkbox"> Cambiar el orden de las alternativas</label>
+                  <button id="docReshuffle" class="btn ghost small" type="button">🔀 Mezclar de nuevo</button>
+                </div>
+              </div>
+              <ul class="tips">
+                <li>La <strong>fila A</strong> mantiene el orden original. En las filas B, C y D las preguntas cambian de lugar dentro de cada ítem y las alternativas se reordenan (procurando que la respuesta correcta no quede en la misma letra que en otra fila). También se reordenan los términos pareados y las secuencias.</li>
+                <li>No se mueven: las preguntas de desarrollo, las alternativas como “Todas las anteriores” o “A y B”, ni las preguntas que el texto nombra (“responde las preguntas 1 a 3”).</li>
+                <li>Cada fila tiene su propia hoja de respuestas (con la fila impresa): al escanear se reconoce la fila y se corrige con su clave. Los resultados y el análisis por pregunta y por OA se muestran según la fila A.</li>
+              </ul>
+              <p id="docFormsStatus" class="alert warn" hidden></p>
+            </div>
+            <div class="ev-pane pro-pie" id="proPieCard" data-evpane="pie" hidden>
+              <h3 class="pi-title">🧩 Versión adecuada (PIE · Decreto 83) <span id="piSummary" class="muted small"></span></h3>
+              <p class="muted small">Para los estudiantes con necesidades educativas especiales: la misma prueba con <b>letra más grande</b> y <b>una alternativa incorrecta menos</b> en cada pregunta (tú eliges cuál). Tiene su propia hoja de respuestas, que el lector reconoce sola y corrige con la exigencia PIE (pestaña Prueba).</p>
+              <p id="piNote" class="alert warn" hidden></p>
+              <div class="form-grid pi-options">
+                <label>Tamaño de letra
+                  <select id="piFont">
+                    <option value="12">12 pt</option>
+                    <option value="13">13 pt</option>
+                    <option value="14">14 pt</option>
+                    <option value="16">16 pt</option>
+                    <option value="18">18 pt</option>
+                  </select>
+                </label>
+                <div class="pi-checks">
+                  <label class="check"><input type="checkbox" id="piOneCol"> Una alternativa por línea</label>
+                  <label class="check"><input type="checkbox" id="piLabel"> Indicar «Versión adecuada» en la prueba y en la hoja</label>
+                </div>
+              </div>
+              <div class="pi-head">
+                <h3>Alternativa que se quita en cada pregunta</h3>
+                <div class="actions">
+                  <button type="button" class="btn secondary small" id="piRandom">🎲 Elegir al azar las que faltan</button>
+                  <button type="button" class="btn ghost small" id="piClear">Limpiar</button>
+                </div>
+              </div>
+              <div class="table-wrap pi-wrap"><table id="piTable" class="pi-table"></table></div>
+              <p id="piStudents" class="muted small"></p>
+              <div class="actions">
+                <button type="button" class="btn primary" id="piPrintTest">🖨️ Imprimir la prueba PIE</button>
+                <button type="button" class="btn secondary" id="piPrintSheet">🖨️ Hojas de respuesta PIE</button>
+                <button type="button" class="btn ghost" id="piPreviewBtn">👁 Vista previa</button>
+              </div>
+              <div id="piPreview" class="doc-preview-wrap pi-preview" hidden><div id="piPreviewDoc" class="doc-preview"></div></div>
             </div>
           </div>
-          <ul class="tips">
-            <li>La <strong>fila A</strong> mantiene el orden original. En las filas B, C y D las preguntas cambian de lugar dentro de cada ítem y las alternativas se reordenan (procurando que la respuesta correcta no quede en la misma letra que en otra fila). También se reordenan los términos pareados y las secuencias.</li>
-            <li>No se mueven: las preguntas de desarrollo, las alternativas como “Todas las anteriores” o “A y B”, ni las preguntas que el texto nombra (“responde las preguntas 1 a 3”).</li>
-            <li>Cada fila tiene su propia hoja de respuestas (con la fila impresa): al escanear se reconoce la fila y se corrige con su clave. Los resultados y el análisis por pregunta y por OA se muestran según la fila A.</li>
-          </ul>
-          <p id="docFormsStatus" class="alert warn" hidden></p>
-        </div>
 
-        <div class="card">
-          <div class="card-head">
-            <h2>4. Vista previa</h2>
-            <div class="actions">
+          <div class="ev-preview">
+            <div class="ev-pbar">
               <label id="docPreviewFormWrap" class="inline-select" hidden>Ver
                 <select id="docPreviewForm"></select>
               </label>
               <label id="docPrintWhichWrap" class="inline-select" hidden>Imprimir
                 <select id="docPrintWhich"></select>
               </label>
-              <button id="docPrint" class="btn primary" type="button">🖨️ Imprimir evaluación</button>
-              <button id="docPrintKey" class="btn secondary" type="button">🗝️ Imprimir pauta</button>
+              <span class="spacer"></span>
+              <button id="docPrintKey" class="btn secondary small" type="button">🗝️ Pauta</button>
+              <button id="docPrint" class="btn primary small" type="button">🖨️ Imprimir evaluación</button>
             </div>
+            <div id="docOrphans" class="alert warn" hidden></div>
+            <div class="doc-preview-wrap"><div id="docPreview" class="doc-preview"></div></div>
+            <p class="muted small ev-note">Al imprimir puedes elegir «Guardar como PDF». Las preguntas no se cortan entre páginas.</p>
           </div>
-          <p class="muted small">Al imprimir puedes elegir “Guardar como PDF”. La división en páginas se ve en la vista de impresión; las preguntas no se cortan entre páginas.</p>
-          <div id="docOrphans" class="alert warn" hidden></div>
-          <div class="doc-preview-wrap"><div id="docPreview" class="doc-preview"></div></div>
         </div>
-        <details class="card pro-pie" id="proPieCard">
-          <summary><h2>🧩 Versión adecuada (PIE · Decreto 83)</h2><span id="piSummary" class="muted small"></span></summary>
-          <p class="muted small">Para los estudiantes con necesidades educativas especiales: la misma prueba con <b>letra más grande</b> y <b>una alternativa incorrecta menos</b> en cada pregunta (tú eliges cuál). Tiene su propia hoja de respuestas, que el lector reconoce sola y corrige con la exigencia PIE (pestaña Prueba).</p>
-          <p id="piNote" class="alert warn" hidden></p>
-          <div class="form-grid pi-options">
-            <label>Tamaño de letra
-              <select id="piFont">
-                <option value="12">12 pt</option>
-                <option value="13">13 pt</option>
-                <option value="14">14 pt</option>
-                <option value="16">16 pt</option>
-                <option value="18">18 pt</option>
-              </select>
-            </label>
-            <div class="pi-checks">
-              <label class="check"><input type="checkbox" id="piOneCol"> Una alternativa por línea</label>
-              <label class="check"><input type="checkbox" id="piLabel"> Indicar «Versión adecuada» en la prueba y en la hoja</label>
-            </div>
-          </div>
-          <div class="pi-head">
-            <h3>Alternativa que se quita en cada pregunta</h3>
-            <div class="actions">
-              <button type="button" class="btn secondary small" id="piRandom">🎲 Elegir al azar las que faltan</button>
-              <button type="button" class="btn ghost small" id="piClear">Limpiar</button>
-            </div>
-          </div>
-          <div class="table-wrap pi-wrap"><table id="piTable" class="pi-table"></table></div>
-          <p id="piStudents" class="muted small"></p>
-          <div class="actions">
-            <button type="button" class="btn primary" id="piPrintTest">🖨️ Imprimir la prueba PIE</button>
-            <button type="button" class="btn secondary" id="piPrintSheet">🖨️ Hojas de respuesta PIE</button>
-            <button type="button" class="btn ghost" id="piPreviewBtn">👁 Vista previa</button>
-          </div>
-          <div id="piPreview" class="doc-preview-wrap pi-preview" hidden><div id="piPreviewDoc" class="doc-preview"></div></div>
-        </details>
+        <button type="button" class="btn primary ev-fab" id="evFab">🖨️ Imprimir</button>
       </section>
 
       <!-- 3. HOJA ---------------------------------------------------------->
@@ -887,10 +911,10 @@
           </label>
           <nav class="man-index" aria-label="Índice del manual">
             <button type="button" data-man-go="inicio"><b>0</b>Cómo funciona</button>
-            <button type="button" data-man-go="prueba"><b>1</b>Prueba</button>
-            <button type="button" data-man-go="evaluacion"><b>2</b>Evaluación</button>
+            <button type="button" data-man-go="prueba"><b>1</b>Prueba: datos y clave</button>
+            <button type="button" data-man-go="evaluacion"><b>2</b>Prueba: preguntas</button>
             <button type="button" data-man-go="filas"><b>2b</b>Filas A, B, C y D</button>
-            <button type="button" data-man-go="hoja"><b>3</b>Hoja de respuestas</button>
+            <button type="button" data-man-go="hoja"><b>3</b>Prueba: imprimir la hoja</button>
             <button type="button" data-man-go="escanear"><b>4</b>Corregir: escanear las hojas</button>
             <button type="button" data-man-go="resultados"><b>5</b>Corregir: notas y evidencias</button>
             <button type="button" data-man-go="respaldo"><b>6</b>Guardar y respaldar</button>
@@ -917,13 +941,14 @@
         <article class="card man-section" id="man-inicio" data-man="inicio">
           <h2><span class="man-num">0</span>Cómo funciona la plataforma</h2>
           <div class="man-video" data-video="inicio"></div>
-          <p>La plataforma corrige pruebas de alternativas a partir de una <strong>foto de la hoja de respuestas</strong>. Se usa en cuatro pasos, uno por pestaña:</p>
+          <p>La plataforma corrige pruebas de alternativas a partir de una <strong>foto de la hoja de respuestas</strong>. Al abrirla, <b>Inicio</b> te muestra tu prueba actual y qué paso sigue. Se usa en cuatro pasos:</p>
           <ol class="man-flow">
-            <li><b>Prueba</b><span>Dices cuántas preguntas tiene y cuál es la respuesta correcta de cada una.</span></li>
-            <li><b>Evaluación</b><span>(Opcional) Pegas tus preguntas y la plataforma arma la prueba lista para imprimir.</span></li>
-            <li><b>Hoja</b><span>Imprimes las hojas de respuesta donde los estudiantes marcan.</span></li>
+            <li><b>Prueba → Datos y clave</b><span>Dices cuántas preguntas tiene y cuál es la respuesta correcta de cada una.</span></li>
+            <li><b>Prueba → Preguntas</b><span>(Opcional) Pegas tus preguntas y la plataforma arma la prueba lista para imprimir.</span></li>
+            <li><b>Prueba → Imprimir hoja</b><span>Imprimes las hojas de respuesta donde los estudiantes marcan.</span></li>
             <li><b>Corregir</b><span>Le sacas una foto a cada hoja con el celular y al lado van apareciendo las notas del curso. Ahí descargas el Excel y las hojas corregidas.</span></li>
           </ol>
+          <p>El menú (arriba en el computador, abajo en el celular) tiene <b>Inicio</b>, <b>Prueba</b> (con sus tres pasos: Datos y clave · Preguntas · Imprimir hoja), <b>Corregir</b> y <b>Ayuda</b>. En Inicio también está <b>Crear una prueba nueva</b>: empieza en blanco, pero conserva tus ajustes (papel, puntaje, membrete y lista del curso).</p>
           <h3>Qué necesitas</h3>
           <ul class="man-list">
             <li>Un computador o celular con internet para abrir la página.</li>
@@ -935,7 +960,7 @@
 
         <!-- 1 -->
         <article class="card man-section" id="man-prueba" data-man="prueba">
-          <h2><span class="man-num">1</span>Pestaña Prueba: configurar la prueba</h2>
+          <h2><span class="man-num">1</span>Prueba · Datos y clave</h2>
           <div class="man-video" data-video="prueba"></div>
           <p>Aquí le cuentas a la plataforma cómo es tu prueba. Arriba está lo básico; lo demás está plegado en <b>Más opciones</b> y, si no lo cambias, se usa lo de siempre.</p>
           <ol class="man-steps">
@@ -961,23 +986,21 @@
           </ul>
           <p>En el botón <b>⋯</b> (arriba a la derecha) están <b>Exportar</b> e <b>Importar configuración</b> y <b>Borrar la clave</b>.</p>
           <p class="man-warn"><b>⚠️ Importante:</b> si ya escaneaste hojas y cambias el número de preguntas, de alternativas, de dígitos o el papel, los resultados guardados se borran (la hoja ya no sería la misma).</p>
-          <button class="btn secondary small" type="button" data-goto="prueba">Ir a la pestaña Prueba →</button>
+          <button class="btn secondary small" type="button" data-goto="prueba">Ir a Datos y clave →</button>
         </article>
 
         <!-- 2 -->
         <article class="card man-section" id="man-evaluacion" data-man="evaluacion">
-          <h2><span class="man-num">2</span><span>Pestaña Evaluación: crear la prueba para imprimir <small>(opcional)</small></span></h2>
+          <h2><span class="man-num">2</span><span>Prueba · Preguntas: crear la prueba para imprimir <small>(opcional)</small></span></h2>
           <div class="man-video" data-video="evaluacion"></div>
-          <p>Si ya tienes tu prueba impresa, puedes saltarte este paso. Si no, la plataforma la arma por ti con membrete y formato.</p>
+          <p>Si ya tienes tu prueba impresa, puedes saltarte este paso. Si no, la plataforma la arma por ti con membrete y formato. A la izquierda escribes y a la derecha ves cómo queda la prueba, al instante (en el celular, cambia con <b>✏️ Editar</b> y <b>👁 Ver la prueba</b>).</p>
           <ol class="man-steps">
-            <li><b>Copia tus preguntas</b> desde Word, PDF o donde las tengas, y <b>pégalas</b> en el cuadro grande. No importa si vienen desordenadas: se ordenan solas.</li>
-            <li><b>Revisa los avisos</b> en amarillo (por ejemplo, una pregunta con menos alternativas que las demás).</li>
-            <li><b>Completa el membrete:</b> colegio, logo, asignatura, profesor, curso y los datos que llenará el estudiante (nombre, RUT, fecha…).</li>
-            <li><b>Escribe los Objetivos de Aprendizaje y las instrucciones</b> que quieres que aparezcan en la prueba.</li>
-            <li><b>Elige el formato:</b> tipo y tamaño de letra, una o dos columnas, cómo se ven las alternativas.</li>
-            <li><b>Mira la vista previa</b> al final de la página. Ahí puedes cambiar el tipo de cada pregunta, el espacio para responder y usar <b>＋ Añadir elemento</b> para agregar una imagen, tabla, gráfico o texto.</li>
-            <li>Presiona <b>🖨️ Imprimir evaluación</b>. En la ventana de impresión puedes elegir “Guardar como PDF”. Con <b>🗝️ Imprimir pauta</b> obtienes las respuestas correctas.</li>
-            <li>Presiona <b>↪ Usar estas preguntas en la hoja de respuestas</b>: se copian el número de preguntas, la clave y los OA a la pestaña Prueba.</li>
+            <li>En <b>Preguntas</b>, <b>copia tus preguntas</b> desde Word, PDF o donde las tengas, y <b>pégalas</b> en el cuadro grande. No importa si vienen desordenadas: se ordenan solas. Arriba ves cuántas reconoció y, si hay algo raro, un aviso <b>⚠</b> (tócalo para verlo).</li>
+            <li>En <b>Membrete</b>, completa el colegio, logo, asignatura, profesor, curso, los datos que llenará el estudiante (nombre, RUT, fecha…), los Objetivos de Aprendizaje y las instrucciones.</li>
+            <li>En <b>Diseño</b>, elige un estilo: <b>Clásica</b> (1 columna, letra 12), <b>Ahorra papel</b> (2 columnas, letra 10) o <b>Letra grande</b> (letra 14). Después puedes ajustar las columnas, el tamaño de letra y las letras de las alternativas. Lo demás está en <b>Más ajustes de diseño</b>.</li>
+            <li>En la vista previa puedes cambiar el tipo de cada pregunta, el espacio para responder y usar <b>＋ Añadir elemento</b> para agregar una imagen, tabla, gráfico o texto.</li>
+            <li>Presiona <b>🖨️ Imprimir evaluación</b>. En la ventana de impresión puedes elegir “Guardar como PDF”. Con <b>🗝️ Pauta</b> obtienes las respuestas correctas.</li>
+            <li>Presiona <b>↪ Usar estas preguntas en la hoja de respuestas</b>: se copian el número de preguntas, la clave y los OA a <b>Datos y clave</b>.</li>
           </ol>
           <h3>Cómo escribir cada tipo de pregunta</h3>
           <p>Separa la prueba en ítems con un título (por ejemplo <code>II. Verdadero o falso</code>). Debajo de cada título escribe las preguntas así:</p>
@@ -1011,7 +1034,7 @@ Núcleo = Contiene el material genético</pre>
             <li>Para cambiarla, pon el cursor sobre ella y presiona otra vez <b>∑ Insertar fórmula</b>.</li>
           </ol>
           <p class="man-tip"><b>💡 Bueno saber:</b> las fórmulas sirven en enunciados, alternativas, términos pareados y oraciones para completar. Si no enseñas Matemática, puedes ignorar esta opción: viene desactivada.</p>
-          <button class="btn secondary small" type="button" data-goto="evaluacion">Ir a la pestaña Evaluación →</button>
+          <button class="btn secondary small" type="button" data-goto="evaluacion">Ir a Preguntas →</button>
         </article>
 
         <!-- 2b -->
@@ -1020,21 +1043,21 @@ Núcleo = Contiene el material genético</pre>
           <div class="man-video" data-video="filas"></div>
           <p>Puedes hacer de 2 a 4 versiones de la misma prueba. En cada fila cambia el orden de las preguntas y de las alternativas, así un estudiante no puede copiar al compañero de al lado.</p>
           <ol class="man-steps">
-            <li>En <b>Evaluación → 3. Filas</b>, elige la <b>cantidad de filas</b> (2, 3 o 4).</li>
+            <li>En <b>Prueba → Preguntas → Filas</b>, elige la <b>cantidad de filas</b> (2, 3 o 4).</li>
             <li>Deja marcadas las opciones <b>Cambiar el orden de las preguntas</b> y <b>de las alternativas</b> (o desmarca la que no quieras).</li>
             <li>En la vista previa, usa el selector <b>Ver: Fila A / Fila B…</b> para revisar cada una. Si no te gusta la mezcla, presiona <b>🔀 Mezclar de nuevo</b>.</li>
             <li>Presiona <b>↪ Usar estas preguntas en la hoja de respuestas</b>. <b>Este paso es obligatorio</b>: así la plataforma sabe cómo corregir cada fila.</li>
             <li>Imprime las pruebas (<b>Imprimir: Todas las filas</b>) y, en la pestaña <b>Hoja</b>, las hojas de respuesta de todas las filas.</li>
-            <li>Entrega a cada estudiante la <b>prueba y la hoja de la misma fila</b>. En la hoja, la fila viene impresa con el círculo ya relleno (<b>FILA Ⓐ Ⓑ ● Ⓓ</b>) o, si lo prefieres, en un recuadro “FILA B” (se elige en la pestaña Hoja). El estudiante no marca nada.</li>
+            <li>Entrega a cada estudiante la <b>prueba y la hoja de la misma fila</b>. En la hoja, la fila viene impresa con el círculo ya relleno (<b>FILA Ⓐ Ⓑ ● Ⓓ</b>) o, si lo prefieres, en un recuadro “FILA B” (se elige en la paso Imprimir hoja). El estudiante no marca nada.</li>
           </ol>
           <p class="man-tip"><b>💡 Bueno saber:</b> al escanear, la plataforma reconoce la fila de cada hoja y la corrige con su propia clave. En los resultados, todas las preguntas se muestran con la numeración de la fila A para comparar al curso completo.</p>
           <p class="man-warn"><b>⚠️ Importante:</b> si cambias las preguntas o presionas “Mezclar de nuevo” después de imprimir, las filas cambian. Vuelve a imprimir o no cambies nada hasta terminar de corregir.</p>
-          <button class="btn secondary small" type="button" data-goto="evaluacion">Ir a la pestaña Evaluación →</button>
+          <button class="btn secondary small" type="button" data-goto="evaluacion">Ir a Preguntas →</button>
         </article>
 
         <!-- 3 -->
         <article class="card man-section" id="man-hoja" data-man="hoja">
-          <h2><span class="man-num">3</span>Pestaña Hoja: imprimir las hojas de respuesta</h2>
+          <h2><span class="man-num">3</span>Prueba · Imprimir hoja: las hojas de respuesta</h2>
           <div class="man-video" data-video="hoja"></div>
           <ol class="man-steps">
             <li>Elige cuántas <b>hojas de respuesta por página</b>: 1, 2 (media hoja) o 4 (cuarto de hoja). Con 2 o 4 ahorras papel y tinta; después se recortan por la línea punteada ✂.</li>
@@ -1052,7 +1075,7 @@ Núcleo = Contiene el material genético</pre>
           </ul>
           <p class="man-warn"><b>⚠️ Importante:</b> los cuadrados negros de las esquinas, los de los costados y los cuadritos de abajo son los que permiten leer la hoja. No los recortes, no los cubras y no escribas encima.</p>
           <p class="man-tip"><b>💡 Para practicar:</b> el botón <b>Descargar ejemplo rellenado</b> crea una imagen de una hoja ya marcada. Súbela en la pestaña Corregir para ver cómo funciona.</p>
-          <button class="btn secondary small" type="button" data-goto="hoja">Ir a la pestaña Hoja →</button>
+          <button class="btn secondary small" type="button" data-goto="hoja">Ir a Imprimir hoja →</button>
         </article>
 
         <!-- 4 -->
@@ -1192,7 +1215,7 @@ Núcleo = Contiene el material genético</pre>
           <div class="man-video" data-video="desarrollo"></div>
           <p>Si tu prueba tiene preguntas de desarrollo, la hoja de respuestas puede traer una fila por pregunta con casillas <b>0, 1, 2…</b>. Tú corriges la pregunta en la prueba y pintas en la hoja el puntaje obtenido: al escanear, el lector lo suma a las alternativas y calcula la nota con todo.</p>
           <ol class="man-steps">
-            <li>En <b>Prueba</b>, abre <b>✍️ Preguntas de desarrollo</b> y presiona <b>＋ Agregar pregunta de desarrollo</b> (hasta 7). Si armaste la prueba en <b>Evaluación</b>, usa <b>Crear desde la evaluación</b>.</li>
+            <li>En <b>Prueba → Datos y clave → Más opciones</b>, abre <b>✍️ Preguntas de desarrollo</b> y presiona <b>＋ Agregar pregunta de desarrollo</b> (hasta 7). Si armaste la prueba en <b>Preguntas</b>, usa <b>Crear desde la evaluación</b>.</li>
             <li>Escribe un rótulo corto (por ejemplo <i>P21</i>) y el <b>puntaje máximo</b> de cada pregunta (1 a 10).</li>
             <li>Imprime la hoja: al final aparece el recuadro <b>Desarrollo · uso del docente</b>.</li>
             <li>Después de corregir, pinta en cada fila el círculo con el puntaje obtenido y escanea la hoja como siempre.</li>
@@ -1273,12 +1296,12 @@ Núcleo = Contiene el material genético</pre>
           </ol>
           <h3>Versión adecuada de la prueba</h3>
           <ol class="man-steps">
-            <li>En <b>Evaluación</b>, abre <b>🧩 Versión adecuada (PIE)</b>.</li>
+            <li>En <b>Prueba → Preguntas</b>, abre la pestaña <b>🧩 PIE</b>.</li>
             <li>En cada pregunta, elige qué <b>alternativa incorrecta se quita</b> (o usa <b>🎲 Elegir al azar las que faltan</b> y revísalas). Elige también el tamaño de letra.</li>
             <li>Presiona <b>🖨️ Imprimir la prueba PIE</b> y <b>🖨️ Hojas de respuesta PIE</b>. En la pestaña <b>Hoja</b>, las <b>hojas con nombre</b> ya les imprimen la hoja PIE a los estudiantes PIE.</li>
             <li>Escanea sus hojas junto con las demás: el lector reconoce la hoja PIE y la corrige con su clave.</li>
           </ol>
-          <p class="man-warn"><b>⚠️ Importante:</b> si cambias las alternativas que se quitan después de imprimir, vuelve a imprimir la versión PIE (las hojas ya corregidas mantienen la versión con que se imprimieron). Sin la evaluación escrita en la pestaña Evaluación, se imprimen sólo las hojas PIE: adecua tu prueba quitando las alternativas elegidas.</p>
+          <p class="man-warn"><b>⚠️ Importante:</b> si cambias las alternativas que se quitan después de imprimir, vuelve a imprimir la versión PIE (las hojas ya corregidas mantienen la versión con que se imprimieron). Sin la evaluación escrita en Prueba → Preguntas, se imprimen sólo las hojas PIE: adecua tu prueba quitando las alternativas elegidas.</p>
         </article>
 
         <article class="card man-section" id="man-utp" data-man="utp">
@@ -1325,7 +1348,7 @@ Núcleo = Contiene el material genético</pre>
           </ol>
           <h3>Todos los informes y el Excel</h3>
           <p>En <b>Corregir → ⬇ Descargar ▾ → Evidencias (ZIP)</b>, la carpeta <i>informes</i> trae el PDF de cada estudiante. El Excel trae además tres hojas: <b>Evaluación</b> (enunciado y alternativas de cada pregunta, con la clave), <b>Respuestas por estudiante</b> (qué marcó cada uno en cada pregunta y cuál era la correcta) y <b>Retroalimentación</b> (puntajes, rúbrica, comentarios y el enlace a cada informe).</p>
-          <p class="man-tip"><b>💡 Para que aparezcan los enunciados</b>, la prueba debe estar armada en la pestaña <b>Evaluación</b> (y aplicada a la hoja). Si no, el informe y el Excel muestran sólo las letras: «marcaste B, la correcta era D». Si usas filas (A, B, C, D), cada estudiante ve las preguntas en el orden y con las letras de su propia fila.</p>
+          <p class="man-tip"><b>💡 Para que aparezcan los enunciados</b>, la prueba debe estar armada en <b>Prueba → Preguntas</b> (y aplicada a la hoja). Si no, el informe y el Excel muestran sólo las letras: «marcaste B, la correcta era D». Si usas filas (A, B, C, D), cada estudiante ve las preguntas en el orden y con las letras de su propia fila.</p>
         </article>
 
         <article class="card man-section" id="man-nube" data-man="nube">
@@ -1405,7 +1428,7 @@ Núcleo = Contiene el material genético</pre>
             <details><summary>Los términos pareados no aparecen como columnas.</summary>
               <p>Revisa que cada par esté en <b>una sola línea</b>, con el término, un signo <code>=</code> (o <code>:</code>) y la definición, por ejemplo <code>Fotosíntesis = Proceso por el cual las plantas producen su alimento</code>. Pon los pares uno debajo del otro, bajo un título como <code>III. Términos pareados</code>. Si algo no se reconoce, aparece un aviso en amarillo bajo el cuadro de texto.</p></details>
             <details><summary>¿Cómo escribo fracciones, raíces o potencias?</summary>
-              <p>En la pestaña Evaluación, abre <b>Más herramientas</b> (bajo el cuadro de texto) y activa el <b>editor de fórmulas matemáticas</b>. Aparecerá el botón <b>∑ Insertar fórmula</b>, con un teclado en pantalla. Más detalles en la parte 2 de este manual.</p></details>
+              <p>En Prueba → Preguntas, abre <b>Más herramientas</b> (bajo el cuadro de texto) y activa el <b>editor de fórmulas matemáticas</b>. Aparecerá el botón <b>∑ Insertar fórmula</b>, con un teclado en pantalla. Más detalles en la parte 2 de este manual.</p></details>
             <details><summary>¿Puedo usar fotocopias?</summary>
               <p>Sí, siempre que los cuadrados negros se vean negros y nítidos.</p></details>
             <details><summary>¿Hay una app para el celular?</summary>

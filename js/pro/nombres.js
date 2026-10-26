@@ -105,7 +105,7 @@
       ? ''
       : app.pieReady()
         ? `(${withPie.length}: ${withPie.map((s) => s.name || 'N° ' + s.n).join(', ')})`
-        : '(primero prepara la versión PIE en la pestaña Evaluación)';
+        : '(primero prepara la versión PIE en Prueba → Preguntas → PIE)';
     const list = chosen();
     $('#pnList').hidden = !count && !list.some(usesPie);
     const fmt = SheetLayout.FORMATS[state.exam.format];

@@ -92,7 +92,7 @@
     },
     {
       id: 'evaluacion',
-      label: 'Paso 2 · Armar la prueba (opcional)',
+      label: 'Paso 2 · Escribir las preguntas (opcional)',
       steps: [
         {
           tab: 'evaluacion',
@@ -100,7 +100,18 @@
           title: 'Armar la prueba (opcional)',
           text: 'Si quieres, pega aquí las preguntas y la app arma la prueba lista para imprimir. <b>Es opcional</b>: puedes seguir usando tu prueba de siempre en papel.',
         },
-        { tab: 'evaluacion', target: '#docPrint', title: 'Imprimir la prueba', text: 'Cuando esté lista, este botón imprime la prueba.' },
+        {
+          tab: 'evaluacion',
+          target: '.ev-tabs [data-evtab="diseno"]',
+          title: 'Membrete y diseño',
+          text: 'En <b>Membrete</b> pones el colegio, el logo y las instrucciones. En <b>Diseño</b> eliges un estilo: <b>Clásica</b>, <b>Ahorra papel</b> o <b>Letra grande</b>.',
+        },
+        {
+          tab: 'evaluacion',
+          target: ['#docPrint', '#evToggle'],
+          title: 'Imprimir la prueba',
+          text: 'A la derecha ves cómo queda la prueba, al instante. Cuando esté lista, imprímela con <b>🖨️ Imprimir evaluación</b> (en el celular, primero toca <b>👁 Ver la prueba</b>).',
+        },
       ],
     },
     {

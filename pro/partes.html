@@ -163,9 +163,12 @@
   </label>
 </div>
 
+<!-- @@ ev-tabs -->
+<button type="button" role="tab" data-evtab="pie" aria-selected="false" title="Versión adecuada para estudiantes PIE (Decreto 83)">🧩 PIE</button>
+
 <!-- @@ evaluacion -->
-<details class="card pro-pie" id="proPieCard">
-  <summary><h2>🧩 Versión adecuada (PIE · Decreto 83)</h2><span id="piSummary" class="muted small"></span></summary>
+<div class="ev-pane pro-pie" id="proPieCard" data-evpane="pie" hidden>
+  <h3 class="pi-title">🧩 Versión adecuada (PIE · Decreto 83) <span id="piSummary" class="muted small"></span></h3>
   <p class="muted small">Para los estudiantes con necesidades educativas especiales: la misma prueba con <b>letra más grande</b> y <b>una alternativa incorrecta menos</b> en cada pregunta (tú eliges cuál). Tiene su propia hoja de respuestas, que el lector reconoce sola y corrige con la exigencia PIE (pestaña Prueba).</p>
   <p id="piNote" class="alert warn" hidden></p>
   <div class="form-grid pi-options">
@@ -198,7 +201,7 @@
     <button type="button" class="btn ghost" id="piPreviewBtn">👁 Vista previa</button>
   </div>
   <div id="piPreview" class="doc-preview-wrap pi-preview" hidden><div id="piPreviewDoc" class="doc-preview"></div></div>
-</details>
+</div>
 
 <!-- @@ resultados-acciones -->
 <button type="button" id="proReportTest">📊 Informe para UTP (imprimir o PDF)</button>
@@ -466,7 +469,7 @@
   <div class="man-video" data-video="desarrollo"></div>
   <p>Si tu prueba tiene preguntas de desarrollo, la hoja de respuestas puede traer una fila por pregunta con casillas <b>0, 1, 2…</b>. Tú corriges la pregunta en la prueba y pintas en la hoja el puntaje obtenido: al escanear, el lector lo suma a las alternativas y calcula la nota con todo.</p>
   <ol class="man-steps">
-    <li>En <b>Prueba</b>, abre <b>✍️ Preguntas de desarrollo</b> y presiona <b>＋ Agregar pregunta de desarrollo</b> (hasta 7). Si armaste la prueba en <b>Evaluación</b>, usa <b>Crear desde la evaluación</b>.</li>
+    <li>En <b>Prueba → Datos y clave → Más opciones</b>, abre <b>✍️ Preguntas de desarrollo</b> y presiona <b>＋ Agregar pregunta de desarrollo</b> (hasta 7). Si armaste la prueba en <b>Preguntas</b>, usa <b>Crear desde la evaluación</b>.</li>
     <li>Escribe un rótulo corto (por ejemplo <i>P21</i>) y el <b>puntaje máximo</b> de cada pregunta (1 a 10).</li>
     <li>Imprime la hoja: al final aparece el recuadro <b>Desarrollo · uso del docente</b>.</li>
     <li>Después de corregir, pinta en cada fila el círculo con el puntaje obtenido y escanea la hoja como siempre.</li>
@@ -547,12 +550,12 @@
   </ol>
   <h3>Versión adecuada de la prueba</h3>
   <ol class="man-steps">
-    <li>En <b>Evaluación</b>, abre <b>🧩 Versión adecuada (PIE)</b>.</li>
+    <li>En <b>Prueba → Preguntas</b>, abre la pestaña <b>🧩 PIE</b>.</li>
     <li>En cada pregunta, elige qué <b>alternativa incorrecta se quita</b> (o usa <b>🎲 Elegir al azar las que faltan</b> y revísalas). Elige también el tamaño de letra.</li>
     <li>Presiona <b>🖨️ Imprimir la prueba PIE</b> y <b>🖨️ Hojas de respuesta PIE</b>. En la pestaña <b>Hoja</b>, las <b>hojas con nombre</b> ya les imprimen la hoja PIE a los estudiantes PIE.</li>
     <li>Escanea sus hojas junto con las demás: el lector reconoce la hoja PIE y la corrige con su clave.</li>
   </ol>
-  <p class="man-warn"><b>⚠️ Importante:</b> si cambias las alternativas que se quitan después de imprimir, vuelve a imprimir la versión PIE (las hojas ya corregidas mantienen la versión con que se imprimieron). Sin la evaluación escrita en la pestaña Evaluación, se imprimen sólo las hojas PIE: adecua tu prueba quitando las alternativas elegidas.</p>
+  <p class="man-warn"><b>⚠️ Importante:</b> si cambias las alternativas que se quitan después de imprimir, vuelve a imprimir la versión PIE (las hojas ya corregidas mantienen la versión con que se imprimieron). Sin la evaluación escrita en Prueba → Preguntas, se imprimen sólo las hojas PIE: adecua tu prueba quitando las alternativas elegidas.</p>
 </article>
 
 <article class="card man-section" id="man-utp" data-man="utp">
@@ -599,7 +602,7 @@
   </ol>
   <h3>Todos los informes y el Excel</h3>
   <p>En <b>Corregir → ⬇ Descargar ▾ → Evidencias (ZIP)</b>, la carpeta <i>informes</i> trae el PDF de cada estudiante. El Excel trae además tres hojas: <b>Evaluación</b> (enunciado y alternativas de cada pregunta, con la clave), <b>Respuestas por estudiante</b> (qué marcó cada uno en cada pregunta y cuál era la correcta) y <b>Retroalimentación</b> (puntajes, rúbrica, comentarios y el enlace a cada informe).</p>
-  <p class="man-tip"><b>💡 Para que aparezcan los enunciados</b>, la prueba debe estar armada en la pestaña <b>Evaluación</b> (y aplicada a la hoja). Si no, el informe y el Excel muestran sólo las letras: «marcaste B, la correcta era D». Si usas filas (A, B, C, D), cada estudiante ve las preguntas en el orden y con las letras de su propia fila.</p>
+  <p class="man-tip"><b>💡 Para que aparezcan los enunciados</b>, la prueba debe estar armada en <b>Prueba → Preguntas</b> (y aplicada a la hoja). Si no, el informe y el Excel muestran sólo las letras: «marcaste B, la correcta era D». Si usas filas (A, B, C, D), cada estudiante ve las preguntas en el orden y con las letras de su propia fila.</p>
 </article>
 
 <article class="card man-section" id="man-nube" data-man="nube">

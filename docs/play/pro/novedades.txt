@@ -1,4 +1,4 @@
-• Más simple: nueva pestaña Corregir (escaneas y al lado ves las notas y quién falta) y Prueba más corta.
+• Más simple: Inicio con lo que falta, menú más corto, Corregir con las notas al lado y la prueba se ve mientras la escribes.
 • Nube opcional con tu correo: cursos, notas y pruebas se guardan solos (en Cursos).
 • Mis evaluaciones: guarda tus pruebas en carpetas para el próximo año.
 • Informe PDF por estudiante con sus errores, la respuesta correcta y rúbrica.

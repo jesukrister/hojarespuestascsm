@@ -205,12 +205,21 @@ van las partes Pro y no cambian nada en la versión normal.
 
 ## Uso
 
-1. **Prueba**: configura la cantidad de preguntas, alternativas, la clave y
-   (opcional) los objetivos de aprendizaje.
-2. **Evaluación** (opcional): pega las preguntas, ajusta el membrete y el
-   formato, imprime la prueba y usa “Usar estas preguntas en la hoja de
+El menú tiene **Inicio** (la prueba actual con sus pasos y el botón a lo que
+falta, y *Crear una prueba nueva*, que conserva los ajustes), **Prueba** (con
+tres pasos), **Corregir**, **Cursos** (Pro) y **Ayuda**. En el celular el menú
+va abajo, con la cámara al centro.
+
+1. **Prueba → Datos y clave**: configura la cantidad de preguntas,
+   alternativas, la clave y (opcional, plegado en *Más opciones*) los
+   objetivos de aprendizaje, el puntaje y la nota, la identificación, la lista
+   del curso y el papel.
+2. **Prueba → Preguntas** (opcional): pega las preguntas y mira la prueba al
+   lado, al instante. Pestañas *Preguntas · Membrete · Diseño · Filas* (y *PIE*
+   en la Pro); en *Diseño*, estilos listos (Clásica, Ahorra papel, Letra
+   grande). Imprime la prueba y usa “Usar estas preguntas en la hoja de
    respuestas” para cargar la cantidad de preguntas, la clave y los OA.
-3. **Hoja**: elige cuántas hojas por página (1, 2 o 4) e imprime (a escala
+3. **Prueba → Imprimir hoja**: elige cuántas hojas por página (1, 2 o 4) e imprime (a escala
    100 %, sin encabezados del navegador). Con 2 o 4 por página, recorta por la
    línea punteada. Puedes descargar un *ejemplo rellenado* para probar el
    lector sin imprimir.

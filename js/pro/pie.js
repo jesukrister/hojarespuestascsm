@@ -189,7 +189,7 @@
     const ps = pieStudents(course);
     $('#piStudents').innerHTML = course
       ? ps.length
-        ? `Estudiantes PIE de ${esc(L.courseLabel(course))}: <b>${ps.map((s) => esc(s.name || 'N° ' + s.n)).join(', ')}</b>. En la pestaña Hoja, las hojas con nombre les imprimen la hoja PIE.`
+        ? `Estudiantes PIE de ${esc(L.courseLabel(course))}: <b>${ps.map((s) => esc(s.name || 'N° ' + s.n)).join(', ')}</b>. En Imprimir hoja, las hojas con nombre les imprimen la hoja PIE.`
         : `No hay estudiantes marcados PIE en ${esc(L.courseLabel(course))}: márcalos en Cursos → Estudiantes para usar su exigencia y darles su hoja PIE.`
       : 'Vincula la prueba a un curso (pestaña Prueba) para marcar a los estudiantes PIE y darles su exigencia.';
 

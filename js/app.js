@@ -409,7 +409,7 @@
     }
   }
 
-  /** Cambia las hojas por página (como el selector de la pestaña Hoja). */
+  /** Cambia las hojas por página (como el selector de Imprimir hoja). */
   function useFormat(id) {
     $('#exFormat').value = id;
     if ($('#exFormat').value !== id) return;
@@ -604,6 +604,62 @@
     renderChoiceSeg();
     renderPruebaSummary();
     emit('examForm');
+  }
+
+  /* ---------- Evaluación: editor con pestañas y vista previa al lado ---------- */
+
+  // Estilos listos: columnas y tamaño de letra.
+  const DOC_PRESETS = { clasica: { columns: '1', fontSize: '12' }, ahorro: { columns: '2', fontSize: '10' }, grande: { columns: '1', fontSize: '14' } };
+
+  /** Botones que reflejan un selector (data-seg-for): el selector sigue siendo el dato. */
+  function renderSegs() {
+    for (const seg of $$('[data-seg-for]')) {
+      const sel = $('#' + seg.dataset.segFor);
+      if (!sel) continue;
+      seg.innerHTML = Array.from(sel.options)
+        .map((o) => `<button type="button" role="radio" aria-checked="${o.value === sel.value}" data-seg-val="${esc(o.value)}">${esc(o.dataset.short || o.textContent)}</button>`)
+        .join('');
+    }
+  }
+
+  function renderPresets() {
+    const cols = $('#docColumns').value;
+    const size = $('#docFontSize').value;
+    for (const b of $$('[data-preset]')) {
+      const p = DOC_PRESETS[b.dataset.preset];
+      b.setAttribute('aria-checked', String(p.columns === cols && p.fontSize === size));
+    }
+  }
+
+  function setSelect(id, value) {
+    const sel = $('#' + id);
+    if (sel.value === value) return;
+    sel.value = value;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  function showEvTab(name) {
+    for (const b of $$('.ev-tabs [data-evtab]')) b.setAttribute('aria-selected', String(b.dataset.evtab === name));
+    for (const p of $$('[data-evpane]')) p.hidden = p.dataset.evpane !== name;
+  }
+
+  /** En pantallas angostas se ve el editor o la vista previa (botón «Editar / Ver la prueba»). */
+  function setEvMode(mode) {
+    $('#evSplit').dataset.mode = mode;
+    for (const b of $$('#evToggle [data-evmode]')) b.setAttribute('aria-checked', String(b.dataset.evmode === mode));
+    if (mode === 'ver') fitDocPreview();
+  }
+
+  /** La hoja de la vista previa se achica para caber en su columna (como en papel). */
+  function fitDocPreview() {
+    const wrap = $('.ev-preview .doc-preview-wrap');
+    const preview = $('#docPreview');
+    if (!wrap || !preview || !wrap.clientWidth) return;
+    const paper = PAPERS[state.exam.doc.format.paper] || PAPERS.carta;
+    const pagePx = (paper.width / 25.4) * 96;
+    const cs = getComputedStyle(wrap);
+    const avail = wrap.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    preview.style.zoom = String(Math.min(1, Math.max(0.3, avail / pagePx)));
   }
 
   /* ---------- Inicio y pasos de la prueba ---------- */
@@ -1158,6 +1214,8 @@
     for (const cb of $$('[data-docfield]')) cb.checked = !!f.fields[cb.dataset.docfield];
     $('#docLogoPreview').hidden = !f.logo;
     $('#docLogoRemove').hidden = !f.logo;
+    renderSegs();
+    renderPresets();
     if (f.logo) $('#docLogoPreview').src = f.logo;
     else $('#docLogoPreview').removeAttribute('src');
   }
@@ -1234,6 +1292,10 @@
       ? renderFormHTML(shown, byQuestion)
       : '<p class="muted doc-empty">Pega las preguntas arriba para ver la evaluación.</p>';
     renderOrphans(orphans, qs);
+    const nw = docParsed.warnings.length;
+    $('#evWarnChip').hidden = !nw;
+    $('#evWarnChip').textContent = `⚠ ${nw} aviso${nw === 1 ? '' : 's'}`;
+    fitDocPreview();
     // Herramientas de cada pregunta (sólo en pantalla, no se imprimen):
     // tipo de pregunta, espacio para responder y "Añadir elemento". Sólo en la fila A
     // (en las demás filas las preguntas cambian de lugar).
@@ -2084,7 +2146,7 @@
     if (i && (!forms || i >= forms.maps.length)) {
       out.push(
         `La hoja dice “Fila ${formLetter(i)}”, pero la prueba ${forms ? `sólo tiene ${forms.maps.length} filas` : 'no tiene filas configuradas'}. ` +
-          'Se corrigió con la clave de la fila A: revisa la configuración de las filas en la pestaña Evaluación.'
+          'Se corrigió con la clave de la fila A: revisa las filas en Prueba → Preguntas → Filas.'
       );
     }
     return out;
@@ -2375,7 +2437,7 @@
         return {
           res: Object.assign({}, res, {
             error: sameTest
-              ? 'Esta hoja es de la versión PIE de la prueba, pero falta elegir la alternativa que se quita en cada pregunta (pestaña Evaluación → Versión PIE).'
+              ? 'Esta hoja es de la versión PIE de la prueba, pero falta elegir la alternativa que se quita en cada pregunta (Prueba → Preguntas → PIE).'
               : res.error,
           }),
           layout,
@@ -4094,6 +4156,42 @@
       save();
     });
     for (const id of ['#exQuestions', '#exChoices', '#exIdDigits', '#exPaper', '#exFormat']) $(id).addEventListener('change', onStructureInput);
+    // Evaluación: pestañas del editor, estilos listos, botones de ajustes y vista previa.
+    $('.ev-tabs').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-evtab]');
+      if (b) showEvTab(b.dataset.evtab);
+    });
+    $('#evToggle').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-evmode]');
+      if (b) setEvMode(b.dataset.evmode);
+    });
+    $('#evFab').addEventListener('click', () => $('#docPrint').click());
+    $('#evWarnChip').addEventListener('click', () => {
+      showEvTab('preguntas');
+      setEvMode('editar');
+      $('#docWarnings').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    document.addEventListener('click', (e) => {
+      const v = e.target.closest('[data-seg-val]');
+      if (!v) return;
+      const seg = v.closest('[data-seg-for]');
+      if (!seg) return;
+      setSelect(seg.dataset.segFor, v.dataset.segVal);
+      renderSegs();
+      renderPresets();
+    });
+    for (const b of $$('[data-preset]')) {
+      b.addEventListener('click', () => {
+        const p = DOC_PRESETS[b.dataset.preset];
+        setSelect('docColumns', p.columns);
+        setSelect('docFontSize', p.fontSize);
+        renderSegs();
+        renderPresets();
+      });
+    }
+    window.addEventListener('resize', () => {
+      if (!$('#tab-evaluacion').hidden) fitDocPreview();
+    });
     // Alternativas con botones y N° de preguntas con − / ＋ (cambian el campo original).
     $('#exChoicesSeg').addEventListener('click', (e) => {
       const b = e.target.closest('[data-choices]');
