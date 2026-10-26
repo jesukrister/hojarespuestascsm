@@ -40,7 +40,7 @@
     const devMax = items.reduce((s, d) => s + d.max, 0);
     $('#proDevSummary').textContent = items.length
       ? `${items.length} pregunta(s) · ${devMax} pts de desarrollo + ${app.fmt(mc, mc % 1 ? 1 : 0)} de alternativas = ${app.fmt(mc + devMax, (mc + devMax) % 1 ? 1 : 0)} pts`
-      : 'Sin casillas de desarrollo';
+      : 'Ninguna';
     const rows = items
       .map((d, i) => {
         const opts = [];
@@ -62,7 +62,6 @@
     const btn = $('#proDevFromDoc');
     btn.hidden = !cands.length;
     btn.textContent = `Crear desde la evaluación (${cands.length} pregunta${cands.length === 1 ? '' : 's'} de desarrollo)`;
-    if (items.length && !$('#proDevCard').open) $('#proDevCard').open = true;
   }
 
   $('#proDevAdd').addEventListener('click', () => {

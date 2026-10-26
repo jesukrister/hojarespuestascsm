@@ -61,59 +61,67 @@
             <button type="button" class="btn ghost small" id="proImportDismiss">No, gracias</button>
           </div>
         </div>
-        <div class="card pro-course-link">
-          <label class="inline-select">📚 Curso de esta prueba
-            <select id="proExamCourse"></select>
-          </label>
-          <p id="proExamCourseInfo" class="muted small"></p>
-          <p class="pro-ticket-line"><button type="button" class="btn secondary small" id="proNewTicket">🎟️ Crear un ticket de salida</button> <span class="muted small">Mini control de 3 a 10 preguntas para el final de la clase: 8 por página.</span></p>
-          <p id="proTicketActive" class="alert pro-ticket-active" hidden>🎟️ Estás trabajando en un <b>ticket de salida</b> (8 por página, hasta 10 preguntas). Para una prueba normal, con más preguntas o alternativas: <button type="button" class="btn secondary small" id="proTicketExit">Volver a una prueba normal</button></p>
-        </div>
-
-        <div class="card pro-lib-card" id="proLibCard">
-          <p><strong>📚 Mis evaluaciones</strong> <span class="muted small">Guarda esta prueba en una carpeta (preguntas, clave, objetivos, desarrollo y rúbricas) para volver a usarla, por ejemplo el próximo año.</span></p>
-          <div class="actions">
-            <button type="button" class="btn secondary small" id="proLibSave">💾 Guardar en Mis evaluaciones</button>
-            <button type="button" class="btn ghost small" id="proLibOpen">📂 Abrir Mis evaluaciones (<span id="proLibCount">0</span>)</button>
+        <p id="proTicketActive" class="alert pro-ticket-active" hidden>🎟️ Estás trabajando en un <b>ticket de salida</b> (8 por página, hasta 10 preguntas). Para una prueba normal, con más preguntas o alternativas: <button type="button" class="btn secondary small" id="proTicketExit">Volver a una prueba normal</button></p>
+        <div class="card pz-basics">
+          <div class="card-head">
+            <h2>Datos de la prueba</h2>
+            <div class="pz-head-actions">
+              <button type="button" class="btn ghost small" id="proLibSave" title="Guarda esta prueba en una carpeta (preguntas, clave, objetivos, desarrollo y rúbricas) para volver a usarla, por ejemplo el próximo año.">💾 Guardar</button>
+              <button type="button" class="btn ghost small" id="proLibOpen" title="Pruebas guardadas en carpetas"><span>📚 Mis evaluaciones (<span id="proLibCount">0</span>)</span></button>
+              <details class="menu" id="pzMenu">
+                <summary class="btn ghost small" title="Más opciones" aria-label="Más opciones">⋯</summary>
+                <div class="menu-list">
+                  <button type="button" id="proNewTicket">🎟️ Crear un ticket de salida (mini control de 3 a 10 preguntas, 8 por página)</button>
+                  <hr>
+                  <button id="btnExportExam" type="button">⬇ Exportar configuración (archivo)</button>
+                  <label for="importExamInput">⬆ Importar configuración…</label>
+                  <button id="btnClearKey" type="button" class="danger">Borrar la clave</button>
+                </div>
+              </details>
+              <input id="importExamInput" type="file" accept="application/json,.json" hidden>
+            </div>
           </div>
-          <p id="proLibLinked" class="muted small" hidden></p>
-        </div>
-        <div class="card">
-          <h2>Datos de la prueba</h2>
-          <div class="form-grid">
+          <div class="form-grid pz-grid">
             <label class="span-2">Título
               <input id="exTitle" type="text" maxlength="80" placeholder="Prueba de Matemática – Unidad 2">
             </label>
             <label class="span-2">Subtítulo (asignatura, curso, profesor…)
               <input id="exSubtitle" type="text" maxlength="100" placeholder="8° Básico A · Prof. …">
             </label>
-            <label>N° de preguntas
-              <input id="exQuestions" type="number" min="1" max="120" step="1" inputmode="numeric">
+            <label class="span-2 pz-course">Curso
+              <select id="proExamCourse"></select>
+              <small id="proExamCourseInfo" class="muted"></small>
             </label>
-            <label>Alternativas
-              <select id="exChoices">
+            <div class="field">
+              <span class="field-label" id="exQuestionsLbl">N° de preguntas</span>
+              <span class="num-step">
+                <button type="button" class="num-btn" data-step="#exQuestions" data-delta="-1" aria-label="Una pregunta menos">−</button>
+                <input id="exQuestions" type="number" min="1" max="120" step="1" inputmode="numeric" aria-labelledby="exQuestionsLbl">
+                <button type="button" class="num-btn" data-step="#exQuestions" data-delta="1" aria-label="Una pregunta más">＋</button>
+              </span>
+            </div>
+            <div class="field">
+              <span class="field-label" id="exChoicesLbl">Alternativas</span>
+              <span class="seg" id="exChoicesSeg" role="radiogroup" aria-labelledby="exChoicesLbl"></span>
+              <select id="exChoices" class="visually-hidden" tabindex="-1" aria-hidden="true">
                 <option value="2">2 (A–B)</option>
                 <option value="3">3 (A–C)</option>
                 <option value="4">4 (A–D)</option>
                 <option value="5">5 (A–E)</option>
                 <option value="6">6 (A–F)</option>
               </select>
-            </label>
-            <label>Dígitos de identificación
-              <input id="exIdDigits" type="number" min="0" max="10" step="1" inputmode="numeric">
-              <small>N° de lista o código del estudiante. 0 = sin identificación.</small>
-            </label>
-            <label>Tamaño de papel
-              <select id="exPaper"></select>
-            </label>
+            </div>
           </div>
           <p id="layoutError" class="alert error" hidden></p>
+          <p id="proLibLinked" class="muted small pz-lib-linked" hidden></p>
         </div>
 
         <div class="card">
           <div class="card-head">
             <h2>Clave de respuestas</h2>
             <span id="keyStatus" class="muted"></span>
+            <label class="btn secondary small key-photo" for="keyPhotoInput" title="Rellena una hoja de respuestas con las respuestas correctas y fotografíala: la clave se carga de una vez.">📷 Leerla de una hoja</label>
+            <input id="keyPhotoInput" type="file" accept="image/*" hidden>
           </div>
           <label>Escritura rápida
             <input id="keyText" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false"
@@ -121,88 +129,107 @@
           </label>
           <div id="keyGrid" class="key-grid" aria-label="Clave por pregunta"></div>
           <div id="formKeys" class="form-keys" hidden></div>
-          <div class="actions">
-            <label class="btn secondary" for="keyPhotoInput">📷 Leer clave desde una hoja</label>
-            <input id="keyPhotoInput" type="file" accept="image/*" hidden>
-            <button id="btnClearKey" class="btn ghost" type="button">Limpiar clave</button>
-          </div>
-          <p class="muted small">Consejo: rellena una hoja con las respuestas correctas y fotografíala para cargar la clave de una vez.</p>
           <p id="keyPhotoMsg" class="alert" hidden></p>
         </div>
-        <details class="card pro-dev-card" id="proDevCard">
-          <summary><h2>✍️ Preguntas de desarrollo (casillas de puntaje)</h2><span id="proDevSummary" class="muted small"></span></summary>
-          <p class="muted small">Si la prueba tiene preguntas de desarrollo, la hoja de respuestas trae una fila por pregunta con casillas 0, 1, 2… Tú corriges la pregunta en la prueba y marcas en la hoja el puntaje obtenido: el lector lo suma a la nota junto con las alternativas.</p>
-          <div class="table-wrap">
-            <table id="proDevTable" class="pro-dev-table"></table>
-          </div>
-          <div class="actions">
-            <button type="button" class="btn secondary small" id="proDevAdd">＋ Agregar pregunta de desarrollo</button>
-            <button type="button" class="btn ghost small" id="proDevFromDoc" hidden></button>
-          </div>
-          <p id="proDevNote" class="alert warn" hidden></p>
-        </details>
 
-        <div class="card">
-          <div class="card-head">
-            <h2>Objetivos de aprendizaje (opcional)</h2>
-            <span id="oaStatus" class="muted"></span>
-          </div>
-          <p class="muted small">Agrupa las preguntas por objetivo para ver el logro de cada OA en los resultados y en el Excel. Un objetivo por línea, con el nombre, dos puntos y las preguntas: <code>OA12: 1-4</code> · <code>OA13 Comprensión lectora: 5, 6, 9 a 11</code>.</p>
-          <textarea id="oaText" rows="4" spellcheck="false" placeholder="OA12: 1-4&#10;OA13: 5-6&#10;OA14: 7-10"></textarea>
-          <div id="oaSummary" class="oa-summary"></div>
-          <div class="form-grid" style="margin-top:12px">
-            <label>Logrado (L) desde
-              <span class="with-unit"><input id="lvlAchieved" type="number" min="1" max="100" step="1"><span>%</span></span>
-            </label>
-            <label>Medianamente logrado (ML) desde
-              <span class="with-unit"><input id="lvlPartial" type="number" min="0" max="99" step="1"><span>%</span></span>
-              <small>Bajo este porcentaje: No logrado (NL).</small>
-            </label>
-          </div>
+        <div class="card pz-opts">
+          <h2 class="pz-opts-title">Más opciones <span class="muted small">si no las cambias, se usan las de siempre</span></h2>
+          <details class="opt" id="optOA">
+            <summary><span class="opt-ic" aria-hidden="true">🎯</span><span class="opt-t"><b>Objetivos de aprendizaje (OA)</b><span class="opt-v" id="oaStatus"></span></span></summary>
+            <div class="opt-body">
+              <p class="muted small">Agrupa las preguntas por objetivo para ver el logro de cada OA en los resultados y en el Excel. Un objetivo por línea, con el nombre, dos puntos y las preguntas: <code>OA12: 1-4</code> · <code>OA13 Comprensión lectora: 5, 6, 9 a 11</code>.</p>
+              <textarea id="oaText" rows="4" spellcheck="false" placeholder="OA12: 1-4&#10;OA13: 5-6&#10;OA14: 7-10"></textarea>
+              <div id="oaSummary" class="oa-summary"></div>
+              <div class="form-grid" style="margin-top:12px">
+                <label>Logrado (L) desde
+                  <span class="with-unit"><input id="lvlAchieved" type="number" min="1" max="100" step="1"><span>%</span></span>
+                </label>
+                <label>Medianamente logrado (ML) desde
+                  <span class="with-unit"><input id="lvlPartial" type="number" min="0" max="99" step="1"><span>%</span></span>
+                  <small>Bajo este porcentaje: No logrado (NL).</small>
+                </label>
+              </div>
+            </div>
+          </details>
+          <details class="opt" id="optScore">
+            <summary><span class="opt-ic" aria-hidden="true">🧮</span><span class="opt-t"><b>Puntaje y nota</b><span class="opt-v" id="scoreSummary"></span></span></summary>
+            <div class="opt-body">
+              <div class="form-grid">
+                <label>Puntos por respuesta correcta
+                  <input id="scPoints" type="number" min="0.1" step="0.1">
+                </label>
+                <label>Descuento por respuesta incorrecta
+                  <input id="scPenalty" type="number" min="0" step="0.05">
+                  <small>0 = sin descuento. Las dobles marcas cuentan como incorrectas.</small>
+                </label>
+                <label>Exigencia (%)
+                  <input id="scExigencia" type="number" min="1" max="99" step="1">
+                </label>
+                <label>Nota mínima / aprobación / máxima
+                  <span class="inline-3">
+                    <input id="scMin" type="number" step="0.1" aria-label="Nota mínima">
+                    <input id="scPass" type="number" step="0.1" aria-label="Nota de aprobación">
+                    <input id="scMax" type="number" step="0.1" aria-label="Nota máxima">
+                  </span>
+                </label>
+              </div>
+              <div class="pro-pie-scale">
+                <label>Exigencia para estudiantes PIE (%)
+                  <input id="pieExigencia" type="number" min="1" max="99" step="1" inputmode="numeric">
+                  <small>Se usa con los estudiantes marcados PIE en su curso (Cursos → Estudiantes) y con las hojas de la versión PIE. Un estudiante puede tener su propia exigencia.</small>
+                </label>
+              </div>
+            </div>
+          </details>
+          <details class="opt pro-dev-card" id="proDevCard">
+            <summary><span class="opt-ic" aria-hidden="true">✍️</span><span class="opt-t"><b>Preguntas de desarrollo (casillas de puntaje)</b><span id="proDevSummary" class="opt-v"></span></span></summary>
+            <div class="opt-body">
+              <p class="muted small">Si la prueba tiene preguntas de desarrollo, la hoja de respuestas trae una fila por pregunta con casillas 0, 1, 2… Tú corriges la pregunta en la prueba y marcas en la hoja el puntaje obtenido: el lector lo suma a la nota junto con las alternativas.</p>
+              <div class="table-wrap">
+                <table id="proDevTable" class="pro-dev-table"></table>
+              </div>
+              <div class="actions">
+                <button type="button" class="btn secondary small" id="proDevAdd">＋ Agregar pregunta de desarrollo</button>
+                <button type="button" class="btn ghost small" id="proDevFromDoc" hidden></button>
+              </div>
+              <p id="proDevNote" class="alert warn" hidden></p>
+            </div>
+          </details>
+          <details class="opt" id="optId">
+            <summary><span class="opt-ic" aria-hidden="true">🪪</span><span class="opt-t"><b>Cómo se identifica el estudiante</b><span class="opt-v" id="idSummary"></span></span></summary>
+            <div class="opt-body">
+              <div class="form-grid">
+                <label>Dígitos de identificación
+                  <input id="exIdDigits" type="number" min="0" max="10" step="1" inputmode="numeric">
+                  <small>Con 2, cada estudiante pinta su N° de lista (01, 02…) y la app sabe de quién es la hoja. Usa más dígitos para un código. 0 = sin identificación.</small>
+                </label>
+              </div>
+            </div>
+          </details>
+          <details class="opt" id="optRoster">
+            <summary><span class="opt-ic" aria-hidden="true">👥</span><span class="opt-t"><b>Lista del curso</b><span class="opt-v" id="rosterSummary"></span></span></summary>
+            <div class="opt-body">
+              <p class="muted small">Un nombre por línea, en orden de lista. Si la hoja tiene dígitos de identificación, el número marcado se asocia con la línea correspondiente (1 = primera línea).</p>
+              <p id="proRosterNote" class="alert" hidden></p>
+              <textarea id="roster" rows="8" placeholder="Ana Aravena&#10;Benjamín Bustos&#10;…"></textarea>
+            </div>
+          </details>
+          <details class="opt" id="optPaper">
+            <summary><span class="opt-ic" aria-hidden="true">📄</span><span class="opt-t"><b>Tamaño de papel</b><span class="opt-v" id="paperSummary"></span></span></summary>
+            <div class="opt-body">
+              <div class="form-grid">
+                <label>Tamaño de papel
+                  <select id="exPaper"></select>
+                </label>
+              </div>
+            </div>
+          </details>
         </div>
 
-        <div class="card">
-          <h2>Puntaje y nota</h2>
-          <div class="form-grid">
-            <label>Puntos por respuesta correcta
-              <input id="scPoints" type="number" min="0.1" step="0.1">
-            </label>
-            <label>Descuento por respuesta incorrecta
-              <input id="scPenalty" type="number" min="0" step="0.05">
-              <small>0 = sin descuento. Las dobles marcas cuentan como incorrectas.</small>
-            </label>
-            <label>Exigencia (%)
-              <input id="scExigencia" type="number" min="1" max="99" step="1">
-            </label>
-            <label>Nota mínima / aprobación / máxima
-              <span class="inline-3">
-                <input id="scMin" type="number" step="0.1" aria-label="Nota mínima">
-                <input id="scPass" type="number" step="0.1" aria-label="Nota de aprobación">
-                <input id="scMax" type="number" step="0.1" aria-label="Nota máxima">
-              </span>
-            </label>
-          </div>
-          <div class="pro-pie-scale">
-            <label>Exigencia para estudiantes PIE (%)
-              <input id="pieExigencia" type="number" min="1" max="99" step="1" inputmode="numeric">
-              <small>Se usa con los estudiantes marcados PIE en su curso (Cursos → Estudiantes) y con las hojas de la versión PIE. Un estudiante puede tener su propia exigencia.</small>
-            </label>
-          </div>
-        </div>
-
-        <details class="card">
-          <summary><h2>Lista del curso (opcional)</h2></summary>
-          <p class="muted small">Un nombre por línea, en orden de lista. Si la hoja tiene dígitos de identificación, el número marcado se asocia con la línea correspondiente (1 = primera línea).</p>
-          <p id="proRosterNote" class="alert" hidden></p>
-          <textarea id="roster" rows="8" placeholder="Ana Aravena&#10;Benjamín Bustos&#10;…"></textarea>
-        </details>
-
-        <div class="actions end">
-          <button id="btnExportExam" class="btn ghost" type="button">Exportar configuración</button>
-          <label class="btn ghost" for="importExamInput">Importar configuración</label>
-          <input id="importExamInput" type="file" accept="application/json,.json" hidden>
-          <button class="btn ghost" type="button" data-goto="evaluacion">Crear la evaluación (opcional)</button>
-          <button class="btn primary" type="button" data-goto="hoja">Siguiente: hoja de respuestas →</button>
+        <div class="next-bar">
+          <span id="nextStatus" class="next-status"></span>
+          <button class="btn ghost" type="button" data-goto="evaluacion">Escribir las preguntas (opcional)</button>
+          <button class="btn primary" type="button" data-goto="hoja">Siguiente: imprimir la hoja →</button>
         </div>
       </section>
 

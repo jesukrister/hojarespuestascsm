@@ -283,6 +283,7 @@
     } catch (e) {
       toast('No se pudo guardar en este navegador (almacenamiento lleno o bloqueado).');
     }
+    renderPruebaSummary();
     emit('save');
   }
 
@@ -373,6 +374,7 @@
 
   function updateLayoutError() {
     getLayout();
+    renderPruebaSummary();
     // Si no cabe en un formato de varias hojas por página (o en el ticket de
     // salida) pero sí en una hoja completa, se ofrece cambiar con un botón.
     let fitsFull = false;
@@ -585,7 +587,54 @@
     $('#thrRange').disabled = e.threshold === null;
     $('#thrRange').value = e.threshold === null ? 0.35 : e.threshold;
     $('#thrValue').textContent = e.threshold === null ? 'auto' : e.threshold.toFixed(2);
+    renderChoiceSeg();
+    renderPruebaSummary();
     emit('examForm');
+  }
+
+  /** Alternativas como botones (2 a 6): reflejan el selector #exChoices, que sigue siendo el dato. */
+  function renderChoiceSeg() {
+    const sel = $('#exChoices');
+    const seg = $('#exChoicesSeg');
+    if (!seg) return;
+    seg.innerHTML = Array.from(sel.options)
+      .map((o) => {
+        const on = o.value === sel.value;
+        const n = Number(o.value);
+        return `<button type="button" role="radio" aria-checked="${on}" data-choices="${o.value}" title="${n} alternativas (A–${CHOICE_LABELS[n - 1]})">${on ? `${n} (A–${CHOICE_LABELS[n - 1]})` : n}</button>`;
+      })
+      .join('');
+  }
+
+  /** Resumen de cada opción plegada de la pestaña Prueba y estado del botón «Siguiente». */
+  function renderPruebaSummary() {
+    const e = state.exam;
+    if (!e || !$('#scoreSummary')) return;
+    const sc = e.scoring;
+    const parts = [`Exigencia ${fmt(sc.exigencia, 0)} %`, `nota ${fmt(sc.gradeMin, 1)} a ${fmt(sc.gradeMax, 1)}`];
+    if (sc.pointsCorrect !== 1) parts.push(`${fmtScore(sc.pointsCorrect)} pts por correcta`);
+    if (sc.penaltyWrong > 0) parts.push(`descuento ${fmtScore(sc.penaltyWrong)}`);
+    if (PRO && e.pie && e.pie.exigencia) parts.push(`PIE ${e.pie.exigencia} %`);
+    $('#scoreSummary').textContent = parts.join(' · ');
+    $('#idSummary').textContent = !e.idDigits ? 'Sin identificación' : e.idDigits === 2 ? 'N° de lista (2 dígitos)' : `Código de ${e.idDigits} dígito${e.idDigits === 1 ? '' : 's'}`;
+    const names = e.roster.split(/\r?\n/).filter((l) => l.trim()).length;
+    $('#rosterSummary').textContent = names ? `${names} nombre${names === 1 ? '' : 's'}` : 'Sin lista (opcional)';
+    $('#paperSummary').textContent = (PAPERS[e.paper] || PAPERS.carta).label;
+    const st = $('#nextStatus');
+    const missing = e.key.filter((k) => k === null).length;
+    if (layoutError) {
+      st.textContent = '⚠ Revisa el aviso en «Datos de la prueba»';
+      st.title = '';
+      st.className = 'next-status warn';
+    } else if (missing) {
+      st.textContent = `⚠ ${missing === 1 ? 'Falta 1 respuesta' : `Faltan ${missing} respuestas`} en la clave`;
+      st.title = 'Puedes imprimir la hoja igual y completar la clave después, antes de corregir.';
+      st.className = 'next-status warn';
+    } else {
+      st.textContent = '✔ Lista para imprimir la hoja';
+      st.title = '';
+      st.className = 'next-status ok';
+    }
   }
 
   function applyStructure(next) {
@@ -668,6 +717,8 @@
     const { numQuestions: n, numChoices: c, key } = state.exam;
     const html = [];
     for (let q = 0; q < n; q++) {
+      // Bloques de 5 preguntas (como en la hoja de respuestas).
+      if (q % 5 === 0) html.push(q ? '</div><div class="key-block">' : '<div class="key-block">');
       html.push(`<div class="key-row${key[q] === null ? ' unset' : ''}"><span class="qn">${q + 1}</span>`);
       for (let k = 0; k < c; k++) {
         html.push(
@@ -677,11 +728,13 @@
       }
       html.push('</div>');
     }
+    if (n) html.push('</div>');
     $('#keyGrid').innerHTML = html.join('');
     if (!skipText) $('#keyText').value = keyToText(key);
     const set = key.filter((k) => k !== null).length;
     $('#keyStatus').textContent = set === n ? `✓ ${n} preguntas con clave` : `${set} de ${n} preguntas con clave`;
     renderFormKeys();
+    renderPruebaSummary();
   }
 
   /** Claves de las filas B–D (se derivan de la clave de la fila A). */
@@ -881,7 +934,7 @@
     const status = $('#oaStatus');
     if (!state.exam.oaText.trim()) {
       box.innerHTML = '';
-      status.textContent = '';
+      status.textContent = 'Sin objetivos';
       return;
     }
     const rows = parsed.objectives
@@ -898,7 +951,10 @@
     box.innerHTML =
       (rows ? `<table class="oa-table"><thead><tr><th>Objetivo</th><th>Preguntas</th><th class="num">N°</th></tr></thead><tbody>${rows}</tbody></table>` : '') +
       (notes.length ? `<ul class="warn-list">${notes.join('')}</ul>` : '');
-    status.textContent = parsed.objectives.length ? `${parsed.objectives.length} objetivo(s)` : '';
+    const lv = state.exam.levels;
+    status.textContent = parsed.objectives.length
+      ? `${parsed.objectives.length} objetivo(s) · logrado desde ${lv.achieved} %${parsed.errors.length ? ' · ⚠ revisar' : ''}`
+      : '⚠ Revisa el formato';
   }
 
   /* ------------------------------------------------------------------ */
@@ -3732,6 +3788,31 @@
       save();
     });
     for (const id of ['#exQuestions', '#exChoices', '#exIdDigits', '#exPaper', '#exFormat']) $(id).addEventListener('change', onStructureInput);
+    // Alternativas con botones y N° de preguntas con − / ＋ (cambian el campo original).
+    $('#exChoicesSeg').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-choices]');
+      if (!b || b.dataset.choices === $('#exChoices').value) return;
+      $('#exChoices').value = b.dataset.choices;
+      $('#exChoices').dispatchEvent(new Event('change'));
+    });
+    document.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-step]');
+      if (!b) return;
+      const input = $(b.dataset.step);
+      const min = Number(input.min) || 0;
+      const max = Number(input.max) || Infinity;
+      const v = Math.min(max, Math.max(min, (parseInt(input.value, 10) || 0) + Number(b.dataset.delta)));
+      if (String(v) === input.value) return;
+      input.value = v;
+      input.dispatchEvent(new Event('change'));
+    });
+    // Menús «⋯»: se cierran al elegir una opción o al tocar fuera.
+    document.addEventListener('click', (e) => {
+      for (const m of $$('details.menu[open]')) {
+        const inside = m.contains(e.target);
+        if (!inside || (e.target.closest('.menu-list') && e.target.closest('button, label'))) m.open = false;
+      }
+    });
 
     // Hoja de respuestas: campos del encabezado y nombre del establecimiento.
     for (const cb of $$('[data-sheetfield]')) {

@@ -35,14 +35,15 @@
       label: 'Paso 1 · Configurar la prueba',
       steps: [
         { tab: 'prueba', target: '#exTitle', title: 'Nombre de la prueba', text: 'Escribe el nombre de tu prueba. Por ejemplo: <i>Prueba de Historia – Unidad 1</i>.' },
-        { tab: 'prueba', target: '#exQuestions', title: '¿Cuántas preguntas?', text: 'Escribe cuántas preguntas de alternativas tiene tu prueba.' },
-        { tab: 'prueba', target: '#exChoices', title: '¿Cuántas alternativas?', text: 'Elige cuántas alternativas tiene cada pregunta. Por ejemplo, 4 son A, B, C y D.' },
         {
+          pro: true,
           tab: 'prueba',
-          target: '#exIdDigits',
-          title: 'Número de lista',
-          text: 'Con <b>2</b>, cada estudiante pinta su número de lista (01, 02, 03…) y la app sabe de quién es la hoja. <b>Si no estás segura, déjalo en 2.</b>',
+          target: '#proExamCourse',
+          title: 'Curso de esta prueba',
+          text: 'En la Pro eliges el curso: la lista de estudiantes se toma sola y después las notas se guardan en su libro.',
         },
+        { tab: 'prueba', target: '#exQuestions', title: '¿Cuántas preguntas?', text: 'Escribe cuántas preguntas de alternativas tiene tu prueba, o usa los botones <b>−</b> y <b>＋</b>.' },
+        { tab: 'prueba', target: '#exChoicesSeg', title: '¿Cuántas alternativas?', text: 'Toca cuántas alternativas tiene cada pregunta. Por ejemplo, 4 son A, B, C y D.' },
         {
           tab: 'prueba',
           target: '#keyText',
@@ -57,9 +58,16 @@
         },
         {
           tab: 'prueba',
-          target: '#scExigencia',
+          target: '#optScore > summary',
           title: 'La nota se calcula sola',
-          text: 'La nota se calcula sola, con escala de 1,0 a 7,0 y <b>60 % de exigencia</b>. Normalmente <b>no hay que cambiar nada aquí</b>.',
+          text: 'La nota se calcula sola, con escala de 1,0 a 7,0 y <b>60 % de exigencia</b>. Normalmente <b>no hay que cambiar nada aquí</b>. En <b>Más opciones</b> está todo lo demás, plegado: a la derecha de cada una ves cómo está.',
+        },
+        {
+          tab: 'prueba',
+          target: '#exIdDigits',
+          open: true,
+          title: 'Número de lista',
+          text: 'Con <b>2</b>, cada estudiante pinta su número de lista (01, 02, 03…) y la app sabe de quién es la hoja. <b>Si no estás segura, déjalo en 2.</b>',
         },
         {
           tab: 'prueba',
@@ -67,13 +75,6 @@
           open: '#roster',
           title: 'Lista del curso (opcional)',
           text: 'Si pegas aquí los nombres de tus estudiantes, uno por línea y en orden de lista, los resultados mostrarán el nombre de cada uno.',
-        },
-        {
-          pro: true,
-          tab: 'prueba',
-          target: '#proExamCourse',
-          title: 'Curso de esta prueba',
-          text: 'En la Pro, en vez de pegar la lista, eliges el curso: los nombres se toman solos y después las notas se guardan en su libro.',
         },
       ],
     },

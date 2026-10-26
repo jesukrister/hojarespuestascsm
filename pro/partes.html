@@ -39,36 +39,39 @@
     <button type="button" class="btn ghost small" id="proImportDismiss">No, gracias</button>
   </div>
 </div>
-<div class="card pro-course-link">
-  <label class="inline-select">📚 Curso de esta prueba
-    <select id="proExamCourse"></select>
-  </label>
-  <p id="proExamCourseInfo" class="muted small"></p>
-  <p class="pro-ticket-line"><button type="button" class="btn secondary small" id="proNewTicket">🎟️ Crear un ticket de salida</button> <span class="muted small">Mini control de 3 a 10 preguntas para el final de la clase: 8 por página.</span></p>
-  <p id="proTicketActive" class="alert pro-ticket-active" hidden>🎟️ Estás trabajando en un <b>ticket de salida</b> (8 por página, hasta 10 preguntas). Para una prueba normal, con más preguntas o alternativas: <button type="button" class="btn secondary small" id="proTicketExit">Volver a una prueba normal</button></p>
-</div>
+<p id="proTicketActive" class="alert pro-ticket-active" hidden>🎟️ Estás trabajando en un <b>ticket de salida</b> (8 por página, hasta 10 preguntas). Para una prueba normal, con más preguntas o alternativas: <button type="button" class="btn secondary small" id="proTicketExit">Volver a una prueba normal</button></p>
 
-<div class="card pro-lib-card" id="proLibCard">
-  <p><strong>📚 Mis evaluaciones</strong> <span class="muted small">Guarda esta prueba en una carpeta (preguntas, clave, objetivos, desarrollo y rúbricas) para volver a usarla, por ejemplo el próximo año.</span></p>
-  <div class="actions">
-    <button type="button" class="btn secondary small" id="proLibSave">💾 Guardar en Mis evaluaciones</button>
-    <button type="button" class="btn ghost small" id="proLibOpen">📂 Abrir Mis evaluaciones (<span id="proLibCount">0</span>)</button>
-  </div>
-  <p id="proLibLinked" class="muted small" hidden></p>
-</div>
+<!-- @@ prueba-head -->
+<button type="button" class="btn ghost small" id="proLibSave" title="Guarda esta prueba en una carpeta (preguntas, clave, objetivos, desarrollo y rúbricas) para volver a usarla, por ejemplo el próximo año.">💾 Guardar</button>
+<button type="button" class="btn ghost small" id="proLibOpen" title="Pruebas guardadas en carpetas"><span>📚 Mis evaluaciones (<span id="proLibCount">0</span>)</span></button>
+
+<!-- @@ prueba-menu -->
+<button type="button" id="proNewTicket">🎟️ Crear un ticket de salida (mini control de 3 a 10 preguntas, 8 por página)</button>
+<hr>
+
+<!-- @@ prueba-curso -->
+<label class="span-2 pz-course">Curso
+  <select id="proExamCourse"></select>
+  <small id="proExamCourseInfo" class="muted"></small>
+</label>
+
+<!-- @@ prueba-pie -->
+<p id="proLibLinked" class="muted small pz-lib-linked" hidden></p>
 
 <!-- @@ prueba-desarrollo -->
-<details class="card pro-dev-card" id="proDevCard">
-  <summary><h2>✍️ Preguntas de desarrollo (casillas de puntaje)</h2><span id="proDevSummary" class="muted small"></span></summary>
-  <p class="muted small">Si la prueba tiene preguntas de desarrollo, la hoja de respuestas trae una fila por pregunta con casillas 0, 1, 2… Tú corriges la pregunta en la prueba y marcas en la hoja el puntaje obtenido: el lector lo suma a la nota junto con las alternativas.</p>
-  <div class="table-wrap">
-    <table id="proDevTable" class="pro-dev-table"></table>
+<details class="opt pro-dev-card" id="proDevCard">
+  <summary><span class="opt-ic" aria-hidden="true">✍️</span><span class="opt-t"><b>Preguntas de desarrollo (casillas de puntaje)</b><span id="proDevSummary" class="opt-v"></span></span></summary>
+  <div class="opt-body">
+    <p class="muted small">Si la prueba tiene preguntas de desarrollo, la hoja de respuestas trae una fila por pregunta con casillas 0, 1, 2… Tú corriges la pregunta en la prueba y marcas en la hoja el puntaje obtenido: el lector lo suma a la nota junto con las alternativas.</p>
+    <div class="table-wrap">
+      <table id="proDevTable" class="pro-dev-table"></table>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn secondary small" id="proDevAdd">＋ Agregar pregunta de desarrollo</button>
+      <button type="button" class="btn ghost small" id="proDevFromDoc" hidden></button>
+    </div>
+    <p id="proDevNote" class="alert warn" hidden></p>
   </div>
-  <div class="actions">
-    <button type="button" class="btn secondary small" id="proDevAdd">＋ Agregar pregunta de desarrollo</button>
-    <button type="button" class="btn ghost small" id="proDevFromDoc" hidden></button>
-  </div>
-  <p id="proDevNote" class="alert warn" hidden></p>
 </details>
 
 <!-- @@ hoja -->

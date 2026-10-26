@@ -37,10 +37,6 @@ input[type="date"] {
 .pro-banner p { margin: 0; }
 
 /* Curso de la prueba (pestaña Prueba) */
-.pro-course-link { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; padding: 12px 18px; }
-.pro-course-link select { min-width: 220px; max-width: 100%; }
-.pro-course-link p { margin: 0; }
-.pro-course-link label.inline-select { flex-wrap: wrap; }
 
 /* Guardar en el libro (pestaña Resultados) */
 .pro-book {
@@ -151,9 +147,8 @@ input[type="date"] {
 
 .pro-backup p { max-width: 80ch; }
 .pro-cloud p { max-width: 80ch; }
-.pro-lib-card p { margin: 0; max-width: 90ch; }
-.pro-lib-card .actions { margin-top: 8px; }
-.pro-lib-card #proLibLinked { margin-top: 6px; }
+.pz-lib-linked { margin: 10px 0 0; }
+.pz-course small { font-size: 0.8rem; }
 .pro-lib-dialog { width: min(760px, 96vw); }
 .pl-tools { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 .pl-tools input { flex: 1 1 220px; padding: 8px 10px; }
@@ -198,14 +193,14 @@ input[type="date"] {
   .pro-views { width: 100%; }
   .pro-views button { flex: 1; padding: 7px 6px; }
   .pro-stats .stat span { font-size: 0.78rem; }
-  .pro-course-bar select, .pro-course-link select { min-width: 0; width: 100%; }
+  .pro-course-bar select { min-width: 0; width: 100%; }
   .pro-dialog .el-foot .spacer { display: none; }
   .pro-dialog .el-foot .btn { flex: 1 1 40%; }
   .pro-dialog .el-foot .btn.primary { flex-basis: 100%; order: -1; }
 }
 
 @media print {
-  .pro-book, .pro-course-link, .pro-banner { display: none !important; }
+  .pro-book, .pro-banner { display: none !important; }
 }
 
 /* Casillas de desarrollo (pestaña Prueba) */
@@ -220,9 +215,8 @@ input[type="date"] {
 }
 
 /* Ticket de salida y escaneo */
-.pro-ticket-active { flex-basis: 100%; margin: 8px 0 0; }
+.pro-ticket-active { margin: 0 0 14px; }
 .pro-ticket-active .btn { margin-left: 4px; }
-.pro-ticket-line { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 4px 0 0; }
 .pro-scan-hint { margin: 6px auto 0; max-width: 640px; padding: 8px 12px; border-radius: 8px; background: var(--pro-soft); color: #6b4a10; }
 
 /* Hojas con nombre */
