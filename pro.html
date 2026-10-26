@@ -16,22 +16,20 @@
     <header class="app-header">
       <div class="brand">
         <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6"/><circle cx="10" cy="11" r="4" class="f"/><circle cx="22" cy="11" r="4" class="o"/><circle cx="10" cy="22" r="4" class="o"/><circle cx="22" cy="22" r="4" class="f"/></svg>
-        <div>
-          <h1>Lector de hojas de respuesta<span class="pro-badge" title="Versión Pro">PRO</span></h1>
-          <p class="tagline">Crea la hoja, fotografíala y obtén la corrección al instante.</p>
-        </div>
+        <h1 title="Crea la hoja, fotografíala y obtén la corrección al instante.">Lector de Hojas<span class="brand-long"> de Respuesta</span><span class="pro-badge" title="Versión Pro">PRO</span></h1>
       </div>
-      <button type="button" class="btn secondary tour-start" id="btnTutorial" data-tutorial>🧭 Tutorial</button>
+      <nav class="tabs" role="tablist" aria-label="Secciones">
+        <button role="tab" data-tab="inicio" aria-selected="true"><span class="tab-ic" aria-hidden="true">🏠</span><span class="tab-t">Inicio</span></button>
+        <button role="tab" data-tab="prueba" data-group="prueba evaluacion hoja" aria-selected="false"><span class="tab-ic" aria-hidden="true">✏️</span><span class="tab-t">Prueba</span></button>
+        <button role="tab" data-tab="corregir" aria-selected="false" class="tab-cam"><span class="tab-ic" aria-hidden="true">📷</span><span class="tab-t">Corregir</span><span id="resultsBadge" class="badge" hidden>0</span></button>
+        <button role="tab" data-tab="cursos" aria-selected="false"><span class="tab-ic" aria-hidden="true">👥</span><span class="tab-t">Cursos</span></button>
+        <button role="tab" data-tab="manual" aria-selected="false" class="tab-manual"><span class="tab-ic" aria-hidden="true">📘</span><span class="tab-t">Ayuda</span></button>
+      </nav>
+      <div class="head-actions">
+        <button type="button" class="cloud-chip" id="proCloudChip" hidden></button>
+        <button type="button" class="btn secondary tour-start" id="btnTutorial" data-tutorial title="Tutorial paso a paso">🧭<span class="tour-t"> Tutorial</span></button>
+      </div>
     </header>
-
-    <nav class="tabs" role="tablist" aria-label="Secciones">
-      <button role="tab" data-tab="prueba" aria-selected="true"><span class="step">1</span>Prueba</button>
-      <button role="tab" data-tab="evaluacion" aria-selected="false"><span class="step">2</span>Evaluación</button>
-      <button role="tab" data-tab="hoja" aria-selected="false"><span class="step">3</span>Hoja</button>
-      <button role="tab" data-tab="corregir" aria-selected="false"><span class="step">4</span>Corregir <span id="resultsBadge" class="badge" hidden>0</span></button>
-      <button role="tab" data-tab="cursos" aria-selected="false"><span class="step">5</span>Cursos</button>
-      <button role="tab" data-tab="manual" aria-selected="false" class="tab-manual"><span class="step">?</span>Manual</button>
-    </nav>
 
     <main>
       <div id="proCloudBanner" class="card pro-banner pro-reminder" role="status" hidden>
@@ -50,8 +48,43 @@
           <button type="button" class="btn ghost small" id="proRemindLater">Más tarde</button>
         </div>
       </div>
+      <nav class="sub-steps" id="pruebaSteps" aria-label="Pasos de la prueba" hidden>
+        <button type="button" data-tab="prueba"><i>1</i><span>Datos<span class="ss-x"> y clave</span></span></button>
+        <span class="ss-line" aria-hidden="true"></span>
+        <button type="button" data-tab="evaluacion"><i>2</i><span>Preguntas<small class="ss-opt"> (opcional)</small></span></button>
+        <span class="ss-line" aria-hidden="true"></span>
+        <button type="button" data-tab="hoja"><i>3</i><span>Imprimir<span class="ss-x"> hoja</span></span></button>
+      </nav>
+
+      <!-- 0. INICIO -------------------------------------------------------->
+      <section id="tab-inicio" class="tab-panel" role="tabpanel">
+        <h2 class="home-hello">¿Qué quieres hacer hoy?</h2>
+        <div class="home-tiles">
+          <button type="button" class="home-tile main" data-home="corregir"><span class="ic" aria-hidden="true">📷</span><span><b>Corregir hojas</b><small id="homeCorrSub"></small></span></button>
+          <button type="button" class="home-tile" data-home="nueva"><span class="ic" aria-hidden="true">✏️</span><span><b>Crear una prueba nueva</b><small>Paso a paso, con tus mismos ajustes</small></span></button>
+          <button type="button" class="home-tile" data-home="abrir"><span class="ic" aria-hidden="true">📂</span><span><b id="homeOpenTitle">Abrir una prueba guardada</b><small id="homeOpenSub">Archivo de configuración (.json)</small></span></button>
+        </div>
+        <div class="home-cols">
+          <div class="card home-current" id="homeCurrent"></div>
+          <div class="home-side">
+            <div class="card home-courses" id="proHomeCourses">
+              <div class="card-head"><h2>👥 Mis cursos</h2><button type="button" class="btn ghost small" data-pro-new-course>＋ Nuevo</button></div>
+              <ul class="home-course-list" id="proHomeCourseList"></ul>
+            </div>
+            <div class="card home-help">
+              <h2>🧭 ¿Primera vez?</h2>
+              <p class="muted small">El tutorial te muestra la app paso a paso, con burbujas. En <b>Ayuda</b> está el manual completo.</p>
+              <div class="actions">
+                <button type="button" class="btn secondary small" data-tutorial>🧭 Ver el tutorial</button>
+                <button type="button" class="btn ghost small" data-goto="manual">📘 Ayuda</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- 1. PRUEBA ------------------------------------------------------->
-      <section id="tab-prueba" class="tab-panel" role="tabpanel">
+      <section id="tab-prueba" class="tab-panel" role="tabpanel" hidden>
         <p class="man-help"><button type="button" class="link-btn" data-manual="prueba">📘 ¿Cómo se usa esta pestaña?</button></p>
         <div id="proImportBanner" class="card pro-banner" hidden>
           <p><strong>¿Traer tu prueba desde la versión normal?</strong> En este navegador tienes una prueba y hojas escaneadas en la versión normal. Puedes copiarlas a la versión Pro (la versión normal no cambia).</p>
@@ -65,7 +98,7 @@
           <div class="card-head">
             <h2>Datos de la prueba</h2>
             <div class="pz-head-actions">
-              <button type="button" class="btn ghost small" id="proLibSave" title="Guarda esta prueba en una carpeta (preguntas, clave, objetivos, desarrollo y rúbricas) para volver a usarla, por ejemplo el próximo año.">💾 Guardar</button>
+              <button type="button" class="btn ghost small" id="proLibSave" title="Guarda esta prueba en Mis evaluaciones (en una carpeta) para volver a usarla, por ejemplo el próximo año.">💾<span class="hide-sm"> Guardar</span></button>
               <button type="button" class="btn ghost small" id="proLibOpen" title="Pruebas guardadas en carpetas"><span>📚 Mis evaluaciones (<span id="proLibCount">0</span>)</span></button>
               <details class="menu" id="pzMenu">
                 <summary class="btn ghost small" title="Más opciones" aria-label="Más opciones">⋯</summary>
@@ -1863,6 +1896,7 @@ Núcleo = Contiene el material genético</pre>
   <script src="js/pro/biblioteca.js"></script>
   <script src="js/pro/nube-core.js"></script>
   <script src="js/pro/nube.js"></script>
+  <script src="js/pro/inicio.js"></script>
   <script src="js/pro/desarrollo.js"></script>
   <script src="js/pro/pdf-core.js"></script>
   <script src="js/pro/retro-core.js"></script>

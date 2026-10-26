@@ -302,7 +302,40 @@
     return app.fmtDateTime(ts);
   }
 
+  /** Estado de la nube en el encabezado (siempre a la vista). */
+  function renderChip(mode) {
+    const chip = $('#proCloudChip');
+    if (!chip) return;
+    const on = signedIn();
+    chip.hidden = !on && !(meta && meta.expired);
+    if (chip.hidden) return;
+    let text = '☁️ Guardado';
+    let cls = 'cloud-chip';
+    let title = meta && meta.at ? `Todo guardado en la nube (${ago(meta.at)}).` : 'Guardado en la nube.';
+    if (!on) {
+      text = '⚠️ Entrar a la nube';
+      cls += ' warn';
+      title = 'Se cerró la sesión de la nube: vuelve a entrar para seguir guardando.';
+    } else if (mode === 'busy' || syncing) {
+      text = '🔄 Guardando…';
+      cls += ' busy';
+      title = 'Guardando en la nube…';
+    } else if (offline) {
+      text = '⚠️ Sin conexión';
+      cls += ' warn';
+      title = 'Sin internet: los cambios se subirán a la nube cuando vuelva la conexión.';
+    } else if (meta.error || behind) {
+      text = '⚠️ Revisar la nube';
+      cls += ' warn';
+      title = meta.error || 'La prueba cambió en otro equipo.';
+    }
+    chip.textContent = text;
+    chip.className = cls;
+    chip.title = title;
+  }
+
   function render(mode) {
+    renderChip(mode);
     const out = $('#proCloudOut');
     if (!out) return;
     const on = signedIn();
@@ -575,6 +608,11 @@
   });
   app.on('tab', (name) => {
     if (name === 'cursos') render();
+  });
+  $('#proCloudChip').addEventListener('click', () => {
+    app.showTab('cursos');
+    const card = $('#proCloudCard');
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
   Pro.ready.then(async () => {

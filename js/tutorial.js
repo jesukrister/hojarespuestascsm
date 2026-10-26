@@ -19,14 +19,20 @@
       label: 'Cómo está ordenada la app',
       steps: [
         {
+          tab: 'inicio',
+          target: '#homeCurrent',
+          title: 'Inicio',
+          text: 'Al abrir la app ves tu <b>prueba actual</b> y en qué paso vas (los pasos listos tienen ✔). El botón azul te lleva a lo que falta.',
+        },
+        {
           target: '.tabs',
-          title: 'Las pestañas',
-          text: 'Arriba están las pestañas. Se usan en orden, de izquierda a derecha: <b>1 Prueba</b> → <b>3 Hoja</b> → <b>4 Corregir</b>. La <b>2 Evaluación</b> es opcional.',
+          title: 'El menú',
+          text: 'Este es el menú: <b>Inicio</b> (lo que falta por hacer), <b>Prueba</b> (crear la prueba e imprimir las hojas) y <b>Corregir</b> (sacar las fotos y ver las notas). En el celular está abajo.',
         },
         {
           target: '.tabs button[data-tab="manual"]',
-          title: 'El Manual',
-          text: 'Si tienes una duda, aquí está el <b>Manual</b>, con todo explicado en detalle.',
+          title: 'Ayuda',
+          text: 'Si tienes una duda, en <b>Ayuda</b> está el manual, con todo explicado en detalle.',
         },
       ],
     },
@@ -34,6 +40,12 @@
       id: 'prueba',
       label: 'Paso 1 · Configurar la prueba',
       steps: [
+        {
+          tab: 'prueba',
+          target: '#pruebaSteps',
+          title: 'Tres pasos',
+          text: 'Crear la prueba tiene tres pasos: <b>1 Datos y clave</b>, <b>2 Preguntas</b> (opcional: la app arma la prueba para imprimir) y <b>3 Imprimir hoja</b>. Los listos quedan con ✓.',
+        },
         { tab: 'prueba', target: '#exTitle', title: 'Nombre de la prueba', text: 'Escribe el nombre de tu prueba. Por ejemplo: <i>Prueba de Historia – Unidad 1</i>.' },
         {
           pro: true,
@@ -257,8 +269,9 @@
 
   function showTab(tab) {
     if (!tab) return;
-    const b = document.querySelector(`.tabs button[data-tab="${tab}"]`);
-    if (b && b.getAttribute('aria-selected') !== 'true') b.click();
+    if (document.documentElement.dataset.tab === tab) return;
+    const b = document.querySelector(`.tabs button[data-tab="${tab}"], #pruebaSteps button[data-tab="${tab}"]`);
+    if (b) b.click();
   }
 
   function render() {
@@ -293,11 +306,11 @@
   const MARGIN = 12;
   const bubbleWidth = () => Math.min(440, window.innerWidth - 2 * MARGIN);
 
-  /** Alto de la barra de pestañas (queda fija arriba y tapa lo que pasa por debajo). */
+  /** Alto del encabezado con el menú (queda fijo arriba y tapa lo que pasa por debajo). */
   function topReserve(el) {
-    const tabs = document.querySelector('.tabs');
-    if (!tabs || tabs.contains(el)) return 0;
-    const r = tabs.getBoundingClientRect();
+    const head = document.querySelector('.app-header');
+    if (!head || head.contains(el) || getComputedStyle(head).position !== 'sticky') return 0;
+    const r = head.getBoundingClientRect();
     return r.top <= 1 ? r.bottom : 0;
   }
 

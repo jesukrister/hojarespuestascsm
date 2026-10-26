@@ -115,9 +115,9 @@
   /* ---------- Botón Atrás ---------- */
   const visited = [];
   let goingBack = false;
+  // La pestaña visible (incluye los pasos dentro de Prueba: Preguntas e Imprimir hoja).
   function currentTab() {
-    const b = document.querySelector('.tabs button[aria-selected="true"]');
-    return b ? b.dataset.tab : null;
+    return document.documentElement.dataset.tab || null;
   }
   function track() {
     const t = currentTab();
@@ -126,8 +126,7 @@
     if (visited.length > 30) visited.shift();
   }
   document.addEventListener('DOMContentLoaded', () => {
-    const tabs = document.querySelector('.tabs');
-    if (tabs) new MutationObserver(track).observe(tabs, { subtree: true, attributes: true, attributeFilter: ['aria-selected'] });
+    new MutationObserver(track).observe(document.documentElement, { attributes: true, attributeFilter: ['data-tab'] });
     track();
   });
   if (typeof cap.addListener === 'function') {
@@ -148,7 +147,7 @@
       if (visited.length > 1) {
         visited.pop();
         const prev = visited[visited.length - 1];
-        const b = document.querySelector(`.tabs button[data-tab="${prev}"]`);
+        const b = document.querySelector(`.tabs button[data-tab="${prev}"], #pruebaSteps button[data-tab="${prev}"]`);
         if (b) {
           goingBack = true;
           b.click();

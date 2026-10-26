@@ -350,6 +350,8 @@
   before('#btnClearResults', 'resultados', () => state.results.length > 0);
   before('#pcDelete', 'curso');
   before('#peDelete', 'evaluacion');
+  // «Crear una prueba nueva» (Inicio) quita la prueba actual: antes, una copia.
+  app.on('beforeNewExam', () => Pro.safetyCopy('nueva'));
 
   app.on('save', changed);
   app.on('results', changed);

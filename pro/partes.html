@@ -11,7 +11,16 @@
 <span class="pro-badge" title="Versión Pro">PRO</span>
 
 <!-- @@ tabs -->
-<button role="tab" data-tab="cursos" aria-selected="false"><span class="step">5</span>Cursos</button>
+<button role="tab" data-tab="cursos" aria-selected="false"><span class="tab-ic" aria-hidden="true">👥</span><span class="tab-t">Cursos</span></button>
+
+<!-- @@ header-status -->
+<button type="button" class="cloud-chip" id="proCloudChip" hidden></button>
+
+<!-- @@ inicio -->
+<div class="card home-courses" id="proHomeCourses">
+  <div class="card-head"><h2>👥 Mis cursos</h2><button type="button" class="btn ghost small" data-pro-new-course>＋ Nuevo</button></div>
+  <ul class="home-course-list" id="proHomeCourseList"></ul>
+</div>
 
 <!-- @@ main -->
 <div id="proCloudBanner" class="card pro-banner pro-reminder" role="status" hidden>
@@ -42,7 +51,7 @@
 <p id="proTicketActive" class="alert pro-ticket-active" hidden>🎟️ Estás trabajando en un <b>ticket de salida</b> (8 por página, hasta 10 preguntas). Para una prueba normal, con más preguntas o alternativas: <button type="button" class="btn secondary small" id="proTicketExit">Volver a una prueba normal</button></p>
 
 <!-- @@ prueba-head -->
-<button type="button" class="btn ghost small" id="proLibSave" title="Guarda esta prueba en una carpeta (preguntas, clave, objetivos, desarrollo y rúbricas) para volver a usarla, por ejemplo el próximo año.">💾 Guardar</button>
+<button type="button" class="btn ghost small" id="proLibSave" title="Guarda esta prueba en Mis evaluaciones (en una carpeta) para volver a usarla, por ejemplo el próximo año.">💾<span class="hide-sm"> Guardar</span></button>
 <button type="button" class="btn ghost small" id="proLibOpen" title="Pruebas guardadas en carpetas"><span>📚 Mis evaluaciones (<span id="proLibCount">0</span>)</span></button>
 
 <!-- @@ prueba-menu -->
@@ -927,6 +936,7 @@
 <script src="js/pro/biblioteca.js"></script>
 <script src="js/pro/nube-core.js"></script>
 <script src="js/pro/nube.js"></script>
+<script src="js/pro/inicio.js"></script>
 <script src="js/pro/desarrollo.js"></script>
 <script src="js/pro/pdf-core.js"></script>
 <script src="js/pro/retro-core.js"></script>

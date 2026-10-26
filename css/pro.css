@@ -466,3 +466,22 @@ input[type="date"] {
   .pro-rub-cell.sel::before { color: #14532d; }
 }
 @media print { .pro-fb { display: none !important; } }
+
+/* Inicio: Mis cursos y estado de la nube en el encabezado */
+.home-courses .card-head { margin-bottom: 6px; }
+.home-course-list { list-style: none; margin: 0; padding: 0; }
+.home-course-list li + li { border-top: 1px solid var(--border); }
+.home-course-list button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 2px; border: 0; background: none; font: inherit; color: var(--text); text-align: left; cursor: pointer; border-radius: 8px; }
+.home-course-list button:hover { background: var(--surface-2); }
+.hcc-av { width: 36px; height: 36px; border-radius: 9px; background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; font-weight: 800; font-size: 0.85rem; flex: none; }
+.hcc-t { flex: 1; min-width: 0; }
+.hcc-t b, .hcc-t small { display: block; }
+.hcc-t small { color: var(--muted); font-size: 0.82rem; }
+.hcc-g { font-weight: 700; padding: 2px 8px; border-radius: 7px; }
+.hcc-g.ok { background: var(--ok-soft); color: var(--ok); }
+.hcc-g.bad { background: var(--bad-soft); color: var(--bad); }
+.home-course-empty { padding: 6px 0 4px; }
+.cloud-chip { border: 0; font: inherit; font-weight: 600; font-size: 0.84rem; padding: 6px 11px; border-radius: 999px; background: var(--ok-soft); color: var(--ok); cursor: pointer; white-space: nowrap; }
+.cloud-chip.warn { background: var(--warn-soft); color: var(--warn); }
+.cloud-chip.busy { background: var(--primary-soft); color: var(--primary); }
+@media (max-width: 760px) { .cloud-chip { font-size: 0.78rem; padding: 5px 9px; } }

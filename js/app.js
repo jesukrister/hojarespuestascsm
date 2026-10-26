@@ -23,7 +23,7 @@
   const MAX_IMAGE_SIDE = 2000;
   const PREVIEW_WIDTH = 1200;
   const PHOTO_MAX_SIDE = 1600;
-  const TABS = ['prueba', 'evaluacion', 'hoja', 'corregir'].concat(PRO ? ['cursos'] : [], ['manual']);
+  const TABS = ['inicio', 'prueba', 'evaluacion', 'hoja', 'corregir'].concat(PRO ? ['cursos'] : [], ['manual']);
   // Nombres antiguos (enlaces y botones): Escanear y Resultados ahora son la pestaña Corregir.
   const TAB_ALIAS = { escanear: 'corregir', resultados: 'corregir' };
 
@@ -286,6 +286,8 @@
       toast('No se pudo guardar en este navegador (almacenamiento lleno o bloqueado).');
     }
     renderPruebaSummary();
+    renderSubSteps();
+    if (document.documentElement.dataset.tab === 'inicio') renderHome();
     emit('save');
   }
 
@@ -421,13 +423,22 @@
 
   function showTab(name) {
     name = TAB_ALIAS[name] || name;
-    if (TABS.indexOf(name) < 0) name = 'prueba';
+    if (TABS.indexOf(name) < 0) name = 'inicio';
+    // «Prueba» del menú agrupa sus tres pasos: Datos y clave, Preguntas e Imprimir hoja.
     for (const b of $$('.tabs button')) {
-      b.setAttribute('aria-selected', String(b.dataset.tab === name));
-      // En pantallas angostas la barra de pestañas se desplaza: se deja visible la elegida.
-      if (b.dataset.tab === name && b.scrollIntoView) b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      const on = b.dataset.tab === name || (b.dataset.group || '').split(' ').indexOf(name) >= 0;
+      b.setAttribute('aria-selected', String(on));
+    }
+    const inPrueba = ['prueba', 'evaluacion', 'hoja'].indexOf(name) >= 0;
+    $('#pruebaSteps').hidden = !inPrueba;
+    for (const b of $$('#pruebaSteps button')) {
+      if (b.dataset.tab === name) b.setAttribute('aria-current', 'step');
+      else b.removeAttribute('aria-current');
     }
     for (const t of TABS) $('#tab-' + t).hidden = t !== name;
+    document.documentElement.dataset.tab = name;
+    renderSubSteps();
+    if (name === 'inicio') renderHome();
     if (name === 'hoja') renderSheetPreview();
     if (name === 'evaluacion') renderDoc();
     if (name === 'corregir') renderResults();
@@ -593,6 +604,154 @@
     renderChoiceSeg();
     renderPruebaSummary();
     emit('examForm');
+  }
+
+  /* ---------- Inicio y pasos de la prueba ---------- */
+
+  /** Lista del curso (con N° de lista): cuántos estudiantes hay, cuántos ya tienen hoja y quiénes faltan. */
+  function scanProgressData() {
+    const e = state.exam;
+    const names = e.idDigits > 0 ? e.roster.split(/\r?\n/).map((l) => l.trim()) : [];
+    while (names.length && !names[names.length - 1]) names.pop();
+    const listed = names.filter(Boolean).length;
+    const done = new Set();
+    for (const r of state.results) if (/^\d+$/.test(r.code || '')) done.add(parseInt(r.code, 10));
+    const missing = [];
+    names.forEach((name, i) => {
+      if (name && !done.has(i + 1)) missing.push({ n: i + 1, name });
+    });
+    return { listed, have: listed - missing.length, missing };
+  }
+
+  function docQuestionCount() {
+    const d = state.exam.doc;
+    if (!d.text.trim()) return 0;
+    try {
+      return TestDoc.parseQuestions(d.text, { sortByNumber: d.sortByNumber }).questions.length;
+    } catch (err) {
+      return 0;
+    }
+  }
+
+  /** Estado de cada paso: 1 Datos y clave, 2 Preguntas (opcional), 3 Imprimir hoja, 4 Corregir. */
+  function stepsState() {
+    const e = state.exam;
+    const n = e.numQuestions;
+    const keySet = e.key.filter((k) => k !== null).length;
+    const nr = state.results.length;
+    const docQs = docQuestionCount();
+    const prog = scanProgressData();
+    const fmtLabel = (FORMATS[e.format] || {}).label || '';
+    return [
+      { tab: 'prueba', title: 'Datos y clave', done: keySet === n && !layoutError, text: layoutError ? 'Revisa los datos' : keySet === n ? `${n} de ${n} con clave` : `Faltan ${n - keySet} en la clave` },
+      { tab: 'evaluacion', title: 'Preguntas', optional: true, done: docQs > 0, text: docQs ? `${docQs} pregunta${docQs === 1 ? '' : 's'} escrita${docQs === 1 ? '' : 's'}` : 'Opcional' },
+      { tab: 'hoja', title: 'Hoja impresa', done: nr > 0, text: `${(PAPERS[e.paper] || PAPERS.carta).label.split(' (')[0]}${(fmtLabel.match(/\(([^)]+)\)/) || [])[1] ? ` · ${fmtLabel.match(/\(([^)]+)\)/)[1]}` : ''}` },
+      {
+        tab: 'corregir',
+        title: 'Corregir',
+        done: prog.listed > 0 && prog.missing.length === 0 && nr > 0,
+        text: prog.listed ? (nr ? `${prog.have} de ${prog.listed} estudiantes` : 'Aún sin hojas') : nr ? `${nr} hoja${nr === 1 ? '' : 's'} corregida${nr === 1 ? '' : 's'}` : 'Aún sin hojas',
+      },
+    ];
+  }
+
+  /** Marca con ✓ los pasos listos en la barra «Datos y clave · Preguntas · Imprimir hoja». */
+  function renderSubSteps() {
+    const bar = $('#pruebaSteps');
+    if (!bar || bar.hidden) return;
+    const st = stepsState();
+    for (const b of $$('button', bar)) {
+      const s = st.find((x) => x.tab === b.dataset.tab);
+      const i = $('i', b);
+      const num = String(['prueba', 'evaluacion', 'hoja'].indexOf(b.dataset.tab) + 1);
+      const done = !!s && s.done && b.dataset.tab !== 'hoja';
+      b.classList.toggle('done', done);
+      i.textContent = done ? '✓' : num;
+    }
+  }
+
+  function renderHome() {
+    const box = $('#homeCurrent');
+    if (!box) return;
+    const e = state.exam;
+    const n = e.numQuestions;
+    const nr = state.results.length;
+    const st = stepsState();
+    const prog = scanProgressData();
+    const title = e.title.trim() || 'Prueba sin título';
+    $('#homeCorrSub').textContent = `${title} · ${nr ? `${nr} corregida${nr === 1 ? '' : 's'}` : 'aún sin hojas'}`;
+    // Paso que sigue: completar la clave, imprimir o corregir.
+    const now = !st[0].done ? 0 : nr ? 3 : 2;
+    const primary = [
+      ['prueba', '✏️ Completar la prueba y la clave'],
+      null,
+      ['hoja', '🖨️ Imprimir las hojas de respuesta'],
+      ['corregir', '📷 Seguir corrigiendo'],
+    ][now];
+    const secondary = now === 3 ? ['hoja', '🖨️ Imprimir hojas'] : now === 2 ? ['corregir', '📷 Corregir'] : ['evaluacion', '📝 Escribir las preguntas'];
+    const dev = e.dev.length;
+    const pct = prog.listed ? Math.round((prog.have / prog.listed) * 100) : 0;
+    box.innerHTML = `
+      <div class="hc-head">
+        <div class="hc-title"><span class="muted small hc-cap">Prueba actual</span><h2>${esc(title)}</h2>
+          <span class="muted small">${e.subtitle.trim() ? `${esc(e.subtitle.trim())} · ` : ''}${n} preguntas (A–${CHOICE_LABELS[e.numChoices - 1]})${dev ? ` · ${dev} de desarrollo` : ''}</span></div>
+        <button type="button" class="btn ghost small" data-home="nueva">＋ Nueva</button>
+      </div>
+      <div class="hc-steps">
+        ${st
+          .map(
+            (s, i) => `<button type="button" class="hc-step${s.done ? ' done' : ''}${i === now ? ' now' : ''}${s.optional && !s.done ? ' opt' : ''}" data-home="${s.tab}">
+              <b>${s.done ? '✔' : i + 1} ${esc(s.title)}</b><span>${esc(s.text)}</span></button>`
+          )
+          .join('')}
+      </div>
+      ${
+        prog.listed && nr
+          ? `<div class="hc-progress"><div class="sp-bar"><i style="width:${pct}%"></i></div><span class="small"><b>${prog.have}</b> de ${prog.listed} estudiantes</span></div>`
+          : ''
+      }
+      <div class="actions hc-actions">
+        <button type="button" class="btn primary" data-home="${primary[0]}">${primary[1]}</button>
+        <button type="button" class="btn secondary" data-home="${secondary[0]}">${secondary[1]}</button>
+      </div>`;
+    emit('home');
+  }
+
+  /** Empieza una prueba en blanco, con los mismos ajustes (papel, puntaje, membrete, lista del curso). */
+  function newExam() {
+    const e = state.exam;
+    const n = state.results.length;
+    const has = n > 0 || e.key.some((k) => k !== null) || !!e.title.trim() || !!e.doc.text.trim();
+    if (
+      has &&
+      !confirm(
+        `¿Empezar una prueba nueva?\n\nSe quitan la prueba actual («${e.title.trim() || 'sin título'}»), su clave${n ? ` y sus ${n} hoja(s) escaneada(s)` : ''}. ` +
+          'Se mantienen tus ajustes: papel, alternativas, puntaje, membrete y lista del curso.' +
+          (n ? `\n\nSi necesitas esas notas, antes descarga las evidencias en Corregir${PRO ? ' o guárdalas en el libro de notas' : ''}.` : '')
+      )
+    )
+      return;
+    emit('beforeNewExam');
+    const raw = JSON.parse(JSON.stringify(e));
+    raw.title = '';
+    raw.key = [];
+    raw.oaText = '';
+    raw.dev = [];
+    raw.forms = null;
+    raw.pie = null;
+    raw.doc.text = '';
+    raw.doc.elements = [];
+    raw.doc.qsettings = {};
+    raw.doc.format.title = '';
+    raw.doc.format.objectives = '';
+    raw.doc.format.forms = 1;
+    if (raw.pro && raw.pro.courseId) raw.pro = { courseId: raw.pro.courseId };
+    else delete raw.pro;
+    replaceExam(raw);
+    showTab('prueba');
+    window.scrollTo(0, 0);
+    $('#exTitle').focus();
+    toast('Prueba nueva: escribe el título, cuántas preguntas tiene y la clave.');
   }
 
   /** Alternativas como botones (2 a 6): reflejan el selector #exChoices, que sigue siendo el dato. */
@@ -3004,21 +3163,12 @@
     $('#corrTest').textContent =
       `${e.title.trim() || 'Prueba sin título'} · ${e.numQuestions} preguntas` +
       (keySet < e.numQuestions ? ` · ⚠ faltan ${e.numQuestions - keySet} respuesta${e.numQuestions - keySet === 1 ? '' : 's'} en la clave` : '');
-    const names = e.idDigits > 0 ? e.roster.split(/\r?\n/).map((l) => l.trim()) : [];
-    while (names.length && !names[names.length - 1]) names.pop();
-    const listed = names.filter(Boolean).length;
+    const { listed, have, missing } = scanProgressData();
     if (!listed) {
       box.hidden = !n;
       box.innerHTML = `<div class="sp-head"><b>${n} hoja${n === 1 ? '' : 's'} corregida${n === 1 ? '' : 's'}</b></div>`;
       return;
     }
-    const done = new Set();
-    for (const r of state.results) if (/^\d+$/.test(r.code || '')) done.add(parseInt(r.code, 10));
-    const missing = [];
-    names.forEach((name, i) => {
-      if (name && !done.has(i + 1)) missing.push({ n: i + 1, name });
-    });
-    const have = listed - missing.length;
     const pct = Math.round((have / listed) * 100);
     const shown = scanProgressAll ? missing : missing.slice(0, 8);
     const short = (name) => name.split(/\s+/)[0];
@@ -3906,7 +4056,27 @@
     $('#exQuestions').max = LIMITS.maxQuestions;
     $('#exIdDigits').max = LIMITS.maxIdDigits;
 
-    for (const b of $$('.tabs button')) b.addEventListener('click', () => showTab(b.dataset.tab));
+    for (const b of $$('.tabs button, #pruebaSteps button')) {
+      b.addEventListener('click', () => {
+        const was = document.documentElement.dataset.tab;
+        showTab(b.dataset.tab);
+        if (was !== document.documentElement.dataset.tab) window.scrollTo(0, 0);
+      });
+    }
+    // Pantalla de inicio: accesos y la prueba actual.
+    $('#tab-inicio').addEventListener('click', (e) => {
+      const t = e.target.closest('[data-home]');
+      if (!t) return;
+      const what = t.dataset.home;
+      if (what === 'nueva') newExam();
+      else if (what === 'abrir') {
+        if (PRO && window.LectorPro && window.LectorPro.library) window.LectorPro.library.open();
+        else $('#importExamInput').click();
+      } else {
+        showTab(what);
+        window.scrollTo(0, 0);
+      }
+    });
     document.addEventListener('click', (e) => {
       const go = e.target.closest('[data-goto]');
       if (go) {
@@ -4493,6 +4663,13 @@
   updateLayoutError();
   renderResultsBadge();
   injectDocStyles();
-  showTab(location.hash.slice(1) || 'prueba');
+  showTab(location.hash.slice(1) || 'inicio');
+  // Alto del encabezado fijo: lo usan las columnas que quedan pegadas debajo de él.
+  const setHeadH = () => {
+    const h = $('.app-header');
+    document.documentElement.style.setProperty('--head-h', (getComputedStyle(h).position === 'sticky' ? h.offsetHeight : 0) + 'px');
+  };
+  setHeadH();
+  window.addEventListener('resize', setHeadH);
   loadAssets();
 })();

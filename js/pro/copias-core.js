@@ -154,6 +154,7 @@
     nube: 'Antes de traer cambios de la nube',
     nubeOtra: 'Prueba que estaba en la nube',
     biblioteca: 'Antes de abrir una evaluación guardada',
+    nueva: 'Antes de empezar una prueba nueva',
   };
 
   return { hash, serialize, summary, hasData, describe, copyReason, prune, reminder, fileDue, latest, dayKey, REASONS, COPY_EVERY, FILE_EVERY, DAY };
