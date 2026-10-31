@@ -131,6 +131,17 @@ pestañas, manual…) es el mismo código, así que las mejoras llegan a las dos
   escritas con sus imágenes, filas, desarrollo y rúbricas; sin estudiantes ni
   hojas escaneadas) en carpetas, con nombre y nota, para volver a usarla otro
   año. Búsqueda, mover, renombrar y eliminar; va en el respaldo y en la nube.
+- **Una prueba para varios cursos**: además del curso principal se agregan los
+  otros cursos que rinden la misma prueba. En Corregir se elige de qué curso son
+  las hojas que se escanean; cada hoja guarda su curso (nombre según la lista de
+  ese curso), la lista se filtra por curso (estadísticas, análisis y descargas
+  siguen el filtro; Excel/CSV con columna Curso) y cada curso guarda sus notas
+  en su propio libro. Las hojas con nombre se imprimen de todos los cursos, cada
+  curso desde una página nueva.
+- **Modo simple / avanzado** (se elige la primera vez y se cambia en Inicio): el
+  simple deja sólo la hoja de respuestas y el escáner (sin Preguntas, Cursos,
+  OA, desarrollo, PIE, análisis, informes, Mis evaluaciones ni nube); sólo
+  esconde partes de la pantalla, los datos son los mismos.
 - **Nube (opcional)**: cuenta con correo y contraseña (código por correo para
   crearla o recuperar la contraseña). Los cursos, el libro de notas y la prueba
   con sus resultados se guardan solos (al abrir, tras cada cambio, al salir y
@@ -585,6 +596,7 @@ entregar una corrección equivocada sin avisar.
 | `js/pro/retro-core.js`, `js/pro/retro.js` | Rúbricas, retroalimentación, informe PDF por estudiante y hojas del Excel |
 | `js/pro/biblioteca-core.js`, `js/pro/biblioteca.js` | Mis evaluaciones: pruebas guardadas en carpetas |
 | `js/pro/nube-core.js`, `js/pro/nube.js` | Nube: cuenta, sincronización y combinación de cambios de dos equipos |
+| `js/pro/modo.js` | Modo simple / avanzado |
 | `nube/lector-nube.mjs`, `nube/correo.gs`, `nube/GUIA.md` | Servidor de la nube (Cloudflare Worker + D1), correos con código (Apps Script) y guía para activarlo |
 | `vendor/pdf/` | pdf.js (lectura de PDF en la versión Pro; en Android sólo va en la app Pro) |
 | `js/app.js` | Lógica de la interfaz y almacenamiento |

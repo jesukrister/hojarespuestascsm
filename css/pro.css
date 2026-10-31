@@ -500,3 +500,36 @@ input[type="date"] {
 .cloud-chip.busy { background: var(--primary-soft); color: var(--primary); }
 @media (max-width: 760px) { .cloud-chip { font-size: 0.78rem; padding: 5px 9px; } }
 .lv-course { font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--primary-soft); color: var(--primary); }
+
+/* ---------- Modo simple / avanzado ---------- */
+.mode-switch { display: grid; grid-template-columns: auto auto; align-items: center; justify-items: end; gap: 4px 10px; }
+.mode-label { font-weight: 700; color: var(--muted); font-size: 0.9rem; }
+.mode-seg button { padding: 8px 14px; font-size: 0.95rem; }
+#proModeInfo { grid-column: 1 / -1; max-width: 46ch; text-align: right; }
+.pro-mode-dialog { width: min(640px, 94vw); padding: 22px; }
+.pro-mode-dialog h2 { margin-top: 0; font-size: 1.4rem; }
+.mode-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.mode-card { display: grid; gap: 6px; align-content: start; text-align: left; padding: 16px; border: 2px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.mode-card:hover, .mode-card:focus-visible { border-color: var(--primary); background: var(--primary-soft); }
+.mode-card .mc-ic { font-size: 1.8rem; line-height: 1; }
+.mode-card b { font-size: 1.25rem; }
+.mode-card span { font-size: 0.98rem; line-height: 1.4; }
+.mode-card .mc-rec { display: none; font-weight: 700; color: var(--primary); }
+.mode-card.rec { border-color: var(--primary); }
+.mode-card.rec .mc-rec { display: block; }
+@media (max-width: 560px) {
+  .mode-cards { grid-template-columns: 1fr; }
+  .mode-switch { justify-items: start; }
+  #proModeInfo { text-align: left; }
+}
+@media (min-width: 761px) { html[data-modo="simple"] .home-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+html[data-modo="simple"] :is(
+  .tabs button[data-tab="cursos"],
+  #pruebaSteps button[data-tab="evaluacion"],
+  #pruebaSteps button[data-tab="evaluacion"] + .ss-line,
+  #proCloudChip, #proCloudBanner, #proHomeCourses, .home-tile[data-home="abrir"],
+  #proLibSave, #proLibOpen, #proLibLinked, #proNewTicket, #proNewTicket + hr,
+  .pz-course, #optOA, #proDevCard, .pro-pie-scale, .next-bar [data-goto="evaluacion"],
+  #proNamesCard, #btnDownloadSvg, #btnDownloadSample,
+  .corr-section, #oaResultsCard, #itemCard, #proReinforce, #proQuality, #proBookBox, #proReportTest, .pro-fb
+) { display: none !important; }

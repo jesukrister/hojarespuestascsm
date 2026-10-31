@@ -38,6 +38,8 @@ window.MANUAL_VIDEOS = {
   retro: '', //       17. Retroalimentación, rúbricas e informes PDF
   nube: '', //        18. Guardar en la nube (cuenta con correo)
   biblioteca: '', //  19. Mis evaluaciones (carpetas)
+  varioscursos: '', // 20. Una prueba para varios cursos
+  modo: '', //        21. Modo simple y avanzado
 };
 
 // true: donde todavía no hay video se muestra el aviso "Video próximamente".

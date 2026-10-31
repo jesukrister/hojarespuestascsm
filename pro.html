@@ -10,6 +10,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231f4e79'/%3E%3Ccircle cx='10' cy='11' r='4' fill='%23fff'/%3E%3Ccircle cx='22' cy='11' r='4' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Ccircle cx='10' cy='22' r='4' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Ccircle cx='22' cy='22' r='4' fill='%23fff'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/pro.css">
+  <script>try { document.documentElement.dataset.modo = localStorage.getItem('lectorHojasPro.modo') === 'simple' ? 'simple' : 'avanzado'; } catch (e) {}</script>
 </head>
 <body>
   <div class="app">
@@ -58,7 +59,17 @@
 
       <!-- 0. INICIO -------------------------------------------------------->
       <section id="tab-inicio" class="tab-panel" role="tabpanel">
-        <h2 class="home-hello">¿Qué quieres hacer hoy?</h2>
+        <div class="home-top">
+          <h2 class="home-hello">¿Qué quieres hacer hoy?</h2>
+          <div class="mode-switch" id="proModeSwitch">
+            <span class="mode-label">Modo</span>
+            <span class="seg mode-seg" role="radiogroup" aria-label="Modo de la app">
+              <button type="button" role="radio" data-modo-set="simple">🟢 Simple</button>
+              <button type="button" role="radio" data-modo-set="avanzado">🔷 Avanzado</button>
+            </span>
+            <small id="proModeInfo" class="muted"></small>
+          </div>
+        </div>
         <div class="home-tiles">
           <button type="button" class="home-tile main" data-home="corregir"><span class="ic" aria-hidden="true">📷</span><span><b>Corregir hojas</b><small id="homeCorrSub"></small></span></button>
           <button type="button" class="home-tile" data-home="nueva"><span class="ic" aria-hidden="true">✏️</span><span><b>Crear una prueba nueva</b><small>Paso a paso, con tus mismos ajustes</small></span></button>
@@ -955,6 +966,8 @@
             <button type="button" data-man-go="retro"><b>17</b>Retroalimentación e informes</button>
             <button type="button" data-man-go="nube"><b>18</b>Guardar en la nube</button>
             <button type="button" data-man-go="biblioteca"><b>19</b>Mis evaluaciones (carpetas)</button>
+            <button type="button" data-man-go="varioscursos"><b>20</b>Una prueba para varios cursos</button>
+            <button type="button" data-man-go="modo"><b>21</b>Modo simple y avanzado</button>
             <button type="button" data-man-go="problemas"><b>?</b>Problemas frecuentes</button>
           </nav>
           <p class="donate-wrap man-donate" hidden>¿Te sirve la plataforma? Es gratuita; si quieres, puedes apoyar su desarrollo: <a class="donate-link" target="_blank" rel="noopener">❤ Apoya este proyecto</a></p>
@@ -1421,6 +1434,31 @@ Núcleo = Contiene el material genético</pre>
           </ol>
           <p>En la lista también puedes <b>mover</b> una prueba a otra carpeta, cambiarle el nombre (✏️) o eliminarla (🗑). Al eliminar una carpeta, sus pruebas no se borran: quedan en «Sin carpeta».</p>
           <p class="man-tip"><b>💡 No se pierden:</b> Mis evaluaciones va en el <b>respaldo</b> y, si tienes cuenta, en la <b>nube</b>: al entrar en otro equipo aparecen ahí también.</p>
+        </article>
+
+        <article class="card man-section" id="man-varioscursos" data-man="varioscursos">
+          <h2><span class="man-num">20</span>Una prueba para varios cursos</h2>
+          <div class="man-video" data-video="varioscursos"></div>
+          <p>Si haces la misma prueba en varios cursos (por ejemplo 8° A, 8° B y 8° C), no necesitas repetirla: las hojas y las notas se dividen por curso.</p>
+          <ol class="man-steps">
+            <li>En <b>Prueba → Datos y clave</b>, elige el <b>Curso</b> principal. Debajo aparece <b>＋ Agregar otro curso…</b>: agrega los demás cursos que rinden la misma prueba.</li>
+            <li>En <b>Imprimir hoja → Hojas con nombre</b>, elige <b>Todos los cursos de la prueba</b>: cada curso empieza en una página nueva y la hoja lleva el curso impreso.</li>
+            <li>En <b>Corregir</b>, antes de escanear, toca el curso de las hojas que vas a pasar (<b>¿De qué curso son las hojas?</b>). Escanea curso por curso.</li>
+            <li>Arriba de la lista de estudiantes eliges <b>Ver: Todos los cursos</b> o un curso. Las estadísticas, el análisis y las descargas (Excel y ZIP) son del curso que estás viendo.</li>
+            <li>En <b>Guardar en el libro de notas</b>, guarda las notas de un curso; después el recuadro pasa solo al siguiente curso que tiene notas sin guardar.</li>
+          </ol>
+          <p class="man-tip"><b>💡 ¿Escaneaste una hoja en el curso equivocado?</b> Ábrela en la lista y cambia su <b>Curso</b>: el nombre y la nota se actualizan.</p>
+        </article>
+
+        <article class="card man-section" id="man-modo" data-man="modo">
+          <h2><span class="man-num">21</span>Modo simple y modo avanzado</h2>
+          <div class="man-video" data-video="modo"></div>
+          <p>La versión Pro tiene dos formas de usarla. Se cambia en <b>Inicio → Modo</b>, cuando quieras.</p>
+          <ul>
+            <li><b>🟢 Simple:</b> sólo lo esencial. Crear la hoja de respuestas (datos, clave, filas y papel), imprimirla y corregir con la cámara, con la planilla de notas y el ZIP de evidencias.</li>
+            <li><b>🔷 Avanzado:</b> además, cursos y libro de notas, escribir las preguntas, preguntas de desarrollo, objetivos (OA), PIE, análisis de la prueba, informes, retroalimentación, Mis evaluaciones y la nube.</li>
+          </ul>
+          <p class="man-tip"><b>💡 No se pierde nada:</b> el modo sólo esconde botones. Tus pruebas, cursos y notas son los mismos en los dos modos.</p>
         </article>
 
         <!-- ? -->
@@ -1922,6 +1960,25 @@ Núcleo = Contiene el material genético</pre>
     </div>
   </dialog>
 
+  <dialog id="proModeDialog" class="el-dialog pro-mode-dialog" aria-labelledby="proModeTitle">
+    <h2 id="proModeTitle">¿Cómo quieres usar la app?</h2>
+    <p class="muted">Puedes cambiarlo cuando quieras en <b>Inicio</b>. Tus pruebas, cursos y notas son los mismos en los dos modos.</p>
+    <div class="mode-cards">
+      <button type="button" class="mode-card" data-modo-set="simple">
+        <span class="mc-ic" aria-hidden="true">🟢</span>
+        <b>Simple</b>
+        <span>Crear la hoja de respuestas, imprimirla y corregir con la cámara. Sólo lo esencial, con menos botones.</span>
+        <small class="mc-rec">Recomendado para empezar</small>
+      </button>
+      <button type="button" class="mode-card" data-modo-set="avanzado">
+        <span class="mc-ic" aria-hidden="true">🔷</span>
+        <b>Avanzado</b>
+        <span>Todo lo anterior y además cursos y libro de notas, escribir las preguntas, filas, PIE, análisis, informes y nube.</span>
+        <small class="mc-rec">Lo que has usado hasta ahora</small>
+      </button>
+    </div>
+  </dialog>
+
   <script src="js/native.js"></script>
   <script src="js/layout.js"></script>
   <script src="js/omr.js"></script>
@@ -1939,6 +1996,7 @@ Núcleo = Contiene el material genético</pre>
   <script src="js/pro/copias-core.js"></script>
   <script src="js/pro/comun.js"></script>
   <script src="js/pro/libro.js"></script>
+  <script src="js/pro/modo.js"></script>
   <script src="js/pro/respaldo.js"></script>
   <script src="js/pro/copias.js"></script>
   <script src="js/pro/biblioteca-core.js"></script>

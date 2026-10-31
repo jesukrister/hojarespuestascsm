@@ -108,6 +108,8 @@ h2 { font-size: 1.1rem; }
 
 /* ---------- Inicio ---------- */
 .home-hello { font-size: 1.4rem; margin: 6px 0 14px; }
+.home-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin: 6px 0 14px; }
+.home-top .home-hello { margin: 0; }
 .home-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .home-tile { display: flex; align-items: center; gap: 14px; text-align: left; padding: 16px 18px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); box-shadow: var(--shadow); font: inherit; color: var(--text); cursor: pointer; }
 .home-tile:hover { border-color: var(--primary); }

@@ -456,9 +456,16 @@
   /* Pestañas                                                            */
   /* ------------------------------------------------------------------ */
 
+  /** Versión Pro, modo simple: sólo la hoja y el escáner (sin Preguntas ni Cursos). */
+  function simpleMode() {
+    return document.documentElement.dataset.modo === 'simple';
+  }
+  const SIMPLE_HIDDEN = { evaluacion: 'prueba', cursos: 'inicio' };
+
   function showTab(name) {
     name = TAB_ALIAS[name] || name;
     if (TABS.indexOf(name) < 0) name = 'inicio';
+    if (simpleMode() && SIMPLE_HIDDEN[name]) name = SIMPLE_HIDDEN[name];
     // «Prueba» del menú agrupa sus tres pasos: Datos y clave, Preguntas e Imprimir hoja.
     for (const b of $$('.tabs button')) {
       const on = b.dataset.tab === name || (b.dataset.group || '').split(' ').indexOf(name) >= 0;
@@ -753,10 +760,11 @@
     const bar = $('#pruebaSteps');
     if (!bar || bar.hidden) return;
     const st = stepsState();
+    const order = simpleMode() ? ['prueba', 'hoja'] : ['prueba', 'evaluacion', 'hoja'];
     for (const b of $$('button', bar)) {
       const s = st.find((x) => x.tab === b.dataset.tab);
       const i = $('i', b);
-      const num = String(['prueba', 'evaluacion', 'hoja'].indexOf(b.dataset.tab) + 1);
+      const num = String(order.indexOf(b.dataset.tab) + 1);
       const done = !!s && s.done && b.dataset.tab !== 'hoja';
       b.classList.toggle('done', done);
       i.textContent = done ? '✓' : num;
@@ -769,19 +777,20 @@
     const e = state.exam;
     const n = e.numQuestions;
     const nr = state.results.length;
-    const st = stepsState();
+    const st = stepsState().filter((s) => !simpleMode() || s.tab !== 'evaluacion');
     const prog = scanProgressData();
     const title = e.title.trim() || 'Prueba sin título';
     $('#homeCorrSub').textContent = `${title} · ${nr ? `${nr} corregida${nr === 1 ? '' : 's'}` : 'aún sin hojas'}`;
     // Paso que sigue: completar la clave, imprimir o corregir.
-    const now = !st[0].done ? 0 : nr ? 3 : 2;
-    const primary = [
-      ['prueba', '✏️ Completar la prueba y la clave'],
-      null,
-      ['hoja', '🖨️ Imprimir las hojas de respuesta'],
-      ['corregir', '📷 Seguir corrigiendo'],
-    ][now];
-    const secondary = now === 3 ? ['hoja', '🖨️ Imprimir hojas'] : now === 2 ? ['corregir', '📷 Corregir'] : ['evaluacion', '📝 Escribir las preguntas'];
+    const step = !st[0].done ? 'prueba' : nr ? 'corregir' : 'hoja';
+    const now = st.findIndex((s) => s.tab === step);
+    const primary = {
+      prueba: ['prueba', '✏️ Completar la prueba y la clave'],
+      hoja: ['hoja', '🖨️ Imprimir las hojas de respuesta'],
+      corregir: ['corregir', '📷 Seguir corrigiendo'],
+    }[step];
+    const secondary =
+      step === 'corregir' ? ['hoja', '🖨️ Imprimir hojas'] : step === 'hoja' || simpleMode() ? ['corregir', '📷 Corregir'] : ['evaluacion', '📝 Escribir las preguntas'];
     const dev = e.dev.length;
     const pct = prog.listed ? Math.round((prog.have / prog.listed) * 100) : 0;
     box.innerHTML = `
@@ -870,7 +879,7 @@
     const parts = [`Exigencia ${fmt(sc.exigencia, 0)} %`, `nota ${fmt(sc.gradeMin, 1)} a ${fmt(sc.gradeMax, 1)}`];
     if (sc.pointsCorrect !== 1) parts.push(`${fmtScore(sc.pointsCorrect)} pts por correcta`);
     if (sc.penaltyWrong > 0) parts.push(`descuento ${fmtScore(sc.penaltyWrong)}`);
-    if (PRO && e.pie && e.pie.exigencia) parts.push(`PIE ${e.pie.exigencia} %`);
+    if (PRO && e.pie && e.pie.exigencia && !simpleMode()) parts.push(`PIE ${e.pie.exigencia} %`);
     $('#scoreSummary').textContent = parts.join(' · ');
     $('#idSummary').textContent = !e.idDigits ? 'Sin identificación' : e.idDigits === 2 ? 'N° de lista (2 dígitos)' : `Código de ${e.idDigits} dígito${e.idDigits === 1 ? '' : 's'}`;
     const names = e.roster.split(/\r?\n/).filter((l) => l.trim()).length;
@@ -4951,6 +4960,9 @@
     window.LectorApp = {
       state,
       emit,
+      simpleMode,
+      renderHome,
+      renderSubSteps,
       on(name, fn) {
         (hooks[name] = hooks[name] || []).push(fn);
       },

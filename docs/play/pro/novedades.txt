@@ -1,6 +1,6 @@
-• Más simple: Inicio, menú más corto, Corregir con las notas al lado y la prueba se ve mientras la escribes.
-• Nube opcional con tu correo: cursos, notas y pruebas se guardan solos (en Cursos).
+• Nuevo modo Simple: sólo la hoja de respuestas y el escáner (se cambia en Inicio).
+• Una prueba para varios cursos: las hojas y las notas se dividen por curso.
+• Nube opcional con tu correo: cursos, notas y pruebas se guardan solos.
 • Mis evaluaciones: guarda tus pruebas en carpetas para el próximo año.
-• Informe PDF por estudiante con sus errores, la respuesta correcta y rúbrica.
 • Filas B, C y D sin escribir las preguntas; sin hoja en blanco al imprimir.
 • ¿Algo no funciona? Escríbeme a @historiaycosos o @framsesk0 en Instagram.

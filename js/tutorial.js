@@ -44,15 +44,24 @@
           tab: 'prueba',
           target: '#pruebaSteps',
           title: 'Tres pasos',
+          adv: true,
           text: 'Crear la prueba tiene tres pasos: <b>1 Datos y clave</b>, <b>2 Preguntas</b> (opcional: la app arma la prueba para imprimir) y <b>3 Imprimir hoja</b>. Los listos quedan con ✓.',
+        },
+        {
+          tab: 'prueba',
+          target: '#pruebaSteps',
+          title: 'Dos pasos',
+          simple: true,
+          text: 'Crear la prueba tiene dos pasos: <b>1 Datos y clave</b> y <b>2 Imprimir hoja</b>. Los listos quedan con ✓.',
         },
         { tab: 'prueba', target: '#exTitle', title: 'Nombre de la prueba', text: 'Escribe el nombre de tu prueba. Por ejemplo: <i>Prueba de Historia – Unidad 1</i>.' },
         {
           pro: true,
           tab: 'prueba',
+          adv: true,
           target: '#proExamCourse',
           title: 'Curso de esta prueba',
-          text: 'En la Pro eliges el curso: la lista de estudiantes se toma sola y después las notas se guardan en su libro.',
+          text: 'En la Pro eliges el curso: la lista de estudiantes se toma sola y después las notas se guardan en su libro. Si la misma prueba es para varios cursos, agrégalos debajo: las hojas y las notas se dividen por curso.',
         },
         { tab: 'prueba', target: '#exQuestions', title: '¿Cuántas preguntas?', text: 'Escribe cuántas preguntas de alternativas tiene tu prueba, o usa los botones <b>−</b> y <b>＋</b>.' },
         { tab: 'prueba', target: '#exChoicesSeg', title: '¿Cuántas alternativas?', text: 'Toca cuántas alternativas tiene cada pregunta. Por ejemplo, 4 son A, B, C y D.' },
@@ -93,6 +102,7 @@
     {
       id: 'evaluacion',
       label: 'Paso 2 · Escribir las preguntas (opcional)',
+      adv: true,
       steps: [
         {
           tab: 'evaluacion',
@@ -189,6 +199,7 @@
         },
         {
           pro: true,
+          adv: true,
           optional: true,
           tab: 'corregir',
           target: '#proBookSave',
@@ -201,6 +212,7 @@
       id: 'cursos',
       label: 'Cursos, libro de notas y respaldo',
       pro: true,
+      adv: true,
       steps: [
         {
           tab: 'cursos',
@@ -218,8 +230,12 @@
     },
   ];
 
-  const usable = (list) => list.filter((x) => PRO || !x.pro);
-  const chapters = () => usable(CHAPTERS).map((c) => Object.assign({}, c, { steps: usable(c.steps) }));
+  // adv: sólo en el modo avanzado de la Pro; simple: sólo en el modo simple.
+  const simpleMode = () => document.documentElement.dataset.modo === 'simple';
+  const usable = (list) => list.filter((x) => (PRO || !x.pro) && !(x.adv && simpleMode()) && !(x.simple && !simpleMode()));
+  // En el modo simple no está el paso 2 (Preguntas): los siguientes se renumeran.
+  const relabel = (label) => (simpleMode() ? label.replace(/^Paso (\d)/, (m, n) => `Paso ${n > 2 ? n - 1 : n}`) : label);
+  const chapters = () => usable(CHAPTERS).map((c) => Object.assign({}, c, { label: relabel(c.label), steps: usable(c.steps) }));
 
   /* ---------- Pantalla ---------- */
 
