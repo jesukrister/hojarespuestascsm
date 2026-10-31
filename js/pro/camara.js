@@ -144,6 +144,9 @@
     pending = { sig: null, count: 0 };
     $('#lvCount').textContent = '0';
     $('#lvList').innerHTML = '';
+    const group = app.currentGroup();
+    $('#lvCourse').hidden = !group;
+    $('#lvCourse').textContent = group ? `Curso: ${app.groupLabel(group)}` : '';
     setStatus('Abriendo la cámara…');
     dlg.showModal();
     try {

@@ -30,8 +30,123 @@
   }
 
   function setExamLink(courseId, evalId) {
-    state.exam.pro = Object.assign({}, examLink(), { courseId: courseId || null, evalId: evalId || null });
+    const link = examLink();
+    const extra = (link.extraCourses || []).filter((id) => id !== courseId);
+    state.exam.pro = Object.assign({}, link, { courseId: courseId || null, evalId: evalId || null, extraCourses: courseId ? extra : [] });
     app.save();
+  }
+
+  /* ---------- Una prueba para varios cursos ---------- */
+
+  /** Cursos que rinden la prueba: el principal y los demás (sin repetir y que existan). */
+  function examCourses() {
+    const link = examLink();
+    const main = Pro.course(link.courseId);
+    if (!main) return [];
+    const out = [main];
+    for (const id of link.extraCourses || []) {
+      const c = Pro.course(id);
+      if (c && out.indexOf(c) < 0) out.push(c);
+    }
+    return out;
+  }
+  Pro.examCourses = examCourses;
+
+  /** Nombre corto del curso (con la asignatura si hay dos con el mismo nombre). */
+  function shortLabel(c) {
+    const same = examCourses().filter((x) => x.name === c.name).length > 1;
+    return same || !c.name ? L.courseLabel(c) : c.name;
+  }
+  Pro.courseShortLabel = shortLabel;
+
+  /** Evaluación del libro donde se guardaron las notas de ese curso. */
+  function evalFor(courseId) {
+    const link = examLink();
+    const map = link.evals && typeof link.evals === 'object' ? link.evals : {};
+    return map[courseId] || (courseId === link.courseId ? link.evalId : null) || null;
+  }
+
+  function linkEval(courseId, evalId) {
+    const many = examCourses().length > 1 && examCourses().some((c) => c.id === courseId);
+    if (!many) return setExamLink(courseId, evalId);
+    const link = examLink();
+    const evals = Object.assign({}, link.evals || {}, { [courseId]: evalId || null });
+    state.exam.pro = Object.assign({}, link, { evals }, courseId === link.courseId ? { evalId: evalId || null } : {});
+    app.save();
+  }
+
+  /** Curso cuyas hojas se están escaneando (en Corregir). */
+  function scanCourse() {
+    const list = examCourses();
+    const id = examLink().scanCourse;
+    return list.find((c) => c.id === id) || list[0] || null;
+  }
+
+  function setScanCourse(id) {
+    state.exam.pro = Object.assign({}, examLink(), { scanCourse: id });
+    app.save();
+    renderScanCourse();
+    app.renderResults();
+  }
+
+  app.setGroupSource({
+    list: () => examCourses().map((c) => ({ id: c.id, label: shortLabel(c) })),
+    current: () => (scanCourse() || {}).id,
+    roster: (id) => {
+      const c = Pro.course(id);
+      return c ? L.rosterText(c) : '';
+    },
+  });
+
+  function addExtraCourse(id) {
+    const link = examLink();
+    if (!Pro.course(id) || id === link.courseId) return;
+    const extra = (link.extraCourses || []).filter((x) => x !== id).concat([id]);
+    state.exam.pro = Object.assign({}, link, { extraCourses: extra });
+    app.save();
+    afterCoursesChange();
+  }
+
+  async function removeExtraCourse(id) {
+    const c = Pro.course(id);
+    const n = state.results.filter((r) => app.groupOf(r) === id).length;
+    if (n) {
+      const ok = await Pro.confirm({
+        title: 'Quitar el curso de la prueba',
+        html: `<p>Ya hay <b>${n}</b> hoja(s) escaneada(s) de <b>${esc(c ? L.courseLabel(c) : 'este curso')}</b>. Si lo quitas, esas hojas pasan al curso principal (puedes borrarlas en Corregir antes de quitarlo).</p>`,
+        ok: 'Quitar igual',
+      });
+      if (!ok) return;
+    }
+    const link = examLink();
+    state.exam.pro = Object.assign({}, link, { extraCourses: (link.extraCourses || []).filter((x) => x !== id) });
+    app.save();
+    afterCoursesChange();
+  }
+
+  function afterCoursesChange() {
+    boxState.courseId = null;
+    boxState.evalId = null;
+    renderExamLink();
+    renderScanCourse();
+    app.renderResults();
+    app.emit('examForm');
+  }
+
+  /** Corregir: botones «¿De qué curso son las hojas?». */
+  function renderScanCourse() {
+    const box = $('#proScanCourse');
+    if (!box) return;
+    const list = examCourses();
+    box.hidden = list.length < 2;
+    if (list.length < 2) return;
+    const cur = scanCourse();
+    $('#proScanCourseSeg').innerHTML = list
+      .map((c) => {
+        const n = state.results.filter((r) => app.groupOf(r) === c.id).length;
+        return `<button type="button" role="radio" aria-checked="${c === cur}" data-scan-course="${esc(c.id)}">${esc(shortLabel(c))}<small>${n} hoja${n === 1 ? '' : 's'}</small></button>`;
+      })
+      .join('');
   }
 
   function courseOptions(selected) {
@@ -74,6 +189,7 @@
 
   function renderAll() {
     renderExamLink();
+    renderScanCourse();
     renderBookBox();
     if (!$('#tab-cursos').hidden) renderCursos();
   }
@@ -90,7 +206,25 @@
     sel.innerHTML =
       `<option value="">— Sin curso —</option>` + courseOptions(c ? c.id : '') + `<option value="${NEW}">＋ Crear un curso nuevo…</option>`;
     sel.value = c ? c.id : '';
-    $('#proExamCourseInfo').textContent = c
+    const list = examCourses();
+    const more = $('#proExamMore');
+    more.hidden = !c;
+    if (c) {
+      const others = Pro.book.courses.filter((x) => list.indexOf(x) < 0);
+      $('#proExamMoreChips').innerHTML = list
+        .slice(1)
+        .map((x) => `<span class="course-chip">${esc(L.courseLabel(x))}<button type="button" data-remove-course="${esc(x.id)}" aria-label="Quitar ${esc(L.courseLabel(x))}" title="Quitar este curso de la prueba">✕</button></span>`)
+        .join('');
+      $('#proExamMoreAdd').innerHTML =
+        `<option value="">${list.length > 1 ? '＋ Otro curso…' : '＋ Agregar otro curso…'}</option>` +
+        others.map((x) => `<option value="${esc(x.id)}">${esc(L.courseLabel(x))}</option>`).join('') +
+        `<option value="${NEW}">＋ Crear un curso nuevo…</option>`;
+      $('#proExamMoreAdd').value = '';
+    }
+    $('#proExamCourseInfo').textContent =
+      list.length > 1
+        ? `La misma prueba para ${list.length} cursos: en Corregir eliges de qué curso son las hojas que escaneas, y cada curso guarda sus notas en su libro.`
+        : c
       ? `La lista de estudiantes se toma de este curso (${L.activeStudents(c).length}). En Corregir podrás guardar las notas en su libro.`
       : Pro.book.courses.length
         ? 'Elige el curso para usar su lista de estudiantes y guardar las notas en su libro.'
@@ -99,7 +233,10 @@
     const ta = $('#roster');
     if (c) {
       note.hidden = false;
-      note.textContent = `📚 Esta lista viene del curso ${L.courseLabel(c)}. Para cambiarla, ve a Cursos → Estudiantes.`;
+      note.textContent =
+        list.length > 1
+          ? `📚 Esta es la lista de ${L.courseLabel(c)}; las de ${list.slice(1).map((x) => x.name).join(', ')} también se toman de Cursos. Para cambiarlas, ve a Cursos → Estudiantes.`
+          : `📚 Esta lista viene del curso ${L.courseLabel(c)}. Para cambiarla, ve a Cursos → Estudiantes.`;
       ta.readOnly = true;
     } else {
       note.hidden = true;
@@ -116,12 +253,11 @@
       return;
     }
     const link = examLink();
-    setExamLink(v || null, link.courseId === v ? link.evalId : null);
+    setExamLink(v || null, link.courseId === v ? link.evalId : evalFor(v));
     boxState.courseId = null;
     boxState.evalId = null;
     syncRosterFromCourse();
-    renderExamLink();
-    renderBookBox();
+    afterCoursesChange();
   }
 
   /* ------------------------------------------------------------------ */
@@ -131,8 +267,13 @@
   // Lo elegido en el recuadro (se guarda en la prueba al guardar las notas).
   const boxState = { courseId: null, evalId: null, fieldsFor: '' };
 
-  function resultEntries() {
-    return app.sortedResults().map(({ r, g }) => {
+  /** Hojas para guardar en el libro del curso (si la prueba es de varios cursos, sólo las de ese curso). */
+  function resultEntries(course) {
+    const many = examCourses().length > 1;
+    return app
+      .sortedResults('all')
+      .filter(({ r }) => !many || !course || app.groupOf(r) === course.id)
+      .map(({ r, g }) => {
       const name = app.displayName(r);
       const label = (r.code ? `N° ${r.code}` : 'Hoja sin N° de lista') + (name ? ` · ${name}` : r.code ? '' : ` (${r.fileName || 'foto'})`);
       const oa = {};
@@ -154,7 +295,22 @@
 
   function boxCourse() {
     const courses = Pro.book.courses;
+    const list = examCourses();
+    if (list.length > 1) {
+      const chosen = list.find((c) => c.id === boxState.courseId) || list.find((c) => c.id === app.resultsGroup());
+      return chosen || list.find((c) => pendingFor(c) > 0) || list[0];
+    }
     return Pro.course(boxState.courseId) || linkedCourse() || Pro.course(Pro.ui.courseId) || courses[0] || null;
+  }
+
+  /** Notas de ese curso que faltan por guardar en su libro. */
+  function pendingFor(course) {
+    const entries = resultEntries(course);
+    if (!entries.length) return 0;
+    const id = evalFor(course.id);
+    const ev = id ? course.evaluations.find((e) => e.id === id) : null;
+    if (!ev) return L.planSave(course, null, entries).rows.length;
+    return L.planSave(course, ev, entries).rows.filter((r) => r.status === 'nueva' || r.status === 'cambia').length;
   }
 
   function renderBookBox() {
@@ -169,12 +325,21 @@
       return;
     }
     boxState.courseId = course.id;
-    $('#proBookCourse').innerHTML = courseOptions(course.id);
+    const list = examCourses();
+    const many = list.length > 1;
+    $('#proBookCourse').innerHTML = many
+      ? list
+          .map((c) => {
+            const n = resultEntries(c).length;
+            return `<option value="${esc(c.id)}">${esc(L.courseLabel(c))} · ${n} hoja${n === 1 ? '' : 's'}</option>`;
+          })
+          .join('')
+      : courseOptions(course.id);
     $('#proBookCourse').value = course.id;
 
-    const link = examLink();
     let evalId = boxState.evalId;
-    if (!evalId) evalId = link.courseId === course.id && course.evaluations.some((e) => e.id === link.evalId) ? link.evalId : NEW;
+    const linked = evalFor(course.id);
+    if (!evalId) evalId = linked && course.evaluations.some((e) => e.id === linked) ? linked : NEW;
     if (evalId !== NEW && !course.evaluations.some((e) => e.id === evalId)) evalId = NEW;
     boxState.evalId = evalId;
     const evs = L.sortEvaluations(course.evaluations).reverse();
@@ -200,7 +365,7 @@
     }
 
     const ev = isNew ? null : course.evaluations.find((e) => e.id === evalId);
-    const plan = L.planSave(course, ev, resultEntries());
+    const plan = L.planSave(course, ev, resultEntries(course));
     const pending = plan.rows.filter((r) => r.status === 'nueva' || r.status === 'cambia').length;
     let status;
     if (!state.exam.key.some((k) => k !== null)) status = '⚠️ Falta la clave de respuestas: sin clave no hay notas que guardar.';
@@ -208,6 +373,11 @@
     else if (!pending) status = `✓ Las notas ya están guardadas en «${ev.title}».`;
     else status = `${pending} nota(s) nueva(s) o distinta(s) sin guardar en «${ev.title}».`;
     if (plan.problems.length) status += ` ${plan.problems.length} hoja(s) no se pueden guardar todavía (revísalas al guardar).`;
+    if (many) {
+      const others = list.filter((c) => c !== course).map((c) => ({ c, n: pendingFor(c), total: resultEntries(c).length }));
+      const txt = others.map((o) => (!o.total ? `${shortLabel(o.c)}: sin hojas` : o.n ? `${shortLabel(o.c)}: ${o.n} sin guardar` : `${shortLabel(o.c)}: ✓ guardadas`));
+      status += ` Otros cursos de la prueba → ${txt.join(' · ')}.`;
+    }
     $('#proBookStatus').textContent = status;
     $('#proBookSave').textContent = isNew ? '📚 Guardar notas en el libro' : '📚 Actualizar notas en el libro';
   }
@@ -223,7 +393,7 @@
     if (!course) return;
     if (!state.exam.key.some((k) => k !== null)) return app.toast('Falta la clave de respuestas: sin clave no hay notas que guardar.');
     let ev = boxState.evalId !== NEW ? course.evaluations.find((e) => e.id === boxState.evalId) || null : null;
-    const plan = L.planSave(course, ev, resultEntries());
+    const plan = L.planSave(course, ev, resultEntries(course));
     const by = (s) => plan.rows.filter((r) => r.status === s);
     const nuevas = by('nueva');
     const cambian = by('cambia');
@@ -297,12 +467,19 @@
     L.applySave(ev, plan, now);
     course.updatedAt = now;
     await Pro.saveBook();
-    setExamLink(course.id, ev.id);
+    linkEval(course.id, ev.id);
     boxState.evalId = ev.id;
     Pro.ui.courseId = course.id;
     Pro.saveUi();
+    // Prueba de varios cursos: se pasa al siguiente curso con notas sin guardar.
+    const next = examCourses().find((c) => c !== course && pendingFor(c) > 0);
+    if (next) {
+      boxState.courseId = next.id;
+      boxState.evalId = null;
+      boxState.fieldsFor = '';
+    }
     renderBookBox();
-    app.toast(`Notas guardadas en el libro de ${L.courseLabel(course)} (${toSave}).`);
+    app.toast(`Notas guardadas en el libro de ${L.courseLabel(course)} (${toSave}).${next ? ` Ahora puedes guardar las de ${shortLabel(next)}.` : ''}`);
   }
 
   /* ------------------------------------------------------------------ */
@@ -769,11 +946,11 @@
   /* Diálogo: curso                                                      */
   /* ------------------------------------------------------------------ */
 
-  let courseDlg = { id: null, linkExam: false };
+  let courseDlg = { id: null, linkExam: false, addToExam: false };
 
   function openCourseDialog(courseId, opts) {
     const c = Pro.course(courseId);
-    courseDlg = { id: c ? c.id : null, linkExam: !!(opts && opts.linkExam) };
+    courseDlg = { id: c ? c.id : null, linkExam: !!(opts && opts.linkExam), addToExam: !!(opts && opts.addToExam) };
     const sc = state.exam.scoring;
     $('#proCourseTitle').textContent = c ? 'Datos del curso' : 'Nuevo curso';
     $('#pcName').value = c ? c.name : '';
@@ -855,7 +1032,11 @@
       Pro.book.courses.push(c);
       Pro.ui.courseId = c.id;
       Pro.saveUi();
-      if (courseDlg.linkExam) {
+      if (courseDlg.addToExam && linkedCourse()) {
+        const link = examLink();
+        state.exam.pro = Object.assign({}, link, { extraCourses: (link.extraCourses || []).concat([c.id]) });
+        app.save();
+      } else if (courseDlg.linkExam) {
         setExamLink(c.id, null);
         boxState.courseId = c.id;
         boxState.evalId = null;
@@ -1033,7 +1214,7 @@
     if (!ok) return;
     c.evaluations = c.evaluations.filter((e) => e.id !== ev.id);
     c.updatedAt = Date.now();
-    if (examLink().evalId === ev.id) setExamLink(examLink().courseId, null);
+    if (evalFor(c.id) === ev.id) linkEval(c.id, null);
     if (boxState.evalId === ev.id) boxState.evalId = null;
     await Pro.saveBook();
     $('#proEvalDialog').close();
@@ -1108,6 +1289,20 @@
   function bind() {
     // Pestaña Prueba.
     $('#proExamCourse').addEventListener('change', onExamCourseChange);
+    $('#proExamMoreAdd').addEventListener('change', (e) => {
+      const v = e.target.value;
+      e.target.value = '';
+      if (v === NEW) openCourseDialog(null, { addToExam: true });
+      else if (v) addExtraCourse(v);
+    });
+    $('#proExamMoreChips').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-remove-course]');
+      if (b) removeExtraCourse(b.dataset.removeCourse);
+    });
+    $('#proScanCourseSeg').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-scan-course]');
+      if (b) setScanCourse(b.dataset.scanCourse);
+    });
 
     // Resultados.
     $('#proBookCourse').addEventListener('change', (e) => {
@@ -1257,14 +1452,20 @@
     $('#peReuse').addEventListener('click', reuseExam);
 
     // Avisos de la aplicación.
-    app.on('results', renderBookBox);
+    app.on('results', () => {
+      renderBookBox();
+      renderScanCourse();
+    });
     app.on('examForm', renderExamLink);
     app.on('tab', (name) => {
       if (name === 'cursos') renderCursos();
     });
     app.on('resultsCleared', () => {
       // Resultados borrados: la próxima vez se guarda como una evaluación nueva.
-      if (state.exam.pro) state.exam.pro.evalId = null;
+      if (state.exam.pro) {
+        state.exam.pro.evalId = null;
+        state.exam.pro.evals = {};
+      }
       boxState.evalId = null;
     });
   }
@@ -1274,5 +1475,7 @@
     if (Pro.ui.courseId && !Pro.course(Pro.ui.courseId)) Pro.ui.courseId = null;
     syncRosterFromCourse();
     renderAll();
+    renderScanCourse();
+    app.renderResults();
   });
 })();

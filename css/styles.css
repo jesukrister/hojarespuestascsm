@@ -774,6 +774,12 @@ label.inline-select select { width: auto; }
 .form-keys th { background: var(--bg); }
 .form-keys td.fk-label { font-weight: 600; text-align: left; white-space: nowrap; }
 .tag.form { background: #e8eaf6; color: #283593; }
+.tag.group { background: #e0f2f1; color: #00695c; }
+.group-filter { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 12px; }
+.group-filter button { border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-weight: 600; font-size: 0.9rem; padding: 6px 12px; border-radius: 999px; cursor: pointer; }
+.group-filter button small { color: var(--muted); font-weight: 500; }
+.group-filter button[aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: #fff; }
+.group-filter button[aria-pressed="true"] small { color: rgba(255, 255, 255, 0.85); }
 .sheet-preview .sheet-page + .sheet-page { margin-top: 16px; }
 label.form-pick select { width: auto; min-width: 4.5em; }
 

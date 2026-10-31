@@ -120,10 +120,16 @@
             <label class="span-2">Subtítulo (asignatura, curso, profesor…)
               <input id="exSubtitle" type="text" maxlength="100" placeholder="8° Básico A · Prof. …">
             </label>
-            <label class="span-2 pz-course">Curso
-              <select id="proExamCourse"></select>
+            <div class="span-2 pz-course">
+              <label>Curso
+                <select id="proExamCourse"></select>
+              </label>
+              <div id="proExamMore" class="pz-more-courses" hidden>
+                <span id="proExamMoreChips" class="course-chips"></span>
+                <select id="proExamMoreAdd" aria-label="Otro curso que rinde esta misma prueba" title="¿Otro curso rinde esta misma prueba? Agrégalo: las hojas se dividen por curso."></select>
+              </div>
               <small id="proExamCourseInfo" class="muted"></small>
-            </label>
+            </div>
             <div class="field">
               <span class="field-label" id="exQuestionsLbl">N° de preguntas</span>
               <span class="num-step">
@@ -621,6 +627,10 @@
             <div class="card scan-card">
               <h2>Escanear hojas</h2>
               <p id="corrTest" class="corr-test muted small"></p>
+              <div id="proScanCourse" class="scan-course" hidden>
+                <span class="field-label">¿De qué curso son las hojas que vas a escanear?</span>
+                <div id="proScanCourseSeg" class="scan-course-seg" role="radiogroup" aria-label="Curso de las hojas"></div>
+              </div>
               <div class="scan-buttons">
                 <label class="btn primary big" for="cameraInput">📷 Tomar foto</label>
                 <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden>
@@ -661,6 +671,7 @@
               <p class="muted">Toma una foto o sube las imágenes: cada estudiante va apareciendo aquí con su nota.</p>
             </div>
             <div id="resultsContent" hidden>
+              <div id="groupFilter" class="group-filter" role="group" aria-label="Curso" hidden></div>
               <div id="statsCards" class="stats"></div>
               <div class="card results-card">
                 <div class="card-head results-head">
@@ -1902,6 +1913,7 @@ Núcleo = Contiene el material genético</pre>
       <p id="lvStatus" class="lv-status" role="status" aria-live="polite"></p>
       <div class="lv-bar">
         <span class="lv-count"><b id="lvCount">0</b> hoja(s) leída(s)</span>
+        <span id="lvCourse" class="lv-course" hidden></span>
         <span class="spacer"></span>
         <button type="button" class="btn ghost small" id="lvTorch" aria-pressed="false" hidden>🔦 Linterna</button>
         <button type="button" class="btn primary" id="lvDone">Terminar</button>

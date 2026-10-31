@@ -510,6 +510,7 @@
             <div class="card scan-card">
               <h2>Escanear hojas</h2>
               <p id="corrTest" class="corr-test muted small"></p>
+              <!-- pro:escanear-curso -->
               <div class="scan-buttons">
                 <label class="btn primary big" for="cameraInput">📷 Tomar foto</label>
                 <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden>
@@ -549,6 +550,7 @@
               <p class="muted">Toma una foto o sube las imágenes: cada estudiante va apareciendo aquí con su nota.</p>
             </div>
             <div id="resultsContent" hidden>
+              <div id="groupFilter" class="group-filter" role="group" aria-label="Curso" hidden></div>
               <div id="statsCards" class="stats"></div>
               <div class="card results-card">
                 <div class="card-head results-head">

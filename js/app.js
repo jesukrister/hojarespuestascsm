@@ -703,16 +703,17 @@
   /** Lista del curso (con N° de lista): cuántos estudiantes hay, cuántos ya tienen hoja y quiénes faltan. */
   function scanProgressData() {
     const e = state.exam;
-    const names = e.idDigits > 0 ? e.roster.split(/\r?\n/).map((l) => l.trim()) : [];
+    const group = currentGroup();
+    const names = e.idDigits > 0 ? rosterLines(group).map((l) => l.trim()) : [];
     while (names.length && !names[names.length - 1]) names.pop();
     const listed = names.filter(Boolean).length;
     const done = new Set();
-    for (const r of state.results) if (/^\d+$/.test(r.code || '')) done.add(parseInt(r.code, 10));
+    for (const r of state.results) if ((!group || groupOf(r) === group) && /^\d+$/.test(r.code || '')) done.add(parseInt(r.code, 10));
     const missing = [];
     names.forEach((name, i) => {
       if (name && !done.has(i + 1)) missing.push({ n: i + 1, name });
     });
-    return { listed, have: listed - missing.length, missing };
+    return { listed, have: listed - missing.length, missing, group: group ? groupLabel(group) : '' };
   }
 
   function docQuestionCount() {
@@ -2291,6 +2292,8 @@
       form: res.form ? res.form.index : 0,
       warnings: resultWarnings(res),
     };
+    const group = currentGroup();
+    if (group) record.group = group;
     // Casillas de desarrollo (las que la hoja no tenga quedan sin puntaje).
     if (state.exam.dev.length) {
       record.dev = state.exam.dev.map((_, i) => (res.dev && res.dev[i] ? { marked: res.dev[i].marked, uncertain: res.dev[i].uncertain } : null));
@@ -2370,7 +2373,7 @@
     persistView(record.id, view);
     save();
     const g = grade(record);
-    const who = record.code ? `Código ${record.code}` : name;
+    const who = (record.group ? `${groupLabel(record.group)} · ` : '') + (record.code ? `Código ${record.code}` : name);
     item.ok(`${who}${record.pie ? ' (PIE)' : ''} · ${g.correct}/${g.items.length - g.excluded} correctas · nota ${fmt(g.grade, 1)}`, record.id);
     showScanned(record.id);
   }
@@ -2811,6 +2814,7 @@
         transcribed: true,
         warnings: ['Hoja transcrita por el docente a partir de la hoja original.'],
       };
+      if (currentGroup()) record.group = currentGroup();
       if (e.dev.length) record.dev = e.dev.map((_, i) => ({ marked: TR.dev[i] === null ? [] : [TR.dev[i]], uncertain: false }));
       if (pie) {
         record.pie = true;
@@ -2986,15 +2990,63 @@
 
   const LEVEL_CLASS = { L: 'lvl-L', ML: 'lvl-ML', NL: 'lvl-NL' };
 
-  function rosterName(code) {
+  /*
+   * Versión Pro: una misma prueba para varios cursos. Cada hoja guarda su
+   * curso (r.group) y el nombre se busca en la lista de ese curso.
+   * groupSource = { list(): [{ id, label }], current(): id, roster(id): texto }.
+   */
+  let groupSource = null;
+
+  function groups() {
+    try {
+      return (groupSource && groupSource.list()) || [];
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
+  }
+
+  /** Cursos de la prueba (sólo si son dos o más; si no, no se dividen las hojas). */
+  function multiGroups() {
+    const gs = groups();
+    return gs.length > 1 ? gs : [];
+  }
+
+  /** Curso de una hoja (las hojas sin curso quedan en el primero). */
+  function groupOf(r) {
+    const gs = multiGroups();
+    if (!gs.length) return null;
+    return r && gs.some((g) => g.id === r.group) ? r.group : gs[0].id;
+  }
+
+  /** Curso que se está escaneando. */
+  function currentGroup() {
+    const gs = multiGroups();
+    if (!gs.length) return null;
+    const c = groupSource.current();
+    return gs.some((g) => g.id === c) ? c : gs[0].id;
+  }
+
+  function groupLabel(id) {
+    const g = groups().find((x) => x.id === id);
+    return g ? g.label : '';
+  }
+
+  /** Lista de nombres (una línea por N° de lista) del curso, o la de la prueba. */
+  function rosterLines(group) {
+    const text = group && groupSource ? groupSource.roster(group) : state.exam.roster;
+    return String(text || '').split(/\r?\n/);
+  }
+
+  function rosterName(code, r) {
     if (!code || !/^\d+$/.test(code)) return '';
-    const lines = state.exam.roster.split(/\r?\n/);
+    const lines = rosterLines(groupOf(r));
     const n = parseInt(code, 10);
     return n >= 1 && n <= lines.length ? lines[n - 1].trim() : '';
   }
 
   function displayName(r) {
-    return r.name || rosterName(r.code);
+    return r.name || rosterName(r.code, r);
   }
 
   function needsReview(r) {
@@ -3097,9 +3149,16 @@
         <div class="detail-head">
           <div class="who">
             <label class="code">Código<input type="text" data-field="code" value="${esc(r.code || '')}" inputmode="numeric" autocomplete="off"></label>
-            <label>Nombre<input type="text" data-field="name" value="${esc(r.name || '')}" placeholder="${esc(rosterName(r.code) || 'Nombre del estudiante')}" autocomplete="off"></label>
+            <label>Nombre<input type="text" data-field="name" value="${esc(r.name || '')}" placeholder="${esc(rosterName(r.code, r) || 'Nombre del estudiante')}" autocomplete="off"></label>
             ${r.pie ? '<span class="tag pie detail-tag" title="Hoja de la versión adecuada: una alternativa menos por pregunta">Versión PIE</span>' : ''}
             ${rule && rule.exigencia && rule.exigencia !== sc.exigencia ? `<span class="tag pie detail-tag" title="${esc(rule.title || '')}">Exigencia ${rule.exigencia}%</span>` : ''}
+            ${
+              multiGroups().length
+                ? `<label class="form-pick">Curso<select data-field="group">${multiGroups()
+                    .map((g) => `<option value="${esc(g.id)}"${groupOf(r) === g.id ? ' selected' : ''}>${esc(g.label)}</option>`)
+                    .join('')}</select></label>`
+                : ''
+            }
             ${
               state.exam.forms && !r.pie
                 ? `<label class="form-pick">Fila<select data-field="form">${formUnknown(r) ? '<option value="" selected>?</option>' : ''}${state.exam.forms.maps
@@ -3293,6 +3352,8 @@
       const prev = r.dev[i] || { marked: [] };
       const original = prev.edited ? prev.original : prev.marked;
       r.dev[i] = { marked: v === '' ? [] : [Number(v)], uncertain: false, edited: true, original };
+    } else if (e.type === 'change' && e.target.matches('select[data-field="group"]')) {
+      r.group = e.target.value;
     } else if (e.type === 'change' && e.target.matches('select[data-field="form"]')) {
       if (e.target.value === '') return;
       r.form = Number(e.target.value);
@@ -3349,7 +3410,7 @@
     $('#corrTest').textContent =
       `${e.title.trim() || 'Prueba sin título'} · ${e.numQuestions} preguntas` +
       (keySet < e.numQuestions ? ` · ⚠ faltan ${e.numQuestions - keySet} respuesta${e.numQuestions - keySet === 1 ? '' : 's'} en la clave` : '');
-    const { listed, have, missing } = scanProgressData();
+    const { listed, have, missing, group } = scanProgressData();
     if (!listed) {
       box.hidden = !n;
       box.innerHTML = `<div class="sp-head"><b>${n} hoja${n === 1 ? '' : 's'} corregida${n === 1 ? '' : 's'}</b></div>`;
@@ -3360,7 +3421,7 @@
     const short = (name) => name.split(/\s+/)[0];
     box.hidden = false;
     box.innerHTML =
-      `<div class="sp-head"><b>${have} de ${listed} estudiantes</b><span class="muted small">${pct} %</span></div>` +
+      `<div class="sp-head"><b>${group ? `${esc(group)}: ` : ''}${have} de ${listed} estudiantes</b><span class="muted small">${pct} %</span></div>` +
       `<div class="sp-bar"><i style="width:${pct}%"></i></div>` +
       (missing.length
         ? `<span class="muted small">Faltan:</span><div class="sp-missing">${shown
@@ -3369,8 +3430,11 @@
         : '<span class="small" style="color:var(--ok);font-weight:600">✔ Están todos los estudiantes de la lista.</span>');
   }
 
-  function sortedResults() {
+  /** Resultados ordenados por N° de lista (sólo los del curso elegido en Corregir, salvo scope 'all'). */
+  function sortedResults(scope) {
+    const group = scope === 'all' ? '' : resultsGroup();
     return state.results
+      .filter((r) => !group || groupOf(r) === group)
       .map((r) => ({ r, g: gradeCanon(r) }))
       .sort((a, b) => {
         const ca = /^\d+$/.test(a.r.code || '') ? parseInt(a.r.code, 10) : Infinity;
@@ -3397,7 +3461,30 @@
   /* ---------- Hoja de cada estudiante (cuadro con «Anterior» y «Siguiente») ---------- */
   let resultOrder = []; // ids en el orden de la lista que se ve
   let lastScannedId = null;
-  const resultsFilter = { text: '', review: false };
+  const resultsFilter = { text: '', review: false, group: '' };
+
+  /** Curso elegido en la lista de resultados ('' = todos). */
+  function resultsGroup() {
+    const g = resultsFilter.group;
+    return g && multiGroups().some((x) => x.id === g) ? g : '';
+  }
+
+  function renderGroupFilter() {
+    const box = $('#groupFilter');
+    if (!box) return;
+    const gs = multiGroups();
+    box.hidden = !gs.length;
+    if (!gs.length) return;
+    const count = (id) => state.results.filter((r) => groupOf(r) === id).length;
+    const cur = resultsGroup();
+    box.innerHTML =
+      `<span class="muted small">Ver:</span>` +
+      [{ id: '', label: 'Todos los cursos', n: state.results.length }]
+        .concat(gs.map((g) => ({ id: g.id, label: g.label, n: count(g.id) })))
+        .map((g) => `<button type="button" data-group-filter="${esc(g.id)}" aria-pressed="${g.id === cur}">${esc(g.label)} <small>(${g.n})</small></button>`)
+        .join('');
+    $('#btnClearResults').textContent = cur ? `🗑 Borrar los resultados de ${groupLabel(cur)}…` : '🗑 Borrar todos los resultados…';
+  }
 
   function openResult(id) {
     if (!state.results.some((r) => r.id === id)) return;
@@ -3452,6 +3539,7 @@
   }
 
   function renderResultsTable() {
+    renderGroupFilter();
     const all = sortedResults();
     const sc = state.exam.scoring;
     const grades = all.map((x) => x.g.grade).filter((g) => g !== null);
@@ -3488,8 +3576,11 @@
     const rows = all.filter((x) => (!resultsFilter.review || needsReview(x.r)) && (!q || normText(`${x.r.code || ''} ${displayName(x.r)} ${x.r.fileName}`).includes(q)));
     resultOrder = rows.map((x) => x.r.id);
 
+    // Código repetido dentro del mismo curso (en otro curso es otro estudiante).
+    const codeKey = (r) => `${groupOf(r) || ''}|${r.code}`;
     const codeCount = {};
-    for (const x of all) if (x.r.code) codeCount[x.r.code] = (codeCount[x.r.code] || 0) + 1;
+    for (const x of all) if (x.r.code) codeCount[codeKey(x.r)] = (codeCount[codeKey(x.r)] || 0) + 1;
+    const showGroup = multiGroups().length && !resultsGroup();
     const dev = state.exam.dev.length > 0;
     const body = rows
       .map((x) => {
@@ -3497,7 +3588,8 @@
         const tags = [];
         const rev = needsReview(r);
         if (rev) tags.push('<span class="tag warn">revisar</span>');
-        if (r.code && codeCount[r.code] > 1) tags.push('<span class="tag bad">código repetido</span>');
+        if (r.code && codeCount[codeKey(r)] > 1) tags.push('<span class="tag bad">código repetido</span>');
+        if (showGroup) tags.push(`<span class="tag group">${esc(groupLabel(groupOf(r)))}</span>`);
         if (r.transcribed) tags.push('<span class="tag form">transcrita</span>');
         if (state.exam.forms && !r.pie) tags.push(`<span class="tag form">Fila ${formUnknown(r) ? '?' : formLetter(r.form || 0)}</span>`);
         const rule = ruleFor(r);
@@ -3522,7 +3614,7 @@
       </tr></thead><tbody>${body}</tbody>`;
     const none = $('#resultsNone');
     none.hidden = rows.length > 0;
-    none.textContent = rows.length ? '' : `Ningún estudiante coincide con «${resultsFilter.text.trim()}».`;
+    none.textContent = rows.length ? '' : all.length ? `Ningún estudiante coincide con «${resultsFilter.text.trim()}».` : 'Aún no hay hojas de este curso.';
     if ($('#resultDialog').open) updateResultNav();
     lastScannedId = null;
   }
@@ -3631,8 +3723,9 @@
     const version = versionHeader();
     const rows = sortedResults();
     const exig = exigenciaColumn(rows);
+    const withGroup = multiGroups().length > 0;
     lines.push(
-      ['N°', 'Código', 'Nombre', 'Archivo', 'Correctas', 'Incorrectas', 'Omitidas', 'Dobles marcas', 'Puntaje', 'Puntaje máximo', '% logro', 'Nota']
+      ['N°'].concat(withGroup ? ['Curso'] : []).concat(['Código', 'Nombre', 'Archivo', 'Correctas', 'Incorrectas', 'Omitidas', 'Dobles marcas', 'Puntaje', 'Puntaje máximo', '% logro', 'Nota'])
         .concat(exig ? ['Exigencia (%)'] : [])
         .concat(version ? [version] : [])
         .concat(currentObjectives().objectives.map((o) => `% ${o.name}`))
@@ -3642,7 +3735,7 @@
         .join(sep)
     );
     lines.push(
-      ['', '', state.exam.forms ? 'CLAVE (fila A)' : 'CLAVE', '', '', '', '', '', '', '', '', '']
+      (withGroup ? [''] : []).concat(['', '', state.exam.forms ? 'CLAVE (fila A)' : 'CLAVE', '', '', '', '', '', '', '', '', ''])
         .concat(exig ? [''] : [])
         .concat(version ? [''] : [])
         .concat(currentObjectives().objectives.map(() => ''))
@@ -3653,7 +3746,7 @@
     );
     rows.forEach(({ r, g }, i) => {
       lines.push(
-        [i + 1, r.code || '', displayName(r), r.fileName, g.correct, g.wrong, g.blank, g.multiple, dec(g.score, 2), dec(g.maxScore, 2), dec(g.percent, 1), dec(g.grade, 1)]
+        [i + 1].concat(withGroup ? [groupLabel(groupOf(r))] : []).concat([r.code || '', displayName(r), r.fileName, g.correct, g.wrong, g.blank, g.multiple, dec(g.score, 2), dec(g.maxScore, 2), dec(g.percent, 1), dec(g.grade, 1)])
           .concat(exig ? [scoringFor(r).exigencia] : [])
           .concat(version ? [versionText(r)] : [])
           .concat(oaResults(g).map((o) => dec(o.percent, 1)))
@@ -3664,7 +3757,7 @@
       );
     });
     const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
-    download(`${slug(state.exam.title)}-resultados.csv`, blob);
+    download(`${slug(state.exam.title)}${resultsGroup() ? '-' + slug(groupLabel(resultsGroup())) : ''}-resultados.csv`, blob);
   }
 
   /* ------------------------------------------------------------------ */
@@ -3922,6 +4015,8 @@
     const exig = exigenciaColumn(rows);
     if (exig) head.push('Exigencia (%)');
     if (version) head.push(version);
+    const withGroup = multiGroups().length > 0;
+    if (withGroup) head.push('Curso');
     const objectives = currentObjectives().objectives;
     for (const o of objectives) head.push(`% ${o.name}`);
     for (const d of exam.dev) head.push(`${d.label} (máx ${d.max})`);
@@ -3932,6 +4027,7 @@
     const sheetRows = [];
     sheetRows.push([{ v: exam.title || 'Resultados', s: 'title' }]);
     const info = [
+      resultsGroup() ? `Curso: ${groupLabel(resultsGroup())}` : null,
       exam.subtitle,
       `Exportado: ${fmtDateTime(Date.now())}`,
       `Exigencia: ${sc.exigencia}%`,
@@ -3978,6 +4074,7 @@
         g.grade === null ? '' : { v: g.grade, s: g.grade >= sc.gradePass ? 'ok' : 'bad' },
         ...(exig ? [scoringFor(r).exigencia] : []),
         ...(version ? [versionText(r)] : []),
+        ...(withGroup ? [groupLabel(groupOf(r))] : []),
         ...oaResults(g).map((o) => (o.percent === null ? '' : { v: o.percent, s: 'lvl' + o.level })),
         ...(g.dev || []).map((d) => (d.status === 'scored' ? d.points : { v: 'sin puntaje', s: 'bad' })),
         status,
@@ -3997,6 +4094,7 @@
     const cols = [5, 10, 28, 10, 11, 10, 9, 9, 10, 9, 7]
       .concat(exig ? [10] : [])
       .concat(version ? [8] : [])
+      .concat(withGroup ? [14] : [])
       .concat(objectives.map((o) => Math.max(9, Math.min(24, o.name.length + 4))))
       .concat(exam.dev.map(() => 11))
       .concat([16, 20, 18, 22])
@@ -4074,7 +4172,8 @@
    */
   async function buildEvidencePackage(onProgress) {
     const rows = sortedResults();
-    const folder = `${slugPart(state.exam.title, 'prueba')}_${dateStamp(new Date())}`;
+    const group = resultsGroup();
+    const folder = `${slugPart(state.exam.title, 'prueba')}${group ? '_' + slugPart(groupLabel(group), 'curso') : ''}_${dateStamp(new Date())}`;
     const files = [];
     const links = [];
     let missing = 0;
@@ -4719,6 +4818,12 @@
       resultsFilter.text = e.target.value;
       renderResultsTable();
     });
+    $('#groupFilter').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-group-filter]');
+      if (!b) return;
+      resultsFilter.group = b.dataset.groupFilter;
+      renderResults();
+    });
     $('#reviewFilter').addEventListener('click', () => {
       resultsFilter.review = !resultsFilter.review;
       renderResultsTable();
@@ -4736,6 +4841,19 @@
       folderBtn.addEventListener('click', saveEvidenceToFolder);
     }
     $('#btnClearResults').addEventListener('click', () => {
+      const group = resultsGroup();
+      if (group) {
+        const gone = state.results.filter((r) => groupOf(r) === group);
+        if (!gone.length) return toast(`No hay resultados de ${groupLabel(group)}.`);
+        if (!confirm(`¿Eliminar los ${gone.length} resultados de ${groupLabel(group)}? Los de los otros cursos no se tocan. Esta acción no se puede deshacer.`)) return;
+        for (const r of gone) forgetImage(r.id);
+        state.results = state.results.filter((r) => groupOf(r) !== group);
+        closeResult();
+        save();
+        renderResults();
+        renderResultsBadge();
+        return;
+      }
       if (!confirm(`¿Eliminar los ${state.results.length} resultados? Esta acción no se puede deshacer.`)) return;
       state.results = [];
       forgetAllImages();
@@ -4832,6 +4950,7 @@
   if (PRO) {
     window.LectorApp = {
       state,
+      emit,
       on(name, fn) {
         (hooks[name] = hooks[name] || []).push(fn);
       },
@@ -4869,6 +4988,18 @@
       pieLayout,
       pieReady,
       sanitizePie,
+      setGroupSource(src) {
+        groupSource = src && typeof src.list === 'function' ? src : null;
+      },
+      groupOf,
+      currentGroup,
+      groupLabel,
+      multiGroups,
+      setResultsGroup(id) {
+        resultsFilter.group = id || '';
+        if (!$('#tab-corregir').hidden) renderResults();
+      },
+      resultsGroup,
       setStudentRule(fn) {
         studentRule = typeof fn === 'function' ? fn : null;
       },

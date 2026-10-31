@@ -34,7 +34,7 @@
   /* ---------- Exigencia de los estudiantes PIE ---------- */
 
   function studentOf(r) {
-    const c = linkedCourse();
+    const c = Pro.course(app.groupOf(r)) || linkedCourse();
     if (!c || !r.code || !/^\d+$/.test(r.code)) return null;
     const n = parseInt(r.code, 10);
     return c.students.find((s) => s.n === n) || null;
@@ -186,11 +186,14 @@
       : '';
 
     const course = linkedCourse();
-    const ps = pieStudents(course);
-    $('#piStudents').innerHTML = course
-      ? ps.length
-        ? `Estudiantes PIE de ${esc(L.courseLabel(course))}: <b>${ps.map((s) => esc(s.name || 'N° ' + s.n)).join(', ')}</b>. En Imprimir hoja, las hojas con nombre les imprimen la hoja PIE.`
-        : `No hay estudiantes marcados PIE en ${esc(L.courseLabel(course))}: márcalos en Cursos → Estudiantes para usar su exigencia y darles su hoja PIE.`
+    const courses = Pro.examCourses && Pro.examCourses().length ? Pro.examCourses() : course ? [course] : [];
+    const withPie = courses.map((c) => ({ c, ps: pieStudents(c) })).filter((x) => x.ps.length);
+    const label = courses.map((c) => L.courseLabel(c)).join(', ');
+    $('#piStudents').innerHTML = courses.length
+      ? withPie.length
+        ? withPie.map((x) => `Estudiantes PIE de ${esc(L.courseLabel(x.c))}: <b>${x.ps.map((s) => esc(s.name || 'N° ' + s.n)).join(', ')}</b>.`).join(' ') +
+          ' En Imprimir hoja, las hojas con nombre les imprimen la hoja PIE.'
+        : `No hay estudiantes marcados PIE en ${esc(label)}: márcalos en Cursos → Estudiantes para usar su exigencia y darles su hoja PIE.`
       : 'Vincula la prueba a un curso (pestaña Prueba) para marcar a los estudiantes PIE y darles su exigencia.';
 
     const ready = app.pieReady() && !conflicts.length;

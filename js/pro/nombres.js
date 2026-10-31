@@ -12,16 +12,23 @@
   const SheetLayout = window.SheetLayout;
   const SheetRenderer = window.SheetRenderer;
   const EXAM_LIST = '__exam';
+  const ALL_COURSES = '__all';
   const picked = new Set();
 
-  /** Estudiantes de la lista elegida: [{ key, n, name, pie }]. */
+  function examCourses() {
+    return Pro.examCourses ? Pro.examCourses() : [];
+  }
+
+  /** Estudiantes de la lista elegida: [{ key, n, name, pie, curso }] (de todos los cursos de la prueba, uno tras otro). */
   function students() {
     const src = $('#pnSource').value;
+    const fromCourse = (c) => L.activeStudents(c).map((s) => ({ key: c.id + ':' + s.id, n: s.n, name: s.name, pie: !!s.pie, curso: c.name || '' }));
+    if (src === ALL_COURSES) return examCourses().reduce((all, c) => all.concat(fromCourse(c)), []);
     const c = Pro.course(src);
-    if (c) return L.activeStudents(c).map((s) => ({ key: s.id, n: s.n, name: s.name, pie: !!s.pie }));
+    if (c) return fromCourse(c);
     return state.exam.roster
       .split(/\r?\n/)
-      .map((name, i) => ({ key: 'n' + (i + 1), n: i + 1, name: name.trim() }))
+      .map((name, i) => ({ key: 'n' + (i + 1), n: i + 1, name: name.trim(), curso: '' }))
       .filter((s) => s.name);
   }
 
@@ -31,6 +38,7 @@
   }
 
   function courseName() {
+    if ($('#pnSource').value === ALL_COURSES) return examCourses().map((c) => c.name).join(', ');
     const c = Pro.course($('#pnSource').value);
     return c ? c.name : '';
   }
@@ -66,11 +74,14 @@
     const sel = $('#pnSource');
     const prev = sel.value;
     const link = state.exam.pro && state.exam.pro.courseId;
-    const opts = Pro.book.courses.map((c) => `<option value="${esc(c.id)}">${esc(L.courseLabel(c))}</option>`);
+    const many = examCourses();
+    const opts = (many.length > 1 ? [`<option value="${ALL_COURSES}">Todos los cursos de la prueba (${esc(many.map((c) => c.name).join(', '))})</option>`] : []).concat(
+      Pro.book.courses.map((c) => `<option value="${esc(c.id)}">${esc(L.courseLabel(c))}</option>`)
+    );
     if (state.exam.roster.trim()) opts.push(`<option value="${EXAM_LIST}">Lista de la prueba (pestaña Prueba)</option>`);
     sel.innerHTML = opts.join('') || '<option value="">— Sin lista: crea un curso o escribe la lista en Prueba —</option>';
     const values = Array.from(sel.options).map((o) => o.value);
-    sel.value = values.indexOf(prev) >= 0 ? prev : values.indexOf(link) >= 0 ? link : values[0];
+    sel.value = values.indexOf(prev) >= 0 ? prev : many.length > 1 ? ALL_COURSES : values.indexOf(link) >= 0 ? link : values[0];
   }
 
   function render() {
@@ -94,7 +105,7 @@
       $('#pnPick').innerHTML = all
         .map(
           (s) =>
-            `<label class="check"><input type="checkbox" data-key="${esc(s.key)}"${picked.has(s.key) ? ' checked' : ''}> ${s.n}. ${esc(s.name)}</label>`
+            `<label class="check"><input type="checkbox" data-key="${esc(s.key)}"${picked.has(s.key) ? ' checked' : ''}> ${$('#pnSource').value === ALL_COURSES ? esc(s.curso) + ' · ' : ''}${s.n}. ${esc(s.name)}</label>`
         )
         .join('');
     }
@@ -109,9 +120,9 @@
     const list = chosen();
     $('#pnList').hidden = !count && !list.some(usesPie);
     const fmt = SheetLayout.FORMATS[state.exam.format];
-    const pages = Math.ceil(list.length / fmt.perPage);
+    const pages = chunks(list, fmt.perPage).length;
     $('#pnInfo').textContent = list.length
-      ? `${list.length} hoja(s) con nombre · ${pages} página(s) (${fmt.label.toLowerCase()}).`
+      ? `${list.length} hoja(s) con nombre · ${pages} página(s) (${fmt.label.toLowerCase()}).${$('#pnSource').value === ALL_COURSES ? ' Cada curso empieza en una página nueva y su nombre va impreso en la hoja.' : ''}`
       : 'Elige una lista de estudiantes.';
     const warns = [];
     if (!state.exam.idDigits) warns.push('La hoja no tiene dígitos de identificación: configura 2 dígitos en la pestaña Prueba para que el lector reconozca a cada estudiante (si no, sólo se imprime el nombre).');
@@ -122,32 +133,44 @@
     $('#pnPrint').disabled = !list.length || !app.getLayout();
   }
 
+  /** Páginas de perPage hojas; cada curso empieza en una página nueva (así se reparten por curso). */
+  function chunks(list, perPage) {
+    const out = [];
+    let cur = null;
+    for (const s of list) {
+      if (!cur || cur.length >= perPage || cur.curso !== s.curso) {
+        cur = [];
+        cur.curso = s.curso;
+        out.push(cur);
+      }
+      cur.push(s);
+    }
+    return out;
+  }
+
   function buildPages() {
-    const list = chosen();
     const perPage = SheetLayout.FORMATS[state.exam.format].perPage;
     const curso = courseName();
-    const pieces = list.map((s) => {
-      const fill = { id: idDigitsOf(s.n), fields: { Nombre: s.name, Curso: curso } };
-      return usesPie(s)
-        ? { layout: app.pieLayout(), opts: Pro.pieSheetOptions ? Pro.pieSheetOptions(fill) : app.sheetOptions(fill) }
-        : { layout: app.layoutForForm(formOf(s)), opts: app.sheetOptions(fill) };
+    return chunks(chosen(), perPage).map((group) => {
+      const pieces = group.map((s) => {
+        const fill = { id: idDigitsOf(s.n), fields: { Nombre: s.name, Curso: s.curso || curso } };
+        return usesPie(s)
+          ? { layout: app.pieLayout(), opts: Pro.pieSheetOptions ? Pro.pieSheetOptions(fill) : app.sheetOptions(fill) }
+          : { layout: app.layoutForForm(formOf(s)), opts: app.sheetOptions(fill) };
+      });
+      return SheetRenderer.renderPageSVG(pieces[0].layout, pieces[0].opts, pieces, true);
     });
-    const pages = [];
-    for (let i = 0; i < pieces.length; i += perPage) {
-      const chunk = pieces.slice(i, i + perPage);
-      pages.push(SheetRenderer.renderPageSVG(chunk[0].layout, chunk[0].opts, chunk, true));
-    }
-    return pages;
   }
 
   function repartoHtml() {
+    const all = $('#pnSource').value === ALL_COURSES;
     const rows = chosen()
-      .map((s) => `<tr><td>${s.n}</td><td>${esc(s.name)}</td><td><b>${usesPie(s) ? 'PIE' : formsCount() ? SheetLayout.FORM_LETTERS[formOf(s)] : 'Normal'}</b></td></tr>`)
+      .map((s) => `<tr>${all ? `<td>${esc(s.curso)}</td>` : ''}<td>${s.n}</td><td>${esc(s.name)}</td><td><b>${usesPie(s) ? 'PIE' : formsCount() ? SheetLayout.FORM_LETTERS[formOf(s)] : 'Normal'}</b></td></tr>`)
       .join('');
     return `<div class="print-page print-reparto">
       <h2>Reparto de filas · ${esc(state.exam.title || 'Prueba')}</h2>
       <p>${esc(courseName() || '')}</p>
-      <table><thead><tr><th>N°</th><th>Estudiante</th><th>${formsCount() ? 'Fila' : 'Versión'}</th></tr></thead><tbody>${rows}</tbody></table>
+      <table><thead><tr>${all ? '<th>Curso</th>' : ''}<th>N°</th><th>Estudiante</th><th>${formsCount() ? 'Fila' : 'Versión'}</th></tr></thead><tbody>${rows}</tbody></table>
     </div>`;
   }
 
