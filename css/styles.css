@@ -69,7 +69,8 @@ html[data-contraste] ::placeholder { color: #5a6472; }
 details.menu > summary.view-btn { font-weight: 800; font-size: 1rem; padding: 8px 12px; }
 .view-list { min-width: 280px; gap: 6px; padding: 12px; }
 .vm-title { margin: 0; font-weight: 700; font-size: 0.95rem; }
-.view-list .vm-size { align-self: stretch; }
+.view-list :is(.vm-size, .vm-theme) { align-self: stretch; }
+.view-list .vm-theme button { flex: 1; color: var(--text); }
 .view-list .vm-size button { flex: 1; color: var(--text); }
 .vm-size button[data-letra="1"] { font-size: 1.15em; }
 .vm-size button[data-letra="2"] { font-size: 1.3em; }
@@ -80,7 +81,7 @@ details.menu > summary.view-btn { font-weight: 800; font-size: 1rem; padding: 8p
   .app-header { gap: 8px; }
   .head-actions { gap: 6px; }
   html[data-letra] .app-header .btn { font-size: 15px; padding: 7px 10px; }
-  .view-list { position: fixed; left: 12px; right: 12px; top: 64px; min-width: 0; }
+  .menu-list.view-list { position: fixed; left: 12px; right: 12px; top: 64px; min-width: 0; max-height: calc(100dvh - 160px); overflow: auto; }
 }
 
 .tabs {
@@ -1084,3 +1085,61 @@ label.form-pick select { width: auto; min-width: 4.5em; }
 .dn-data { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 14px 0 18px; padding: 14px 16px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); }
 .dn-data dt { color: var(--muted); }
 .dn-data dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+
+/* ---------- Modo noche (menú «Aa») ----------
+   Lo que representa papel (hojas, evaluación, informes) sigue blanco. */
+html[data-tema="oscuro"] {
+  --bg: #0f141a;
+  --surface: #18202a;
+  --surface-2: #1f2934;
+  --text: #e4e9ef;
+  --muted: #a3afbd;
+  --border: #2f3b48;
+  --primary: #4a8bd0;
+  --primary-hover: #3b78b8;
+  --primary-soft: #1c3045;
+  --ok: #4cc06a;
+  --ok-soft: #16301f;
+  --bad: #f2716a;
+  --bad-soft: #3a1c1c;
+  --warn: #f0b44c;
+  --warn-soft: #36280f;
+  --info: #79b8ff;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.5);
+  --pro-soft: #33280f;
+  --edited: #d08be6;
+  --limit-bg: #4a3a12;
+  --fail-bg: #4a1f1f;
+  color-scheme: dark;
+}
+html[data-tema="oscuro"][data-contraste] { --text: #ffffff; --muted: #c7d0da; --border: #55626f; }
+html[data-tema="oscuro"] :is(input, select, textarea) { background: var(--surface-2); color: var(--text); border-color: var(--border); }
+html[data-tema="oscuro"] ::placeholder { color: #7d8a99; }
+html[data-tema="oscuro"] .btn.secondary:hover { background: #24405c; }
+html[data-tema="oscuro"] .bubble-btn { border-color: #6b7888; }
+html[data-tema="oscuro"] :is(.sheet-preview, .doc-preview-wrap, .el-preview-col) { background: #0b1016; }
+html[data-tema="oscuro"] .ev-preset[aria-checked="true"] { background: var(--primary-soft); }
+html[data-tema="oscuro"] .ev-preset .mini i, html[data-tema="oscuro"] .strip i { background: #3a4654; }
+html[data-tema="oscuro"] .strip i.correct { background: #4caf6a; }
+html[data-tema="oscuro"] .strip i.wrong, html[data-tema="oscuro"] .strip i.multiple { background: #e05757; }
+html[data-tema="oscuro"] .strip i.excluded { background: transparent; border-color: #3a4654; }
+html[data-tema="oscuro"] .results-table tbody tr.review { background: #2a2312; }
+html[data-tema="oscuro"] .results-table tbody tr.review:hover { background: #352c14; }
+html[data-tema="oscuro"] .hc-step.done { border-color: #2c6b3f; }
+html[data-tema="oscuro"] .lvl-L { background: #173a1f !important; }
+html[data-tema="oscuro"] .lvl-ML { background: #3d3311 !important; }
+html[data-tema="oscuro"] .lvl-NL { background: #3f1d1d !important; }
+html[data-tema="oscuro"] .tag.form { background: #232b4d; color: #b8c2ff; }
+html[data-tema="oscuro"] .tag.group { background: #123631; color: #8ee0d3; }
+html[data-tema="oscuro"] .man-warn { color: #f5cf8a; }
+html[data-tema="oscuro"] .home-donate { border-color: #2c6b3f; }
+/* Colores de estado más claros: el texto encima va oscuro para que se lea. */
+html[data-tema="oscuro"] :is(.sub-steps button.done i, .review-filter[aria-pressed="true"], .badge, .pill.grade.fail) { color: #0b1018; }
+/* Burbujas del tutorial: el mismo contraste que el resto. */
+html[data-tema="oscuro"] .tour-bubble { background: var(--surface); color: var(--text); }
+html[data-tema="oscuro"] .tour-count { color: var(--primary); }
+html[data-tema="oscuro"] .tour-title { color: var(--text); }
+html[data-tema="oscuro"] .tour-close { background: var(--surface-2); color: var(--text); }
+html[data-tema="oscuro"] .tour-or { color: var(--muted); }
+html[data-tema="oscuro"] .tour-bubble[data-arrow="up"]::before { border-bottom-color: var(--surface); }
+html[data-tema="oscuro"] .tour-bubble[data-arrow="down"]::before { border-top-color: var(--surface); }

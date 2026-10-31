@@ -466,7 +466,7 @@
     } catch (e) {
       v = {};
     }
-    return { letra: v.letra === 1 || v.letra === 2 ? v.letra : 0, contraste: !!v.contraste, aviso: v.aviso !== false, voz: !!v.voz, asistente: v.asistente !== false };
+    return { letra: v.letra === 1 || v.letra === 2 ? v.letra : 0, contraste: !!v.contraste, aviso: v.aviso !== false, voz: !!v.voz, asistente: v.asistente !== false, tema: v.tema === 'oscuro' || v.tema === 'auto' ? v.tema : 'claro' };
   }
 
   function setViewPref(key, value) {
@@ -480,6 +480,9 @@
     applyView();
   }
 
+  const darkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  if (darkQuery && darkQuery.addEventListener) darkQuery.addEventListener('change', () => viewPrefs().tema === 'auto' && applyView());
+
   const canSpeak = () => typeof window.speechSynthesis !== 'undefined' && typeof window.SpeechSynthesisUtterance !== 'undefined';
 
   function applyView() {
@@ -489,6 +492,13 @@
     else delete root.dataset.letra;
     if (v.contraste) root.dataset.contraste = '1';
     else delete root.dataset.contraste;
+    // Modo noche: oscuro, claro o «auto» (como el teléfono o el computador).
+    const dark = v.tema === 'oscuro' || (v.tema === 'auto' && darkQuery && darkQuery.matches);
+    if (dark) root.dataset.tema = 'oscuro';
+    else delete root.dataset.tema;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', dark ? '#0f141a' : '#1f4e79');
+    for (const b of $$('[data-tema]', $('#viewMenu'))) b.setAttribute('aria-checked', String(b.dataset.tema === v.tema));
     for (const b of $$('[data-letra]', $('#viewMenu'))) b.setAttribute('aria-checked', String(Number(b.dataset.letra) === v.letra));
     $('#vmContrast').checked = v.contraste;
     $('#vmNotice').checked = v.aviso;
@@ -4805,6 +4815,8 @@
     $('#viewMenu').addEventListener('click', (e) => {
       const b = e.target.closest('[data-letra]');
       if (b) setViewPref('letra', Number(b.dataset.letra));
+      const t = e.target.closest('[data-tema]');
+      if (t) setViewPref('tema', t.dataset.tema);
     });
     $('#vmContrast').addEventListener('change', (e) => setViewPref('contraste', e.target.checked));
     $('#vmNotice').addEventListener('change', (e) => setViewPref('aviso', e.target.checked));

@@ -9,7 +9,7 @@
   <title>Lector de Hojas de Respuesta Pro</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231f4e79'/%3E%3Ccircle cx='10' cy='11' r='4' fill='%23fff'/%3E%3Ccircle cx='22' cy='11' r='4' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Ccircle cx='10' cy='22' r='4' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Ccircle cx='22' cy='22' r='4' fill='%23fff'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="css/styles.css">
-  <script>try { var v = JSON.parse(localStorage.getItem('lectorHojas.vista') || '{}') || {}; if (v.letra === 1 || v.letra === 2) document.documentElement.dataset.letra = v.letra; if (v.contraste) document.documentElement.dataset.contraste = '1'; } catch (e) {}</script>
+  <script>try { var v = JSON.parse(localStorage.getItem('lectorHojas.vista') || '{}') || {}; if (v.letra === 1 || v.letra === 2) document.documentElement.dataset.letra = v.letra; if (v.contraste) document.documentElement.dataset.contraste = '1'; if (v.tema === 'oscuro' || (v.tema === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.dataset.tema = 'oscuro'; } catch (e) {}</script>
   <link rel="stylesheet" href="css/pro.css">
   <script>try { document.documentElement.dataset.modo = localStorage.getItem('lectorHojasPro.modo') === 'simple' ? 'simple' : 'avanzado'; } catch (e) {}</script>
 </head>
@@ -39,6 +39,13 @@
               <button type="button" role="radio" data-letra="2" title="Letra muy grande">A++</button>
             </span>
             <label class="check"><input type="checkbox" id="vmContrast"> Más contraste</label>
+            <hr>
+            <p class="vm-title">🌙 Modo noche</p>
+            <span class="seg vm-theme" role="radiogroup" aria-label="Colores de la app">
+              <button type="button" role="radio" data-tema="claro" title="Fondo claro">☀️ Claro</button>
+              <button type="button" role="radio" data-tema="oscuro" title="Fondo oscuro">🌙 Oscuro</button>
+              <button type="button" role="radio" data-tema="auto" title="Como esté configurado el teléfono o el computador">Auto</button>
+            </span>
             <hr>
             <p class="vm-title">📷 Al corregir cada foto</p>
             <label class="check"><input type="checkbox" id="vmNotice"> Aviso grande con el nombre y la nota</label>
@@ -1021,7 +1028,7 @@
           </ul>
           <p class="man-tip"><b>💡 Bueno saber:</b> todo se guarda en tu navegador, en tu equipo. Las fotos y las notas <strong>no se envían a ningún servidor</strong>.</p>
           <h3>Ver más grande</h3>
-          <p>Arriba a la derecha está el botón <b>Aa</b>: agranda la letra y los botones (<b>A+</b> o <b>A++</b>), activa <b>más contraste</b> y elige qué pasa al corregir cada foto (un aviso grande con el nombre y la nota, y si quieres que lo diga en voz alta). Se recuerda en ese equipo.</p>
+          <p>Arriba a la derecha está el botón <b>Aa</b>: agranda la letra y los botones (<b>A+</b> o <b>A++</b>), activa <b>más contraste</b>, cambia al <b>modo noche</b> (fondo oscuro, o <b>Auto</b> para que siga al teléfono) y elige qué pasa al corregir cada foto (un aviso grande con el nombre y la nota, y si quieres que lo diga en voz alta). Se recuerda en ese equipo.</p>
         </article>
 
         <!-- 1 -->

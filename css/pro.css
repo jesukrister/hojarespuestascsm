@@ -552,3 +552,14 @@ html[data-modo="simple"] :is(
 .lv-last strong { grid-row: span 2; font-size: 2rem; font-weight: 800; white-space: nowrap; }
 .lv-last span { font-size: 0.98rem; }
 .lv-last .lv-last-prog { grid-column: 1 / -1; margin-top: 4px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.25); }
+
+/* ---------- Modo noche (Pro) ---------- */
+html[data-tema="oscuro"] .pro-banner { border-color: #6b5420; }
+html[data-tema="oscuro"] .pro-grid th.avg, html[data-tema="oscuro"] .pro-grid td.avg { background: var(--surface-2); }
+html[data-tema="oscuro"] .tag.edited { background: #3a2245; }
+html[data-tema="oscuro"] .pro-chip.nl { background: #4a1f1f; }
+html[data-tema="oscuro"] .pro-chip.ml { background: #4a3a12; }
+html[data-tema="oscuro"] .tag.pie { background: #15304d; color: #9fcbff; }
+html[data-tema="oscuro"] .pi-table select.unset { background: #3a2f10; }
+html[data-tema="oscuro"] .pro-rub-cell.sel { background: #1d4429; color: #c8f0d2; border-color: #4cc06a; }
+html[data-tema="oscuro"] .btn.primary.danger-fill { color: #0b1018; }

@@ -19,8 +19,9 @@ cualquier hosting de archivos estáticos.
   nombre, N° de preguntas, alternativas y la clave pregunta por pregunta con
   botones grandes (pasa sola a la siguiente; también con el teclado o escrita
   de una vez) y un resumen final.
-- **Ver más grande (botón Aa)**: letra A / A+ / A++ y más contraste, guardado
-  en el equipo.
+- **Ver más grande (botón Aa)**: letra A / A+ / A++, más contraste y **modo
+  noche** (claro, oscuro o automático según el equipo), guardado en el equipo.
+  En el modo noche, lo que representa papel (hojas y evaluación) sigue blanco.
 - **Aviso grande al corregir cada foto**: nombre y nota en grande (verde),
   qué revisar (amarillo) o por qué no se pudo leer (rojo), cuántos faltan y
   «Siguiente hoja» para abrir la cámara de nuevo; opcionalmente lo dice en voz
