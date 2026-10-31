@@ -1457,6 +1457,18 @@
       renderScanCourse();
     });
     app.on('examForm', renderExamLink);
+    // Asistente paso a paso: al final se elige el curso de la prueba (modo avanzado).
+    app.on('wizardSummary', (box) => {
+      if (!box || app.simpleMode() || !Pro.book.courses.length) return;
+      const c = linkedCourse();
+      box.innerHTML = `<label class="wiz-label">¿Para qué curso es? <small>(la lista de estudiantes y las notas)</small>
+        <select id="wizCourse" class="wiz-input small"><option value="">— Sin curso —</option>${courseOptions(c ? c.id : '')}</select></label>`;
+      $('#wizCourse').addEventListener('change', (e) => {
+        const sel = $('#proExamCourse');
+        sel.value = e.target.value;
+        sel.dispatchEvent(new Event('change'));
+      });
+    });
     app.on('tab', (name) => {
       if (name === 'cursos') renderCursos();
     });

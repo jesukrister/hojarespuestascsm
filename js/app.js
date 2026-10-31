@@ -466,7 +466,7 @@
     } catch (e) {
       v = {};
     }
-    return { letra: v.letra === 1 || v.letra === 2 ? v.letra : 0, contraste: !!v.contraste, aviso: v.aviso !== false, voz: !!v.voz };
+    return { letra: v.letra === 1 || v.letra === 2 ? v.letra : 0, contraste: !!v.contraste, aviso: v.aviso !== false, voz: !!v.voz, asistente: v.asistente !== false };
   }
 
   function setViewPref(key, value) {
@@ -912,8 +912,162 @@
     replaceExam(raw);
     showTab('prueba');
     window.scrollTo(0, 0);
+    if (viewPrefs().asistente) return openWizard();
     $('#exTitle').focus();
     toast('Prueba nueva: escribe el título, cuántas preguntas tiene y la clave.');
+  }
+
+  /* ---------- Asistente paso a paso: una pregunta por pantalla ---------- */
+  const WIZ_STEPS = ['nombre', 'preguntas', 'alternativas', 'clave', 'listo'];
+  const wiz = { step: 0, q: 0, typing: false };
+
+  function openWizard() {
+    wiz.step = 0;
+    wiz.typing = false;
+    const dlg = $('#wizDialog');
+    if (!dlg.open) dlg.showModal();
+    renderWizard();
+  }
+
+  function closeWizard(goTab) {
+    $('#wizDialog').close();
+    fillExamForm();
+    renderKey();
+    if (goTab) {
+      showTab(goTab);
+      window.scrollTo(0, 0);
+    }
+  }
+
+  /** Cambia el N° de preguntas o de alternativas como si se hubiera hecho en el formulario. */
+  function wizStructure(n, c) {
+    $('#exQuestions').value = n;
+    $('#exChoices').value = String(c);
+    onStructureInput();
+  }
+
+  function wizKeyStatus() {
+    const k = state.exam.key;
+    return { set: k.filter((v) => v !== null).length, n: k.length };
+  }
+
+  function renderWizard() {
+    const e = state.exam;
+    const step = WIZ_STEPS[wiz.step];
+    const total = WIZ_STEPS.length;
+    $('#wizDots').innerHTML = WIZ_STEPS.map((_, i) => `<i class="${i <= wiz.step ? 'on' : ''}"></i>`).join('');
+    $('#wizBack').hidden = wiz.step === 0;
+    $('#wizNext').textContent = step === 'listo' ? '🖨️ Ir a imprimir →' : 'Siguiente →';
+    const head = (title, help) =>
+      `<span class="wiz-step">Paso ${wiz.step + 1} de ${total}</span><h2 class="wiz-q" id="wizQ">${title}</h2>${help ? `<p class="wiz-help">${help}</p>` : ''}`;
+    const body = $('#wizBody');
+    if (step === 'nombre') {
+      body.innerHTML =
+        head('¿Cómo se llama tu prueba?', 'Así aparece arriba de la hoja de respuestas.') +
+        `<input id="wizTitle" class="wiz-input" type="text" maxlength="80" autocomplete="off" placeholder="Ej.: Prueba de Historia – Unidad 2" value="${esc(e.title)}">
+        <label class="wiz-label">Curso o asignatura <small>(opcional)</small>
+          <input id="wizSub" class="wiz-input small" type="text" maxlength="100" autocomplete="off" placeholder="Ej.: 8° Básico A" value="${esc(e.subtitle)}">
+        </label>
+        <label class="check wiz-always"><input type="checkbox" id="wizAlways"${viewPrefs().asistente ? ' checked' : ''}> Usar este asistente cada vez que creo una prueba nueva</label>`;
+      setTimeout(() => $('#wizTitle') && $('#wizTitle').focus(), 50);
+    } else if (step === 'preguntas') {
+      body.innerHTML =
+        head('¿Cuántas preguntas de alternativas tiene tu prueba?', 'Cuenta sólo las de marcar (A, B, C…).') +
+        `<div class="wiz-num">
+          <button type="button" data-wiz-n="-1" aria-label="Una pregunta menos">−</button>
+          <input id="wizN" type="number" min="${LIMITS.minQuestions}" max="${LIMITS.maxQuestions}" inputmode="numeric" value="${e.numQuestions}" aria-label="N° de preguntas">
+          <button type="button" data-wiz-n="1" aria-label="Una pregunta más">＋</button>
+        </div>
+        <div class="wiz-chips">${[10, 15, 20, 25, 30, 40].map((v) => `<button type="button" data-wiz-set="${v}" aria-pressed="${v === e.numQuestions}">${v}</button>`).join('')}</div>
+        <p class="wiz-warn" id="wizErr"${layoutError ? '' : ' hidden'}>${esc(layoutError)}</p>`;
+    } else if (step === 'alternativas') {
+      body.innerHTML =
+        head('¿Cuántas alternativas tiene cada pregunta?', 'Por ejemplo, 4 son A, B, C y D.') +
+        `<div class="wiz-choices">${[2, 3, 4, 5, 6]
+          .map(
+            (c) =>
+              `<button type="button" data-wiz-c="${c}" aria-pressed="${c === e.numChoices}"><b>${c}</b><span>${CHOICE_LABELS.slice(0, c).join(' ')}</span></button>`
+          )
+          .join('')}</div>
+        <p class="wiz-warn" id="wizErr"${layoutError ? '' : ' hidden'}>${esc(layoutError)}</p>`;
+    } else if (step === 'clave') {
+      const n = e.numQuestions;
+      wiz.q = Math.min(Math.max(0, wiz.q), n - 1);
+      const st = wizKeyStatus();
+      const cur = e.key[wiz.q];
+      body.innerHTML =
+        head(
+          wiz.typing ? 'Respuestas correctas' : `Pregunta ${wiz.q + 1}`,
+          wiz.typing ? 'Escribe las letras seguidas, en orden. Usa - para una pregunta sin clave.' : 'Toca la respuesta correcta: pasa sola a la siguiente.'
+        ) +
+        (wiz.typing
+          ? `<input id="wizKeyText" class="wiz-input mono" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" value="${esc(keyToText(e.key))}" placeholder="ABCDA BCDAB …">`
+          : `<div class="wiz-letters" style="--n:${e.numChoices}">${CHOICE_LABELS.slice(0, e.numChoices)
+              .map((l, k) => `<button type="button" data-wiz-k="${k}" aria-pressed="${cur === k}">${l}</button>`)
+              .join('')}</div>`) +
+        `<div class="wiz-prog" aria-label="Preguntas">${e.key
+          .map(
+            (v, i) =>
+              `<button type="button" data-wiz-q="${i}" class="${v !== null ? 'ok' : ''}${i === wiz.q && !wiz.typing ? ' cur' : ''}" title="Pregunta ${i + 1}${v !== null ? ': ' + CHOICE_LABELS[v] : ''}">${i + 1}</button>`
+          )
+          .join('')}</div>
+        <p class="wiz-status ${st.set === st.n ? 'ok' : ''}">${st.set === st.n ? `✔ Listas las ${st.n} respuestas. Toca <b>Siguiente</b>.` : `${st.set} de ${st.n} respuestas listas.`}</p>
+        <div class="wiz-links">
+          ${wiz.typing ? '' : '<button type="button" class="link-btn" data-wiz-skip>Saltar esta pregunta</button>'}
+          <button type="button" class="link-btn" data-wiz-typing>${wiz.typing ? '👆 Una por una, con botones' : '⌨️ Escribirlas todas de una vez'}</button>
+        </div>`;
+      if (wiz.typing) setTimeout(() => $('#wizKeyText') && $('#wizKeyText').focus(), 50);
+    } else {
+      const st = wizKeyStatus();
+      const id = e.idDigits;
+      body.innerHTML =
+        head('¡Tu prueba está lista!', 'Revisa el resumen. Todo se puede cambiar después en la pestaña Prueba.') +
+        `<ul class="wiz-sum">
+          <li><span>Nombre</span><b>${esc(e.title.trim() || 'Prueba sin título')}</b></li>
+          <li><span>Preguntas</span><b>${e.numQuestions}, con alternativas ${CHOICE_LABELS[0]} a ${CHOICE_LABELS[e.numChoices - 1]}</b></li>
+          <li class="${st.set === st.n ? '' : 'warn'}"><span>Respuestas correctas</span><b>${st.set === st.n ? `✔ Las ${st.n}` : `${st.set} de ${st.n}: puedes completarlas después`}</b></li>
+          <li><span>Identificación</span><b>${id === 2 ? 'Cada estudiante marca su N° de lista' : id ? `Código de ${id} dígitos` : 'Sin identificación'}</b></li>
+        </ul>
+        <div id="wizExtra"></div>
+        <p class="wiz-help">Toca <b>Ir a imprimir</b> para ver la hoja de respuestas e imprimirla.</p>
+        <button type="button" class="link-btn" data-wiz-form>Ver todas las opciones de la prueba</button>`;
+      emit('wizardSummary', $('#wizExtra'));
+    }
+  }
+
+  function wizardNext() {
+    const step = WIZ_STEPS[wiz.step];
+    if (step === 'preguntas' || step === 'alternativas') {
+      if (layoutError) return $('#wizErr') && ($('#wizErr').hidden = false);
+    }
+    if (step === 'clave') wiz.typing = false;
+    if (step === 'listo') return closeWizard('hoja');
+    wiz.step++;
+    if (WIZ_STEPS[wiz.step] === 'clave') {
+      const first = state.exam.key.indexOf(null);
+      wiz.q = first >= 0 ? first : 0;
+    }
+    renderWizard();
+  }
+
+  function wizardBack() {
+    if (wiz.step > 0) wiz.step--;
+    wiz.typing = false;
+    renderWizard();
+  }
+
+  /** Clave: marca la alternativa y pasa a la siguiente pregunta. */
+  function wizSetKey(k) {
+    const e = state.exam;
+    e.key[wiz.q] = k;
+    save();
+    renderKey();
+    const btn = $(`[data-wiz-k="${k}"]`);
+    if (btn) btn.setAttribute('aria-pressed', 'true');
+    setTimeout(() => {
+      if (wiz.q < e.numQuestions - 1) wiz.q++;
+      if (WIZ_STEPS[wiz.step] === 'clave') renderWizard();
+    }, 220);
   }
 
   /** Alternativas como botones (2 a 6): reflejan el selector #exChoices, que sigue siendo el dato. */
@@ -4885,6 +5039,82 @@
         handleFiles(files, id === '#cameraInput' ? 'camera' : 'files');
       });
     }
+    // Asistente paso a paso.
+    $('#wizNext').addEventListener('click', wizardNext);
+    $('#wizBack').addEventListener('click', wizardBack);
+    $('#wizClose').addEventListener('click', () => closeWizard('prueba'));
+    $('#wizDialog').addEventListener('cancel', () => setTimeout(() => closeWizard('prueba'), 0));
+    $('#wizBody').addEventListener('input', (e) => {
+      const t = e.target;
+      if (t.id === 'wizTitle') state.exam.title = t.value;
+      else if (t.id === 'wizSub') state.exam.subtitle = t.value;
+      else if (t.id === 'wizKeyText') {
+        state.exam.key = parseKeyText(t.value, state.exam.numQuestions, state.exam.numChoices);
+        renderKey(true);
+        const st = wizKeyStatus();
+        for (const b of $$('[data-wiz-q]')) b.classList.toggle('ok', state.exam.key[Number(b.dataset.wizQ)] !== null);
+        const status = $('.wiz-status');
+        status.className = 'wiz-status' + (st.set === st.n ? ' ok' : '');
+        status.innerHTML = st.set === st.n ? `✔ Listas las ${st.n} respuestas. Toca <b>Siguiente</b>.` : `${st.set} de ${st.n} respuestas listas.`;
+      } else return;
+      save();
+    });
+    $('#wizBody').addEventListener('change', (e) => {
+      const t = e.target;
+      if (t.id === 'wizN') {
+        wizStructure(Math.min(LIMITS.maxQuestions, Math.max(LIMITS.minQuestions, parseInt(t.value, 10) || state.exam.numQuestions)), state.exam.numChoices);
+        renderWizard();
+      } else if (t.id === 'wizAlways') setViewPref('asistente', t.checked);
+    });
+    $('#wizBody').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.matches('#wizTitle, #wizSub, #wizN, #wizKeyText')) {
+        e.preventDefault();
+        if (e.target.id === 'wizN') e.target.dispatchEvent(new Event('change', { bubbles: true }));
+        wizardNext();
+      }
+    });
+    document.addEventListener('keydown', (e) => {
+      // Clave con el teclado: A, B, C… marcan; flechas para moverse.
+      if (!$('#wizDialog').open || WIZ_STEPS[wiz.step] !== 'clave' || wiz.typing || e.target.matches('input, select, textarea')) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const k = 'ABCDEF'.indexOf(e.key.toUpperCase());
+      if (k >= 0 && k < state.exam.numChoices && e.key.length === 1) {
+        e.preventDefault();
+        wizSetKey(k);
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        wiz.q = Math.min(state.exam.numQuestions - 1, Math.max(0, wiz.q + (e.key === 'ArrowRight' ? 1 : -1)));
+        renderWizard();
+      }
+    });
+    $('#wizBody').addEventListener('click', (e) => {
+      const t = e.target.closest('button');
+      if (!t) return;
+      const e0 = state.exam;
+      if (t.dataset.wizN) {
+        wizStructure(Math.min(LIMITS.maxQuestions, Math.max(LIMITS.minQuestions, e0.numQuestions + Number(t.dataset.wizN))), e0.numChoices);
+        renderWizard();
+      } else if (t.dataset.wizSet) {
+        wizStructure(Number(t.dataset.wizSet), e0.numChoices);
+        renderWizard();
+      } else if (t.dataset.wizC) {
+        wizStructure(e0.numQuestions, Number(t.dataset.wizC));
+        renderWizard();
+      } else if (t.dataset.wizK !== undefined) wizSetKey(Number(t.dataset.wizK));
+      else if (t.dataset.wizQ !== undefined) {
+        wiz.q = Number(t.dataset.wizQ);
+        wiz.typing = false;
+        renderWizard();
+      } else if (t.hasAttribute('data-wiz-skip')) {
+        if (wiz.q < e0.numQuestions - 1) wiz.q++;
+        renderWizard();
+      } else if (t.hasAttribute('data-wiz-typing')) {
+        wiz.typing = !wiz.typing;
+        renderWizard();
+      } else if (t.hasAttribute('data-wiz-form')) closeWizard('prueba');
+    });
+    $('#btnWizard').addEventListener('click', openWizard);
+
     // Aviso grande: la siguiente hoja abre la cámara (o el selector de imágenes) de nuevo.
     $('#snNext').addEventListener('click', () => {
       $('#scanNotice').close();
@@ -5156,6 +5386,7 @@
     window.LectorApp = {
       state,
       emit,
+      openWizard,
       simpleMode,
       speak,
       viewPrefs,

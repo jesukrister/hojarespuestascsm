@@ -15,6 +15,16 @@ cualquier hosting de archivos estáticos.
 - **Configuración de la prueba**: título, 1–120 preguntas, 2–6 alternativas
   (A–F), papel carta, A4 u oficio y 0–10 dígitos de identificación (N° de
   lista o código del estudiante).
+- **Asistente paso a paso** (al crear una prueba nueva o desde el menú ⋯):
+  nombre, N° de preguntas, alternativas y la clave pregunta por pregunta con
+  botones grandes (pasa sola a la siguiente; también con el teclado o escrita
+  de una vez) y un resumen final.
+- **Ver más grande (botón Aa)**: letra A / A+ / A++ y más contraste, guardado
+  en el equipo.
+- **Aviso grande al corregir cada foto**: nombre y nota en grande (verde),
+  qué revisar (amarillo) o por qué no se pudo leer (rojo), cuántos faltan y
+  «Siguiente hoja» para abrir la cámara de nuevo; opcionalmente lo dice en voz
+  alta.
 - **Generador de evaluaciones**: se pegan las preguntas y alternativas tal como
   vengan (de Word, PDF, correo…, incluso desordenadas) y la plataforma las
   ordena y arma la evaluación imprimible con membrete (establecimiento, logo,

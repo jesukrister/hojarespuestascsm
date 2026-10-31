@@ -131,6 +131,7 @@
               <details class="menu" id="pzMenu">
                 <summary class="btn ghost small" title="Más opciones" aria-label="Más opciones">⋯</summary>
                 <div class="menu-list">
+                  <button id="btnWizard" type="button">🧭 Asistente paso a paso (una pregunta por pantalla)</button>
                   <button type="button" id="proNewTicket">🎟️ Crear un ticket de salida (mini control de 3 a 10 preguntas, 8 por página)</button>
                   <hr>
                   <button id="btnExportExam" type="button">⬇ Exportar configuración (archivo)</button>
@@ -1010,6 +1011,8 @@
             <li>Un celular con cámara para fotografiar las hojas.</li>
           </ul>
           <p class="man-tip"><b>💡 Bueno saber:</b> todo se guarda en tu navegador, en tu equipo. Las fotos y las notas <strong>no se envían a ningún servidor</strong>.</p>
+          <h3>Ver más grande</h3>
+          <p>Arriba a la derecha está el botón <b>Aa</b>: agranda la letra y los botones (<b>A+</b> o <b>A++</b>), activa <b>más contraste</b> y elige qué pasa al corregir cada foto (un aviso grande con el nombre y la nota, y si quieres que lo diga en voz alta). Se recuerda en ese equipo.</p>
         </article>
 
         <!-- 1 -->
@@ -1017,6 +1020,7 @@
           <h2><span class="man-num">1</span>Prueba · Datos y clave</h2>
           <div class="man-video" data-video="prueba"></div>
           <p>Aquí le cuentas a la plataforma cómo es tu prueba. Arriba está lo básico; lo demás está plegado en <b>Más opciones</b> y, si no lo cambias, se usa lo de siempre.</p>
+          <p class="man-tip"><b>🧭 Asistente paso a paso:</b> al tocar <b>Crear una prueba nueva</b> se abre un asistente que pregunta una cosa por pantalla: el nombre, cuántas preguntas, cuántas alternativas y la respuesta correcta de cada pregunta (tocas la letra y pasa sola a la siguiente). También se abre desde el menú <b>⋯</b> de esta pestaña. Si prefieres el formulario completo, toca <b>✕ Salir</b> o desmarca «Usar este asistente cada vez».</p>
           <ol class="man-steps">
             <li><b>Escribe el título</b> (por ejemplo, “Prueba de Ciencias – Unidad 2”) y, si quieres, un subtítulo con el curso o el profesor.</li>
             <li><b>Indica el N° de preguntas</b> (de 1 a 120; puedes usar los botones <b>−</b> y <b>＋</b>) y toca cuántas <b>alternativas</b> tiene cada una (4 = A a D, 5 = A a E, etc.).</li>
@@ -1140,7 +1144,7 @@ Núcleo = Contiene el material genético</pre>
           <ol class="man-steps">
             <li>Abre la página en el celular y entra a <b>Corregir</b>.</li>
             <li>Presiona <b>📷 Tomar foto</b> y fotografía una hoja. En el computador, usa <b>🖼️ Subir imágenes</b> para elegir varias fotos a la vez (o arrástralas a la página).</li>
-            <li>Espera unos segundos: aparece una línea verde con el código del estudiante, sus respuestas correctas y la nota, y el estudiante se agrega (resaltado) a la lista de <b>Estudiantes</b>.</li>
+            <li>Espera unos segundos: aparece un <b>aviso grande</b> con el nombre y la nota del estudiante (verde si está bien, amarillo si hay que revisar algo, rojo si no se pudo leer) y cuántos te faltan. Toca <b>📷 Siguiente hoja</b> para fotografiar la próxima. El estudiante también se agrega (resaltado) a la lista de <b>Estudiantes</b>. Si prefieres sin aviso, o quieres que diga la nota en voz alta, cámbialo en <b>Aa</b> (arriba).</li>
             <li>Si tienes la lista del curso, arriba ves <b>cuántos llevas y quién falta</b> (por número de lista).</li>
             <li>Toca <b>Ver</b> (o el nombre en la lista) para ver la hoja con la corrección: <span class="man-dot ok"></span> verde = correcta, <span class="man-dot bad"></span> rojo = incorrecta, círculo azul punteado = la respuesta correcta.</li>
             <li>Si una pregunta tiene un <b>recuadro amarillo</b>, la marca era dudosa: mírala y, si hace falta, corrígela eligiendo la letra en la lista de la derecha.</li>
@@ -1537,6 +1541,19 @@ Núcleo = Contiene el material genético</pre>
       <button type="button" class="btn ghost small" data-rd="close" aria-label="Cerrar">✕ Cerrar</button>
     </div>
     <div id="resultDetail" class="rd-body"></div>
+  </dialog>
+
+  <dialog id="wizDialog" class="el-dialog wiz" aria-labelledby="wizQ">
+    <div class="wiz-top">
+      <b>✏️ Prueba nueva</b>
+      <span class="wiz-dots" id="wizDots" aria-hidden="true"></span>
+      <button type="button" class="btn ghost small" id="wizClose" title="Cerrar el asistente y ver el formulario completo">✕ Salir</button>
+    </div>
+    <div class="wiz-body" id="wizBody"></div>
+    <div class="wiz-foot">
+      <button type="button" class="btn secondary" id="wizBack">← Atrás</button>
+      <button type="button" class="btn primary" id="wizNext">Siguiente →</button>
+    </div>
   </dialog>
 
   <dialog id="scanNotice" class="el-dialog scan-notice" aria-labelledby="snTitle">
