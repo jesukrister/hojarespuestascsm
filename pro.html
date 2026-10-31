@@ -1552,6 +1552,18 @@ Núcleo = Contiene el material genético</pre>
     <div id="resultDetail" class="rd-body"></div>
   </dialog>
 
+  <dialog id="donateDialog" class="el-dialog donate-dialog" aria-labelledby="dnTitle">
+    <h2 id="dnTitle">💚 Gracias por apoyar</h2>
+    <p class="muted">La app es gratis. Si quieres, transfiere el monto que quieras a esta cuenta:</p>
+    <dl id="dnData" class="dn-data"></dl>
+    <div class="actions">
+      <button type="button" class="btn primary" id="dnCopy">📋 Copiar los datos</button>
+      <a class="btn secondary" id="dnCard" target="_blank" rel="noopener" hidden>💳 Pagar con tarjeta</a>
+      <button type="button" class="btn ghost" id="dnClose">Cerrar</button>
+    </div>
+    <p class="muted small">Copia los datos y pégalos en la app de tu banco para agregar el destinatario.</p>
+  </dialog>
+
   <dialog id="wizDialog" class="el-dialog wiz" aria-labelledby="wizQ">
     <div class="wiz-top">
       <b>✏️ Prueba nueva</b>

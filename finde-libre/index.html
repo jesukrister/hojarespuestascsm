@@ -31,6 +31,7 @@
       --radius: 16px;
     }
     * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
     html { scroll-behavior: smooth; }
     body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
     a { color: var(--primary); }
@@ -137,6 +138,13 @@
     .final .cta { justify-content: center; }
     .donate-box { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px 30px; background: var(--ok-soft); border: 1px solid #b9dfc6; border-radius: 22px; padding: 28px; }
     .donate-box .sub { margin-bottom: 0; }
+    .donate-box > div:first-child { flex: 1 1 380px; }
+    .dn { flex: 1 1 320px; }
+    .dn-data { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0 0 14px; padding: 16px 18px; border-radius: 14px; background: #fff; border: 1px solid #b9dfc6; }
+    .dn-data dt { color: var(--muted); }
+    .dn-data dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+    button.btn { cursor: pointer; font: inherit; font-weight: 800; }
+    .dn-msg { margin: 10px 0 0; color: var(--ok); font-weight: 700; min-height: 1.4em; }
     footer { padding: 28px 0 40px; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--border); }
     footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; }
 
@@ -331,7 +339,14 @@
           <h2>¿Te devolvimos un finde? 💚</h2>
           <p class="sub">Finde Libre es gratis y lo seguirá siendo. Es un proyecto independiente, hecho en Chile. Si te sirve, puedes apoyar con una donación del monto que quieras: ayuda a mantenerla y a seguir mejorándola.</p>
         </div>
-        <a class="btn primary" id="donateBtn" target="_blank" rel="noopener">❤ Apoyar con una donación</a>
+        <div class="dn">
+          <dl id="dnData" class="dn-data" hidden></dl>
+          <div class="cta">
+            <button type="button" class="btn primary" id="dnCopy" hidden>📋 Copiar datos para transferir</button>
+            <a class="btn line" id="donateBtn" target="_blank" rel="noopener" hidden>💳 Donar con tarjeta</a>
+          </div>
+          <p class="dn-msg" id="dnMsg" role="status"></p>
+        </div>
       </div>
     </section>
 
@@ -356,15 +371,49 @@
   </footer>
   <script src="../js/donaciones.js"></script>
   <script>
-    // Donaciones: el mismo enlace que la app (js/donaciones.js). Sin enlace, no se muestra nada.
+    // Donaciones: los mismos datos que la app (js/donaciones.js): transferencia
+    // directa y/o enlace de pago con tarjeta. Si no hay ninguno, no se muestra nada.
     (function () {
       var d = window.DONACIONES || {};
       var url = String(d.url || '').trim();
-      if (!/^https:\/\/\S+$/i.test(url)) return;
+      if (!/^https:\/\/\S+$/i.test(url)) url = '';
+      var t = d.transferencia || {};
+      var v = function (k) { return String(t[k] || '').trim(); };
+      var rows = [['Nombre', v('nombre')], ['RUT', v('rut')], ['Banco', v('banco')], ['Tipo de cuenta', v('tipo') || 'Cuenta corriente'], ['N° de cuenta', v('numero')], ['Correo', v('correo')]];
+      var transfer = v('nombre') && v('rut') && v('banco') && v('numero');
+      if (!url && !transfer) return;
       document.getElementById('apoyar').hidden = false;
       document.querySelector('.donate-foot').hidden = false;
-      document.getElementById('donateBtn').href = url;
-      document.getElementById('donateFoot').href = url;
+      document.getElementById('donateFoot').href = '#apoyar';
+      document.getElementById('donateFoot').removeAttribute('target');
+      if (url) {
+        var btn = document.getElementById('donateBtn');
+        btn.href = url;
+        btn.hidden = false;
+      }
+      if (!transfer) return;
+      var dl = document.getElementById('dnData');
+      var text = [];
+      rows.forEach(function (r) {
+        if (!r[1]) return;
+        var dt = document.createElement('dt');
+        var dd = document.createElement('dd');
+        dt.textContent = r[0];
+        dd.textContent = r[1];
+        dl.appendChild(dt);
+        dl.appendChild(dd);
+        text.push(r[0] + ': ' + r[1]);
+      });
+      dl.hidden = false;
+      var copy = document.getElementById('dnCopy');
+      copy.hidden = false;
+      copy.addEventListener('click', function () {
+        var msg = document.getElementById('dnMsg');
+        var done = function () { msg.textContent = '✔ Datos copiados: pégalos en la app de tu banco. ¡Gracias! 💚'; };
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(text.join('\n')).then(done, function () { msg.textContent = 'No se pudo copiar: anota los datos de arriba.'; });
+        } else msg.textContent = 'Anota los datos de arriba para transferir.';
+      });
     })();
   </script>
 </body>

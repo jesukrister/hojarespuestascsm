@@ -4779,6 +4779,16 @@
       }
     });
 
+    // Donar por transferencia: datos para copiar.
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest('.donate-link');
+      if (!a || !donationTransfer()) return;
+      e.preventDefault();
+      openDonation();
+    });
+    $('#dnCopy').addEventListener('click', copyTransfer);
+    $('#dnClose').addEventListener('click', () => $('#donateDialog').close());
+
     // Invitación a donar en Inicio: posponer o «ya doné».
     $('#homeDonate').addEventListener('click', (e) => {
       const b = e.target.closest('[data-donate-hide]');
@@ -5366,18 +5376,82 @@
     saveSupport(v);
   }
 
+  /** Datos de transferencia (completos) de js/donaciones.js, o null. */
+  function donationTransfer() {
+    const t = (window.DONACIONES || {}).transferencia || {};
+    const v = (k) => String(t[k] || '').trim();
+    const data = { nombre: v('nombre'), rut: v('rut'), banco: v('banco'), tipo: v('tipo') || 'Cuenta corriente', numero: v('numero'), correo: v('correo') };
+    return data.nombre && data.rut && data.banco && data.numero ? data : null;
+  }
+
+  function donationUrl() {
+    const url = String((window.DONACIONES || {}).url || '').trim();
+    return /^https:\/\/\S+$/i.test(url) ? url : '';
+  }
+
+  /** Texto para pegar en la app del banco (así lo reconocen al crear un destinatario). */
+  function transferText(t) {
+    return [`Nombre: ${t.nombre}`, `RUT: ${t.rut}`, `Banco: ${t.banco}`, `Tipo de cuenta: ${t.tipo}`, `N° de cuenta: ${t.numero}`]
+      .concat(t.correo ? [`Correo: ${t.correo}`] : [])
+      .join('\n');
+  }
+
+  function openDonation() {
+    const t = donationTransfer();
+    const url = donationUrl();
+    $('#dnData').innerHTML = [
+      ['Nombre', t.nombre],
+      ['RUT', t.rut],
+      ['Banco', t.banco],
+      ['Tipo de cuenta', t.tipo],
+      ['N° de cuenta', t.numero],
+    ]
+      .concat(t.correo ? [['Correo', t.correo]] : [])
+      .map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`)
+      .join('');
+    $('#dnCard').hidden = !url;
+    if (url) $('#dnCard').href = url;
+    $('#donateDialog').showModal();
+  }
+
+  async function copyTransfer() {
+    const text = transferText(donationTransfer());
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    } catch (e) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      $('#donateDialog').appendChild(ta);
+      ta.select();
+      try {
+        ok = document.execCommand('copy');
+      } catch (err) {
+        ok = false;
+      }
+      ta.remove();
+    }
+    toast(ok ? 'Datos copiados: pégalos en la app de tu banco. ¡Gracias! 💚' : 'No se pudo copiar: anota los datos de la pantalla.');
+  }
+
   function renderDonation() {
     const d = window.DONACIONES || {};
-    const url = String(d.url || '').trim();
+    const url = donationUrl();
+    const transfer = donationTransfer();
     const inApp = !!window.NativeApp || document.documentElement.classList.contains('native-app');
-    const show = !inApp && /^https:\/\/\S+$/i.test(url);
+    const show = !inApp && (!!url || !!transfer);
     for (const wrap of $$('.donate-wrap')) wrap.hidden = !show;
     const sup = supportState();
     $('#homeDonate').hidden = !show || sup.hojas < SUPPORT_MIN_SHEETS || Date.now() < sup.hasta;
     $('#homeDonateText').textContent = `Llevas ${sup.hojas} hojas corregidas con la app. Es gratis y lo seguirá siendo; si te gusta, puedes apoyar su desarrollo con una donación, del monto que quieras.`;
     if (!show) return;
     for (const a of $$('.donate-link')) {
-      a.href = url;
+      // Con datos de transferencia, el botón los muestra; si no, abre el enlace de pago.
+      if (transfer) {
+        a.href = '#';
+        a.removeAttribute('target');
+      } else a.href = url;
       if (d.texto && !a.closest('.man-donate, .home-donate')) a.textContent = '❤ ' + d.texto;
     }
   }

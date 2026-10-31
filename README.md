@@ -563,8 +563,12 @@ dependencias), con las novedades de `docs/play/novedades.txt` y
 
 ## Donaciones
 
-La página web muestra un botón **❤ Apoya este proyecto** al pegar el enlace de
-donación (PayPal, Ko-fi, Mercado Pago, Flow…) en `js/donaciones.js`. En la app
+La página web muestra un botón **❤ Apoya este proyecto** al completar en
+`js/donaciones.js` los datos de **transferencia** (nombre, RUT, banco, tipo y
+N° de cuenta: se muestran con un botón *Copiar los datos* para pegarlos en la
+app del banco, sin comisión) y/o un **enlace de pago con tarjeta** (Mercado
+Pago, Flow, Khipu, Ko-fi…). Los datos de transferencia quedan públicos en la
+página. En la app
 Android el botón no aparece, porque Google Play exige usar su propio sistema de
 pagos para donaciones al desarrollador.
 

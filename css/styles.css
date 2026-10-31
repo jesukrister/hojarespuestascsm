@@ -1079,3 +1079,8 @@ label.form-pick select { width: auto; min-width: 4.5em; }
 .home-donate { background: var(--ok-soft); border-color: #b9dfc6; }
 .home-donate h2 { margin-top: 0; }
 .home-donate p { margin: 0 0 10px; }
+.el-dialog.donate-dialog { width: min(460px, calc(100vw - 24px)); padding: 22px; }
+.donate-dialog h2 { margin-top: 0; }
+.dn-data { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 14px 0 18px; padding: 14px 16px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); }
+.dn-data dt { color: var(--muted); }
+.dn-data dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
