@@ -539,7 +539,10 @@
     for (const t of TABS) $('#tab-' + t).hidden = t !== name;
     document.documentElement.dataset.tab = name;
     renderSubSteps();
-    if (name === 'inicio') renderHome();
+    if (name === 'inicio') {
+      renderHome();
+      renderDonation();
+    }
     if (name === 'hoja') renderSheetPreview();
     if (name === 'evaluacion') renderDoc();
     if (name === 'corregir') renderResults();
@@ -2701,6 +2704,7 @@
     const record = createResult(res, name, pie);
     const view = await makeView(res, photoCanvas);
     state.results.push(record);
+    countSupportSheet();
     images.set(record.id, view);
     persistView(record.id, view);
     save();
@@ -3153,6 +3157,7 @@
         record.pieRemove = e.pie.remove.slice();
       }
       state.results.push(record);
+      countSupportSheet();
       images.set(record.id, view);
       persistView(record.id, view);
       save();
@@ -4774,6 +4779,18 @@
       }
     });
 
+    // Invitación a donar en Inicio: posponer o «ya doné».
+    $('#homeDonate').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-donate-hide]');
+      const link = e.target.closest('.donate-link');
+      if (!b && !link) return;
+      const v = supportState();
+      v.hasta = Date.now() + (b ? Number(b.dataset.donateHide) : 30) * 86400000;
+      saveSupport(v);
+      $('#homeDonate').hidden = true;
+      if (b) toast(b.dataset.donateHide === '365' ? '¡Gracias por apoyar! 💚' : 'Listo, te lo recordamos más adelante.');
+    });
+
     // Ver más grande, contraste y avisos al corregir.
     $('#viewMenu').addEventListener('click', (e) => {
       const b = e.target.closest('[data-letra]');
@@ -5318,16 +5335,50 @@
   }
 
   /** Botón de donación: sólo en la página web y si hay un enlace configurado (js/donaciones.js). */
+  /*
+   * Donaciones: la app es gratis. Quien ya corrigió varias hojas ve en Inicio
+   * una invitación amable a apoyar (se puede posponer o decir que ya donó).
+   */
+  const SUPPORT_KEY = 'lectorHojas.apoyo';
+  const SUPPORT_MIN_SHEETS = 20;
+
+  function supportState() {
+    try {
+      const v = JSON.parse(localStorage.getItem(SUPPORT_KEY) || '{}') || {};
+      return { hojas: Number(v.hojas) || 0, hasta: Number(v.hasta) || 0 };
+    } catch (e) {
+      return { hojas: 0, hasta: 0 };
+    }
+  }
+
+  function saveSupport(v) {
+    try {
+      localStorage.setItem(SUPPORT_KEY, JSON.stringify(v));
+    } catch (e) {
+      /* sin almacenamiento */
+    }
+  }
+
+  /** Cuenta las hojas corregidas en este equipo (para saber cuándo invitar a donar). */
+  function countSupportSheet() {
+    const v = supportState();
+    v.hojas++;
+    saveSupport(v);
+  }
+
   function renderDonation() {
     const d = window.DONACIONES || {};
     const url = String(d.url || '').trim();
     const inApp = !!window.NativeApp || document.documentElement.classList.contains('native-app');
     const show = !inApp && /^https:\/\/\S+$/i.test(url);
     for (const wrap of $$('.donate-wrap')) wrap.hidden = !show;
+    const sup = supportState();
+    $('#homeDonate').hidden = !show || sup.hojas < SUPPORT_MIN_SHEETS || Date.now() < sup.hasta;
+    $('#homeDonateText').textContent = `Llevas ${sup.hojas} hojas corregidas con la app. Es gratis y lo seguirá siendo; si te gusta, puedes apoyar su desarrollo con una donación, del monto que quieras.`;
     if (!show) return;
     for (const a of $$('.donate-link')) {
       a.href = url;
-      if (d.texto && !a.closest('.man-donate')) a.textContent = '❤ ' + d.texto;
+      if (d.texto && !a.closest('.man-donate, .home-donate')) a.textContent = '❤ ' + d.texto;
     }
   }
 

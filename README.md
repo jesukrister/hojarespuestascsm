@@ -568,6 +568,11 @@ donación (PayPal, Ko-fi, Mercado Pago, Flow…) en `js/donaciones.js`. En la ap
 Android el botón no aparece, porque Google Play exige usar su propio sistema de
 pagos para donaciones al desarrollador.
 
+Las dos versiones (normal y Pro) son gratis. Con el enlace configurado, además:
+quien ya corrigió 20 hojas en ese equipo ve en Inicio una invitación amable a
+donar (*Ahora no* la pospone 60 días; *Ya doné*, un año), y la página
+`finde-libre/` muestra la sección «Apoya el proyecto». Sin enlace no aparece nada.
+
 ## Licencia
 
 © 2026 Francesco Vivero. Todos los derechos reservados. Uso gratuito de las

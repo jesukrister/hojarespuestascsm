@@ -135,6 +135,8 @@
     .final { text-align: center; }
     .final h2 { font-size: 2.2rem; }
     .final .cta { justify-content: center; }
+    .donate-box { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px 30px; background: var(--ok-soft); border: 1px solid #b9dfc6; border-radius: 22px; padding: 28px; }
+    .donate-box .sub { margin-bottom: 0; }
     footer { padding: 28px 0 40px; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--border); }
     footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; }
 
@@ -271,8 +273,8 @@
     <section id="pro" class="white">
       <div class="wrap">
         <p class="kicker">Versiones</p>
-        <h2>Empieza gratis. Si quieres más, está la Pro.</h2>
-        <p class="sub">Las dos corrigen igual de bien. La Pro suma el libro de notas y más herramientas para el año completo.</p>
+        <h2>Las dos versiones son gratis.</h2>
+        <p class="sub">Elige la que te acomode: la normal para corregir rápido, o la Pro, que suma el libro de notas y más herramientas para el año completo. Ninguna pide cuenta ni tarjeta.</p>
         <div class="plans">
           <div class="plan">
             <h3>Finde Libre</h3>
@@ -289,7 +291,7 @@
           </div>
           <div class="plan pro">
             <h3>Finde Libre <span class="badge">PRO</span></h3>
-            <span class="tag">Todo lo anterior, y además:</span>
+            <span class="tag">Gratis · todo lo anterior, y además:</span>
             <ul>
               <li>Cursos y libro de notas con promedios</li>
               <li>Una prueba para varios cursos</li>
@@ -310,7 +312,7 @@
         <p class="kicker">Preguntas frecuentes</p>
         <h2>Lo que suelen preguntar los profes</h2>
         <div class="faq">
-          <details><summary>¿Tiene costo?</summary><p>La versión normal es gratuita y no necesitas crear una cuenta.</p></details>
+          <details><summary>¿Tiene costo?</summary><p>No. La versión normal y la Pro son gratis, sin anuncios y sin crear cuenta. Si te gusta, puedes apoyar con una donación voluntaria.</p></details>
           <details><summary>¿Sirve con mi prueba de siempre?</summary><p>Sí. La prueba la haces como siempre (Word, impresa o a mano); los estudiantes marcan sus respuestas en la hoja de respuestas que imprime Finde Libre. Si quieres, también puedes escribir las preguntas en la app y ella arma la prueba.</p></details>
           <details><summary>¿Las fotos de mis estudiantes se suben a internet?</summary><p>No. La lectura de las hojas se hace en tu propio celular o computador: las fotos y las notas se quedan en tu equipo.</p></details>
           <details><summary>¿Necesito internet?</summary><p>Solo para abrir la página. La corrección se hace en el equipo.</p></details>
@@ -319,6 +321,17 @@
           <details><summary>¿Qué pasa si una hoja viene doblada o rayada?</summary><p>Si no se puede leer, la app te dice por qué y te deja transcribirla a mano en unos segundos.</p></details>
           <details><summary>¿Hay app para el celular?</summary><p>Funciona en el navegador del celular. La app para Android viene pronto en Google Play.</p></details>
         </div>
+      </div>
+    </section>
+
+    <section id="apoyar" class="donate" hidden>
+      <div class="wrap donate-box">
+        <div>
+          <p class="kicker">Apoya el proyecto</p>
+          <h2>¿Te devolvimos un finde? 💚</h2>
+          <p class="sub">Finde Libre es gratis y lo seguirá siendo. Es un proyecto independiente, hecho en Chile. Si te sirve, puedes apoyar con una donación del monto que quieras: ayuda a mantenerla y a seguir mejorándola.</p>
+        </div>
+        <a class="btn primary" id="donateBtn" target="_blank" rel="noopener">❤ Apoyar con una donación</a>
       </div>
     </section>
 
@@ -337,8 +350,22 @@
   <footer>
     <div class="wrap">
       <span>© 2026 Francesco Vivero · Finde Libre, corrector de pruebas · Hecho en Chile</span>
+      <span class="donate-foot" hidden><a id="donateFoot" target="_blank" rel="noopener">❤ Donar</a> ·</span>
       <span>¿Dudas? Escríbenos a @historiaycosos o @framsesk0 en Instagram · <a href="../privacidad.html">Política de privacidad</a></span>
     </div>
   </footer>
+  <script src="../js/donaciones.js"></script>
+  <script>
+    // Donaciones: el mismo enlace que la app (js/donaciones.js). Sin enlace, no se muestra nada.
+    (function () {
+      var d = window.DONACIONES || {};
+      var url = String(d.url || '').trim();
+      if (!/^https:\/\/\S+$/i.test(url)) return;
+      document.getElementById('apoyar').hidden = false;
+      document.querySelector('.donate-foot').hidden = false;
+      document.getElementById('donateBtn').href = url;
+      document.getElementById('donateFoot').href = url;
+    })();
+  </script>
 </body>
 </html>
