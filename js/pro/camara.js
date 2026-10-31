@@ -126,10 +126,27 @@
     beep();
     const review = app.needsReview(record) ? ' (revisar)' : '';
     setStatus(`✓ ${who}${record.pie ? ' (PIE)' : ''} · nota ${app.fmt(g.grade, 1)}${review}. Pon la siguiente.`, 'done');
+    showLast(record, g);
     $('#lvCount').textContent = String(saved);
     const li = document.createElement('li');
     li.innerHTML = `<b>${esc(who)}</b> · ${g.correct}/${g.items.length - g.excluded} · nota ${esc(app.fmt(g.grade, 1))}${review ? ' <span class="tag warn">revisar</span>' : ''}`;
     $('#lvList').prepend(li);
+  }
+
+  /** Tarjeta grande con la última hoja guardada: nombre, nota y cuántos faltan (y la voz, si está activada). */
+  function showLast(record, g) {
+    const review = app.needsReview(record);
+    const title = app.sheetTitle(record);
+    const card = $('#lvLast');
+    card.hidden = false;
+    card.className = 'lv-last' + (review ? ' review' : '');
+    $('#lvLastName').textContent = `${review ? '⚠' : '✔'} ${title}`;
+    $('#lvLastGrade').textContent = g.grade === null ? 'Sin nota' : `Nota ${app.fmt(g.grade, 1)}`;
+    $('#lvLastSub').textContent = review
+      ? `Revisar: ${app.reviewReason(record)}`
+      : `${g.correct} de ${g.items.length - g.excluded} correctas${record.pie ? ' · PIE' : ''}`;
+    $('#lvLastProg').textContent = app.progressLine();
+    app.speak(`${title}. ${g.grade === null ? 'Sin nota' : app.fmt(g.grade, 1)}${review ? '. Revisar' : ''}`);
   }
 
   async function start() {
@@ -144,6 +161,7 @@
     pending = { sig: null, count: 0 };
     $('#lvCount').textContent = '0';
     $('#lvList').innerHTML = '';
+    $('#lvLast').hidden = true;
     const group = app.currentGroup();
     $('#lvCourse').hidden = !group;
     $('#lvCourse').textContent = group ? `Curso: ${app.groupLabel(group)}` : '';

@@ -2408,11 +2408,18 @@
 
   const isPdf = (f) => !!f && (f.type === 'application/pdf' || /\.pdf$/i.test(f.name || ''));
 
-  async function handleFiles(fileList) {
+  /**
+   * @param source de dónde vienen: 'camera' (Tomar foto) o 'files' (Subir imágenes);
+   *   con una sola foto se muestra el aviso grande con el nombre y la nota.
+   */
+  async function handleFiles(fileList, source) {
     const files = Array.from(fileList || []).filter((f) => !f.type || f.type.startsWith('image/') || (PRO && isPdf(f)));
     if (!files.length) return;
     if (!getLayout()) return toast(layoutError);
     if (!state.exam.key.some((k) => k !== null)) toast('Aún no hay clave de respuestas: se leerán las marcas, pero no se podrá calificar.');
+    const single = !!source && files.length === 1 && !isPdf(files[0]);
+    const before = new Set(state.results.map((r) => r.id));
+    let failure = null;
     for (const file of files) {
       if (PRO && isPdf(file)) {
         await scanPdf(file);
@@ -2420,6 +2427,13 @@
       }
       const name = file.name || 'foto';
       const item = queueItem(name);
+      if (single) {
+        const error = item.error;
+        item.error = (text, action) => {
+          failure = failure || { text, action };
+          error(text, action);
+        };
+      }
       await nextFrame();
       try {
         const { gray, canvas } = await fileToGray(file);
@@ -2430,6 +2444,102 @@
       }
     }
     renderResultsBadge();
+    if (single) announceScan(state.results.filter((r) => !before.has(r.id)), failure, source);
+  }
+
+  /* ---------- Aviso grande después de cada foto (y voz) ---------- */
+  const notice = { source: null, action: null, result: null };
+
+  /** Por qué hay que revisar una hoja, en palabras simples. */
+  function reviewReason(r) {
+    const why = [];
+    if (state.exam.idDigits > 0 && (!r.code || r.code.indexOf('?') >= 0 || r.idUncertain)) why.push('no se leyó bien el N° de lista');
+    if (formUnknown(r)) why.push('no se reconoció la fila');
+    if (r.answers.some((a) => a.uncertain && !a.edited)) why.push('hay marcas dudosas');
+    if (devPending(r) > 0) why.push('faltan puntajes de desarrollo');
+    return why.join(', ') || 'revisa sus marcas';
+  }
+
+  /** «Llevas 24 de 32 · Faltan: Benjamín, Carla, Diego y 5 más». */
+  function progressLine() {
+    const pr = scanProgressData();
+    if (!pr.listed) {
+      const n = state.results.length;
+      return `${n} hoja${n === 1 ? '' : 's'} corregida${n === 1 ? '' : 's'}`;
+    }
+    const head = `Llevas ${pr.have} de ${pr.listed}${pr.group ? ` en ${pr.group}` : ''}`;
+    if (!pr.missing.length) return `${head} · ¡Están todos!`;
+    const first = pr.missing.slice(0, 3).map((m) => m.name.split(/\s+/)[0]);
+    const more = pr.missing.length - first.length;
+    return `${head} · Faltan: ${first.join(', ')}${more > 0 ? ` y ${more} más` : ''}`;
+  }
+
+  function sheetTitle(r) {
+    return displayName(r) || (r.code && r.code.indexOf('?') < 0 ? `N° ${r.code}` : 'Hoja sin N° de lista');
+  }
+
+  /** Muestra (si está activado) el aviso grande y dice el nombre y la nota (si está activada la voz). */
+  function announceScan(added, failure, source) {
+    if (!added.length && !failure) return;
+    const prefs = viewPrefs();
+    let kind, icon, title, sub = '', gradeText = '', msg = '', voice, list = '';
+    notice.source = source;
+    notice.action = null;
+    notice.result = null;
+    if (added.length === 1) {
+      const r = added[0];
+      const g = grade(r);
+      const review = needsReview(r);
+      notice.result = r.id;
+      kind = review ? 'review' : 'ok';
+      icon = review ? '⚠' : '✔';
+      title = sheetTitle(r);
+      sub = [r.group ? groupLabel(groupOf(r)) : '', displayName(r) && r.code ? `N° ${r.code}` : '', r.pie ? 'PIE' : '', `${g.correct} de ${g.items.length - g.excluded} correctas`]
+        .filter(Boolean)
+        .join(' · ');
+      gradeText = g.grade === null ? 'Sin nota: falta la clave' : `Nota ${fmt(g.grade, 1)}`;
+      if (review) msg = `Revisa esta hoja: ${reviewReason(r)}.`;
+      voice = `${title}. ${g.grade === null ? 'Sin nota' : fmt(g.grade, 1)}${review ? '. Revisar' : ''}`;
+    } else if (added.length > 1) {
+      kind = added.some(needsReview) ? 'review' : 'ok';
+      icon = '✔';
+      title = `${added.length} hojas leídas`;
+      list = added
+        .map((r) => `<li><b>${esc(sheetTitle(r))}</b> · nota ${esc(fmt(grade(r).grade, 1))}${needsReview(r) ? ' · ⚠ revisar' : ''}</li>`)
+        .join('');
+      voice = title;
+    } else {
+      kind = 'error';
+      icon = '✖';
+      title = 'No se pudo leer la hoja';
+      msg = String(failure.text || '').replace(/^[^:]*:\s*/, '');
+      notice.action = failure.action || null;
+      voice = title;
+    }
+    speak(voice);
+    if (!prefs.aviso) return;
+    const dlg = $('#scanNotice');
+    dlg.className = `el-dialog scan-notice ${kind}`;
+    $('#snIcon').textContent = icon;
+    $('#snTitle').textContent = title;
+    $('#snSub').textContent = sub;
+    $('#snSub').hidden = !sub;
+    $('#snGrade').textContent = gradeText;
+    $('#snGrade').hidden = !gradeText;
+    $('#snMsg').textContent = msg;
+    $('#snMsg').hidden = !msg;
+    $('#snList').innerHTML = list;
+    $('#snList').hidden = !list;
+    // Consejos para la foto, si el mensaje no los da ya.
+    $('#snTips').hidden = kind !== 'error' || /marcas negras/.test(msg);
+    $('#snProgress').textContent = progressLine();
+    $('#snNext').textContent = kind === 'error' ? (source === 'files' ? '🖼️ Elegir otra imagen' : '📷 Tomar otra foto') : source === 'files' ? '🖼️ Subir otra imagen' : '📷 Siguiente hoja';
+    $('#snView').hidden = !notice.result;
+    $('#snView').textContent = kind === 'review' ? '🔎 Revisar ahora' : '👁 Ver la hoja';
+    $('#snAction').hidden = !notice.action;
+    $('#snAction').textContent = notice.action ? notice.action.label : '';
+    if (!dlg.open) dlg.showModal();
+    $('#snNext').focus();
   }
 
   /** Guarda una hoja leída como resultado y la muestra en la cola. */
@@ -2690,7 +2800,7 @@
   /** Botón "Usar la configuración de esta hoja": cambia la configuración y vuelve a escanear. */
   function useSheetConfig(cfg, file) {
     if (!applySheetConfig(cfg)) return;
-    if (file) handleFiles([file]);
+    if (file) handleFiles([file], 'files');
   }
 
   /* ------------------------------------------------------------------ */
@@ -4772,9 +4882,23 @@
       $(id).addEventListener('change', (e) => {
         const files = Array.from(e.target.files);
         e.target.value = '';
-        handleFiles(files);
+        handleFiles(files, id === '#cameraInput' ? 'camera' : 'files');
       });
     }
+    // Aviso grande: la siguiente hoja abre la cámara (o el selector de imágenes) de nuevo.
+    $('#snNext').addEventListener('click', () => {
+      $('#scanNotice').close();
+      $(notice.source === 'files' ? '#filesInput' : '#cameraInput').click();
+    });
+    $('#snView').addEventListener('click', () => {
+      $('#scanNotice').close();
+      if (notice.result) openResult(notice.result);
+    });
+    $('#snAction').addEventListener('click', () => {
+      $('#scanNotice').close();
+      if (notice.action) notice.action.run();
+    });
+    $('#snDone').addEventListener('click', () => $('#scanNotice').close());
     $('#scanQueue').addEventListener('click', (e) => {
       const b = e.target.closest('[data-view]');
       if (b) openResult(b.dataset.view);
@@ -5033,6 +5157,11 @@
       state,
       emit,
       simpleMode,
+      speak,
+      viewPrefs,
+      progressLine,
+      sheetTitle,
+      reviewReason,
       renderHome,
       renderSubSteps,
       on(name, fn) {

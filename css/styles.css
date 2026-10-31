@@ -990,3 +990,27 @@ label.form-pick select { width: auto; min-width: 4.5em; }
   .tour-bubble { font-size: 1.1rem; padding: 16px 16px 14px; }
 }
 @media print { .tour-shade, .tour-spot, .tour-bubble, .tour-start { display: none !important; } }
+
+/* ---------- Aviso grande después de cada foto ---------- */
+.el-dialog.scan-notice { width: min(520px, calc(100vw - 24px)); overflow: auto; }
+.scan-notice .sn-card { padding: 26px 22px 18px; text-align: center; display: grid; gap: 6px; justify-items: center; color: #fff; background: #17733a; }
+.scan-notice.review .sn-card { background: #9a5b00; }
+.scan-notice.error .sn-card { background: #b3261e; }
+.sn-icon { font-size: 3.4rem; line-height: 1; }
+.scan-notice h2 { margin: 4px 0 0; font-size: 1.9rem; line-height: 1.15; overflow-wrap: anywhere; }
+.sn-sub { margin: 0; font-size: 1.1rem; }
+.sn-grade { margin: 6px 0 0; font-size: 2.6rem; font-weight: 800; line-height: 1.1; }
+.sn-msg { margin: 6px 0 0; font-size: 1.1rem; font-weight: 600; background: rgba(255, 255, 255, 0.16); border-radius: 10px; padding: 8px 12px; }
+.sn-list, .sn-tips { margin: 6px 0 0; padding: 0; list-style: none; font-size: 1.05rem; display: grid; gap: 4px; text-align: left; }
+.sn-tips li::before { content: '• '; }
+.sn-progress { margin: 10px 0 0; font-size: 1.05rem; background: rgba(255, 255, 255, 0.16); border-radius: 10px; padding: 8px 12px; width: 100%; }
+.sn-actions { padding: 16px 18px 18px; display: grid; gap: 10px; background: var(--surface); }
+.sn-actions .btn.big { width: 100%; font-size: 1.2rem; padding: 16px; }
+.sn-more { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.sn-more .btn { flex: 1 1 auto; font-size: 1rem; }
+@media (max-width: 560px) {
+  .el-dialog.scan-notice { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; }
+  .scan-notice[open] { display: flex; flex-direction: column; }
+  .scan-notice .sn-card { flex: 1; align-content: center; }
+  .sn-actions { padding-bottom: calc(18px + env(safe-area-inset-bottom)); }
+}

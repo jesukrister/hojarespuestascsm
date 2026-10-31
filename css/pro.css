@@ -546,3 +546,9 @@ html[data-modo="simple"] :is(
 }
 /* Celulares angostos: en la Pro el nombre se acorta para que quepan la nube, «Aa» y el tutorial. */
 @media (max-width: 400px) { .brand-mid { display: none; } }
+.lv-last { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 12px; margin-bottom: 10px; padding: 12px 14px; border-radius: 12px; background: #17733a; color: #fff; }
+.lv-last.review { background: #9a5b00; }
+.lv-last b { font-size: 1.35rem; line-height: 1.2; overflow-wrap: anywhere; }
+.lv-last strong { grid-row: span 2; font-size: 2rem; font-weight: 800; white-space: nowrap; }
+.lv-last span { font-size: 0.98rem; }
+.lv-last .lv-last-prog { grid-column: 1 / -1; margin-top: 4px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.25); }

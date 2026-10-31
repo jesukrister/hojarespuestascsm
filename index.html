@@ -921,6 +921,31 @@ Núcleo = Contiene el material genético</pre>
     <div id="resultDetail" class="rd-body"></div>
   </dialog>
 
+  <dialog id="scanNotice" class="el-dialog scan-notice" aria-labelledby="snTitle">
+    <div class="sn-card">
+      <div class="sn-icon" id="snIcon" aria-hidden="true">✔</div>
+      <h2 id="snTitle"></h2>
+      <p id="snSub" class="sn-sub"></p>
+      <p id="snGrade" class="sn-grade"></p>
+      <p id="snMsg" class="sn-msg" hidden></p>
+      <ul id="snList" class="sn-list" hidden></ul>
+      <ul id="snTips" class="sn-tips" hidden>
+        <li>Que se vean las <b>cuatro esquinas negras</b> de la hoja.</li>
+        <li>Buena luz, sin sombras ni reflejos.</li>
+        <li>Foto desde arriba, con la hoja plana.</li>
+      </ul>
+      <p id="snProgress" class="sn-progress"></p>
+    </div>
+    <div class="sn-actions">
+      <button type="button" class="btn primary big" id="snNext">📷 Siguiente hoja</button>
+      <div class="sn-more">
+        <button type="button" class="btn secondary" id="snView">👁 Ver la hoja</button>
+        <button type="button" class="btn secondary" id="snAction" hidden></button>
+        <button type="button" class="btn ghost" id="snDone">Listo</button>
+      </div>
+    </div>
+  </dialog>
+
   <dialog id="trDialog" class="el-dialog tr-dialog" aria-labelledby="trDialogTitle">
     <div class="el-head">
       <h2 id="trDialogTitle">Transcribir una hoja dañada</h2>
