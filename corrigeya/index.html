@@ -3,18 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Finde Libre · Corrector de pruebas para profesores</title>
+  <title>CorrigeYa · Corrector de pruebas para profesores</title>
   <meta name="description" content="Corrige pruebas de alternativas con una foto del celular. Imprime la hoja de respuestas, sácale una foto y la nota sale al tiro, con la escala de 1,0 a 7,0.">
   <meta name="theme-color" content="#1f4e79">
-  <meta property="og:title" content="Finde Libre · Corrector de pruebas">
-  <meta property="og:description" content="Corrige tus pruebas con una foto y recupera tu fin de semana.">
+  <meta property="og:title" content="CorrigeYa · Corrector de pruebas">
+  <meta property="og:description" content="Corrige ya tus pruebas con una foto. Y tu finde, libre.">
   <meta property="og:image" content="logo.svg">
   <link rel="icon" href="logo.svg" type="image/svg+xml">
   <!--
-    Página de presentación de Finde Libre (borrador, aún sin dominio propio).
-    Los botones abren la app que ya existe: ../index.html (normal) y ../pro.html (Pro).
-    Cuando se use el dominio findelibre.cl, esta página pasa a ser la portada y
-    esos enlaces se cambian a la dirección de la app.
+    Página de presentación de CorrigeYa (borrador, aún sin dominio propio).
+    CorrigeYa gratis = la app que hoy es la versión Pro (../pro.html).
+    CorrigeYa Plus (de pago, $1.990 al mes) aún no existe: se muestra como «Próximamente».
+    Cuando se use el dominio corrigeya.cl, esta página pasa a ser la portada y
+    los enlaces se cambian a la dirección de la app.
   -->
   <style>
     :root {
@@ -124,6 +125,8 @@
     .plan ul { margin: 0 0 22px; padding: 0; list-style: none; display: grid; gap: 8px; flex: 1; }
     .plan li::before { content: '✔ '; color: var(--ok); font-weight: 800; }
     .plan.pro .tag { color: var(--primary); }
+    .plan-note { margin: -4px 0 10px; color: var(--muted); }
+    .btn.soon { background: var(--primary-soft); color: var(--primary); cursor: default; }
     .badge { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 6px; background: linear-gradient(135deg, #d69e2e, #b7791f); color: #fff; font-size: 0.75rem; font-weight: 800; vertical-align: middle; }
 
     /* Preguntas */
@@ -175,13 +178,13 @@
     <div class="head">
       <a class="brand" href="#">
         <img src="logo.svg" alt="">
-        <span><b>Finde Libre</b><small>Corrector de pruebas para profesores</small></span>
+        <span><b>CorrigeYa</b><small>Corrige ya. Tu finde, libre.</small></span>
       </a>
       <nav aria-label="Secciones">
         <a href="#como">Cómo funciona</a>
-        <a href="#pro">Versión Pro</a>
+        <a href="#planes">Planes</a>
         <a href="#preguntas">Preguntas</a>
-        <a class="btn primary" href="../index.html">Abrir la app</a>
+        <a class="btn primary" href="../pro.html">Abrir la app</a>
       </nav>
     </div>
   </header>
@@ -190,15 +193,15 @@
     <section class="hero">
       <div class="wrap">
         <div>
-          <h1>Corrige tus pruebas con una foto.<br><em>Recupera tu fin de semana.</em></h1>
-          <p class="lead">Imprime la hoja de respuestas, sácale una foto con el celular y la nota sale al tiro. Todo el curso queda en un Excel, sin pasar notas a mano.</p>
+          <h1>Corrige ya tus pruebas con una foto.<br><em>Y tu finde, libre.</em></h1>
+          <p class="lead">Imprime la hoja de respuestas, sácale una foto con el celular y la nota sale al tiro. Las notas quedan en el libro de cada curso y en un Excel: nada que corregir el domingo.</p>
           <div class="cta">
-            <a class="btn primary" href="../index.html">📷 Empezar a corregir, gratis</a>
+            <a class="btn primary" href="../pro.html">📷 Empezar a corregir, gratis</a>
             <a class="btn soft" href="#como">▶ Cómo funciona</a>
           </div>
           <ul class="trust">
             <li>✔ Escala de 1,0 a 7,0</li>
-            <li>✔ Sin crear cuenta</li>
+            <li>✔ Gratis, sin anuncios</li>
             <li>✔ Las fotos no salen de tu equipo</li>
           </ul>
         </div>
@@ -278,38 +281,39 @@
       </div>
     </section>
 
-    <section id="pro" class="white">
+    <section id="planes" class="white">
       <div class="wrap">
-        <p class="kicker">Versiones</p>
-        <h2>Las dos versiones son gratis.</h2>
-        <p class="sub">Elige la que te acomode: la normal para corregir rápido, o la Pro, que suma el libro de notas y más herramientas para el año completo. Ninguna pide cuenta ni tarjeta.</p>
+        <p class="kicker">Planes</p>
+        <h2>Corregir es gratis. Siempre.</h2>
+        <p class="sub">Todo lo que necesitas para corregir y llevar las notas es gratis. Más adelante, si quieres ordenar todo tu trabajo docente en un solo lugar, estará CorrigeYa Plus.</p>
         <div class="plans">
           <div class="plan">
-            <h3>Finde Libre</h3>
+            <h3>CorrigeYa</h3>
             <span class="tag">Gratis</span>
             <ul>
-              <li>Hoja de respuestas de 1 a 120 preguntas</li>
-              <li>Corregir con foto, en el celular o el computador</li>
-              <li>Filas A, B, C y D</li>
-              <li>Excel con notas y hojas corregidas</li>
-              <li>Escribir la prueba y armarla lista para imprimir</li>
-              <li>Análisis por pregunta y por OA</li>
-            </ul>
-            <a class="btn line" href="../index.html">Abrir Finde Libre</a>
-          </div>
-          <div class="plan pro">
-            <h3>Finde Libre <span class="badge">PRO</span></h3>
-            <span class="tag">Gratis · todo lo anterior, y además:</span>
-            <ul>
+              <li>Hoja de respuestas de 1 a 120 preguntas, filas A a D</li>
+              <li>Corregir con foto, escaneo continuo y PDF de la fotocopiadora</li>
               <li>Cursos y libro de notas con promedios</li>
               <li>Una prueba para varios cursos</li>
-              <li>Escaneo continuo: pasas las hojas y se leen solas</li>
-              <li>PDF de la fotocopiadora y varias hojas por foto</li>
-              <li>Estudiantes PIE con su exigencia y versión adecuada</li>
-              <li>Informe para UTP, informes por estudiante y nube</li>
-              <li>Modo simple para quien solo quiere corregir</li>
+              <li>Estudiantes PIE, análisis por pregunta y por OA</li>
+              <li>Excel, informes por estudiante y para UTP</li>
+              <li>Guardado en la nube y modo simple</li>
             </ul>
-            <a class="btn primary" href="../pro.html">Abrir Finde Libre Pro</a>
+            <a class="btn primary" href="../pro.html">📷 Empezar a corregir</a>
+          </div>
+          <div class="plan pro">
+            <h3>CorrigeYa <span class="badge">PLUS</span></h3>
+            <span class="tag">$1.990 al mes · Próximamente</span>
+            <p class="plan-note">Todo lo gratis, y además tu trabajo docente ordenado:</p>
+            <ul>
+              <li>📅 Agenda: pruebas, clases, reuniones y entregas en un calendario</li>
+              <li>🕘 Horario semanal: «¿qué curso tengo ahora?» en la pantalla de inicio</li>
+              <li>✅ Asistencia: pasar lista con un toque, con su porcentaje</li>
+              <li>🗒️ Anotaciones de cada estudiante (positivas y negativas)</li>
+              <li>📨 Informes de notas para apoderados, listos para enviar</li>
+              <li>🔔 Recordatorios: notas pendientes y cierre de semestre</li>
+            </ul>
+            <span class="btn soon">Muy pronto</span>
           </div>
         </div>
       </div>
@@ -320,12 +324,12 @@
         <p class="kicker">Preguntas frecuentes</p>
         <h2>Lo que suelen preguntar los profes</h2>
         <div class="faq">
-          <details><summary>¿Tiene costo?</summary><p>No. La versión normal y la Pro son gratis, sin anuncios y sin crear cuenta. Si te gusta, puedes apoyar con una donación voluntaria.</p></details>
-          <details><summary>¿Sirve con mi prueba de siempre?</summary><p>Sí. La prueba la haces como siempre (Word, impresa o a mano); los estudiantes marcan sus respuestas en la hoja de respuestas que imprime Finde Libre. Si quieres, también puedes escribir las preguntas en la app y ella arma la prueba.</p></details>
+          <details><summary>¿Tiene costo?</summary><p>No. Corregir pruebas, los cursos y el libro de notas son gratis, sin anuncios. Más adelante habrá CorrigeYa Plus, opcional, por $1.990 al mes, con agenda, asistencia y otras herramientas para el trabajo docente. Lo que hoy es gratis seguirá siendo gratis.</p></details>
+          <details><summary>¿Sirve con mi prueba de siempre?</summary><p>Sí. La prueba la haces como siempre (Word, impresa o a mano); los estudiantes marcan sus respuestas en la hoja de respuestas que imprime CorrigeYa. Si quieres, también puedes escribir las preguntas en la app y ella arma la prueba.</p></details>
           <details><summary>¿Las fotos de mis estudiantes se suben a internet?</summary><p>No. La lectura de las hojas se hace en tu propio celular o computador: las fotos y las notas se quedan en tu equipo.</p></details>
           <details><summary>¿Necesito internet?</summary><p>Solo para abrir la página. La corrección se hace en el equipo.</p></details>
           <details><summary>¿Cuántas alternativas puede tener cada pregunta?</summary><p>De 2 a 6 (A a F), con hasta 120 preguntas por prueba.</p></details>
-          <details><summary>¿Cómo paso las notas al libro de clases?</summary><p>Descargas el Excel con todas las notas. En la versión Pro, además, quedan guardadas en el libro de notas de cada curso con sus promedios.</p></details>
+          <details><summary>¿Cómo paso las notas al libro de clases?</summary><p>Las notas quedan guardadas en el libro de notas de cada curso, con sus promedios, y además puedes descargar el Excel.</p></details>
           <details><summary>¿Qué pasa si una hoja viene doblada o rayada?</summary><p>Si no se puede leer, la app te dice por qué y te deja transcribirla a mano en unos segundos.</p></details>
           <details><summary>¿Hay app para el celular?</summary><p>Funciona en el navegador del celular. La app para Android viene pronto en Google Play.</p></details>
         </div>
@@ -337,7 +341,7 @@
         <div>
           <p class="kicker">Apoya el proyecto</p>
           <h2>¿Te devolvimos un finde? 💚</h2>
-          <p class="sub">Finde Libre es gratis y lo seguirá siendo. Es un proyecto independiente, hecho en Chile. Si te sirve, puedes apoyar con una donación del monto que quieras: ayuda a mantenerla y a seguir mejorándola.</p>
+          <p class="sub">Corregir con CorrigeYa es gratis y lo seguirá siendo. Es un proyecto independiente, hecho en Chile. Si te sirve, puedes apoyar con una donación del monto que quieras: ayuda a mantenerla y a seguir mejorándola.</p>
         </div>
         <div class="dn">
           <dl id="dnData" class="dn-data" hidden></dl>
@@ -352,11 +356,10 @@
 
     <section class="final white">
       <div class="wrap">
-        <h2>Este finde, no corriges pruebas.</h2>
-        <p class="sub" style="margin-left:auto;margin-right:auto">Abre Finde Libre, crea la hoja y prueba con una foto. En cinco minutos ves cómo funciona.</p>
+        <h2>Corrige ya. Este finde, libre.</h2>
+        <p class="sub" style="margin-left:auto;margin-right:auto">Abre CorrigeYa, crea la hoja y prueba con una foto. En cinco minutos ves cómo funciona.</p>
         <div class="cta">
-          <a class="btn primary" href="../index.html">📷 Empezar a corregir, gratis</a>
-          <a class="btn line" href="../pro.html">Ver la versión Pro</a>
+          <a class="btn primary" href="../pro.html">📷 Empezar a corregir, gratis</a>
         </div>
       </div>
     </section>
@@ -364,7 +367,7 @@
 
   <footer>
     <div class="wrap">
-      <span>© 2026 Francesco Vivero · Finde Libre, corrector de pruebas · Hecho en Chile</span>
+      <span>© 2026 Francesco Vivero · CorrigeYa, corrector de pruebas · Hecho en Chile</span>
       <span class="donate-foot" hidden><a id="donateFoot" target="_blank" rel="noopener">❤ Donar</a> ·</span>
       <span>¿Dudas? Escríbenos a @historiaycosos o @framsesk0 en Instagram · <a href="../privacidad.html">Política de privacidad</a></span>
     </div>

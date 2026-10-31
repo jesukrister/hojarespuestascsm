@@ -470,13 +470,15 @@ servidor del colegio, etc.) funciona igual: basta con subir los archivos.
 > Para usar la cámara desde el celular, la página debe servirse por **HTTPS**
 > (GitHub Pages y los servicios mencionados ya lo hacen).
 
-### Página de presentación (borrador): `finde-libre/`
+### Página de presentación (borrador): `corrigeya/`
 
-Portada de **Finde Libre · Corrector de pruebas** (nombre propuesto), en una
-carpeta aparte para revisarla antes de usar un dominio propio: con GitHub Pages
-queda en `https://<usuario>.github.io/<repositorio>/finde-libre/`. Sus botones
-abren la app actual (`../index.html` y `../pro.html`), que no cambia. Al pasar
-a findelibre.cl, esta página será la portada y esos enlaces apuntarán a la app.
+Portada de **CorrigeYa · Corrige ya. Tu finde, libre.** (nombre propuesto), en
+una carpeta aparte para revisarla antes de usar un dominio propio: con GitHub
+Pages queda en `https://<usuario>.github.io/<repositorio>/corrigeya/`. Presenta
+la idea nueva: CorrigeYa gratis es lo que hoy es la versión Pro (sus botones
+abren `../pro.html`) y **CorrigeYa Plus** ($1.990 al mes: agenda, horario,
+asistencia, anotaciones, informes para apoderados y recordatorios) aparece como
+«Próximamente». La app actual no cambia.
 
 ## Videos del manual
 
@@ -576,7 +578,7 @@ pagos para donaciones al desarrollador.
 Las dos versiones (normal y Pro) son gratis. Con el enlace configurado, además:
 quien ya corrigió 20 hojas en ese equipo ve en Inicio una invitación amable a
 donar (*Ahora no* la pospone 60 días; *Ya doné*, un año), y la página
-`finde-libre/` muestra la sección «Apoya el proyecto». Sin enlace no aparece nada.
+`corrigeya/` muestra la sección «Apoya el proyecto». Sin enlace no aparece nada.
 
 ## Licencia
 
