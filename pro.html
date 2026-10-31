@@ -9,6 +9,7 @@
   <title>Lector de Hojas de Respuesta Pro</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231f4e79'/%3E%3Ccircle cx='10' cy='11' r='4' fill='%23fff'/%3E%3Ccircle cx='22' cy='11' r='4' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Ccircle cx='10' cy='22' r='4' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Ccircle cx='22' cy='22' r='4' fill='%23fff'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="css/styles.css">
+  <script>try { var v = JSON.parse(localStorage.getItem('lectorHojas.vista') || '{}') || {}; if (v.letra === 1 || v.letra === 2) document.documentElement.dataset.letra = v.letra; if (v.contraste) document.documentElement.dataset.contraste = '1'; } catch (e) {}</script>
   <link rel="stylesheet" href="css/pro.css">
   <script>try { document.documentElement.dataset.modo = localStorage.getItem('lectorHojasPro.modo') === 'simple' ? 'simple' : 'avanzado'; } catch (e) {}</script>
 </head>
@@ -17,7 +18,7 @@
     <header class="app-header">
       <div class="brand">
         <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6"/><circle cx="10" cy="11" r="4" class="f"/><circle cx="22" cy="11" r="4" class="o"/><circle cx="10" cy="22" r="4" class="o"/><circle cx="22" cy="22" r="4" class="f"/></svg>
-        <h1 title="Crea la hoja, fotografíala y obtén la corrección al instante.">Lector de Hojas<span class="brand-long"> de Respuesta</span><span class="pro-badge" title="Versión Pro">PRO</span></h1>
+        <h1 title="Crea la hoja, fotografíala y obtén la corrección al instante.">Lector<span class="brand-mid"> de Hojas</span><span class="brand-long"> de Respuesta</span><span class="pro-badge" title="Versión Pro">PRO</span></h1>
       </div>
       <nav class="tabs" role="tablist" aria-label="Secciones">
         <button role="tab" data-tab="inicio" aria-selected="true"><span class="tab-ic" aria-hidden="true">🏠</span><span class="tab-t">Inicio</span></button>
@@ -28,6 +29,22 @@
       </nav>
       <div class="head-actions">
         <button type="button" class="cloud-chip" id="proCloudChip" hidden></button>
+        <details class="menu view-menu" id="viewMenu">
+          <summary class="btn secondary view-btn" title="Ver más grande, más contraste y avisos al corregir" aria-label="Ver más grande">Aa</summary>
+          <div class="menu-list view-list">
+            <p class="vm-title">👓 Ver más grande</p>
+            <span class="seg vm-size" role="radiogroup" aria-label="Tamaño de la letra">
+              <button type="button" role="radio" data-letra="0" title="Letra normal">A</button>
+              <button type="button" role="radio" data-letra="1" title="Letra grande">A+</button>
+              <button type="button" role="radio" data-letra="2" title="Letra muy grande">A++</button>
+            </span>
+            <label class="check"><input type="checkbox" id="vmContrast"> Más contraste</label>
+            <hr>
+            <p class="vm-title">📷 Al corregir cada foto</p>
+            <label class="check"><input type="checkbox" id="vmNotice"> Aviso grande con el nombre y la nota</label>
+            <label class="check" id="vmVoiceWrap"><input type="checkbox" id="vmVoice"> Decir el nombre y la nota en voz alta</label>
+          </div>
+        </details>
         <button type="button" class="btn secondary tour-start" id="btnTutorial" data-tutorial title="Tutorial paso a paso">🧭<span class="tour-t"> Tutorial</span></button>
       </div>
     </header>

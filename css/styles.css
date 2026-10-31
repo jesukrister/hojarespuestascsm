@@ -49,6 +49,40 @@ h2 { font-size: 1.1rem; }
 .head-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .tour-start { flex: none; font-size: 0.95rem; padding: 8px 12px; }
 
+/* ---------- Ver más grande (menú «Aa») ---------- */
+html[data-letra="1"] { font-size: 112.5%; }
+html[data-letra="1"] body { font-size: 17px; }
+html[data-letra="2"] { font-size: 125%; }
+html[data-letra="2"] body { font-size: 19px; }
+html[data-contraste] { --text: #0b1018; --muted: #2c3540; --border: #8a95a3; --primary: #153a5b; --primary-soft: #dbe6f1; --bg: #edf0f4; --warn: #8a4f00; }
+html[data-contraste] :is(input, select, textarea) { border-color: #6b7686; }
+html[data-contraste] .bubble-btn { border-color: #5b6573; color: var(--text); }
+/* Clave: círculos más grandes (en el celular, una columna de 5 por fila para que quepan). */
+html[data-letra="1"] .bubble-btn { width: 36px; height: 36px; }
+html[data-letra="2"] .bubble-btn { width: 42px; height: 42px; }
+@media (max-width: 480px) {
+  html[data-letra="1"] .key-grid .bubble-btn { width: 32px; height: 32px; }
+  html[data-letra="2"] .key-grid .bubble-btn { width: 40px; height: 40px; }
+  html[data-letra="2"] .card .key-grid { grid-template-columns: 1fr; }
+}
+html[data-contraste] ::placeholder { color: #5a6472; }
+details.menu > summary.view-btn { font-weight: 800; font-size: 1rem; padding: 8px 12px; }
+.view-list { min-width: 280px; gap: 6px; padding: 12px; }
+.vm-title { margin: 0; font-weight: 700; font-size: 0.95rem; }
+.view-list .vm-size { align-self: stretch; }
+.view-list .vm-size button { flex: 1; color: var(--text); }
+.vm-size button[data-letra="1"] { font-size: 1.15em; }
+.vm-size button[data-letra="2"] { font-size: 1.3em; }
+.view-list > label.check { display: flex; gap: 8px; align-items: flex-start; padding: 6px 4px; }
+@media (max-width: 480px) {
+  /* Con letra grande, el encabezado del celular no crece: así caben el nombre y los botones. */
+  html[data-letra] .app-header h1 { font-size: 17px; }
+  .app-header { gap: 8px; }
+  .head-actions { gap: 6px; }
+  html[data-letra] .app-header .btn { font-size: 15px; padding: 7px 10px; }
+  .view-list { position: fixed; left: 12px; right: 12px; top: 64px; min-width: 0; }
+}
+
 .tabs {
   display: flex;
   gap: 4px;

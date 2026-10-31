@@ -456,6 +456,65 @@
   /* Pestañas                                                            */
   /* ------------------------------------------------------------------ */
 
+  /* ---------- Ver más grande y avisos al corregir (preferencias de este equipo) ---------- */
+  const VIEW_KEY = 'lectorHojas.vista';
+
+  function viewPrefs() {
+    let v = {};
+    try {
+      v = JSON.parse(localStorage.getItem(VIEW_KEY) || '{}') || {};
+    } catch (e) {
+      v = {};
+    }
+    return { letra: v.letra === 1 || v.letra === 2 ? v.letra : 0, contraste: !!v.contraste, aviso: v.aviso !== false, voz: !!v.voz };
+  }
+
+  function setViewPref(key, value) {
+    const v = viewPrefs();
+    v[key] = value;
+    try {
+      localStorage.setItem(VIEW_KEY, JSON.stringify(v));
+    } catch (e) {
+      /* sin almacenamiento: dura hasta cerrar */
+    }
+    applyView();
+  }
+
+  const canSpeak = () => typeof window.speechSynthesis !== 'undefined' && typeof window.SpeechSynthesisUtterance !== 'undefined';
+
+  function applyView() {
+    const v = viewPrefs();
+    const root = document.documentElement;
+    if (v.letra) root.dataset.letra = String(v.letra);
+    else delete root.dataset.letra;
+    if (v.contraste) root.dataset.contraste = '1';
+    else delete root.dataset.contraste;
+    for (const b of $$('[data-letra]', $('#viewMenu'))) b.setAttribute('aria-checked', String(Number(b.dataset.letra) === v.letra));
+    $('#vmContrast').checked = v.contraste;
+    $('#vmNotice').checked = v.aviso;
+    $('#vmVoice').checked = v.voz;
+    $('#vmVoiceWrap').hidden = !canSpeak();
+    // El encabezado cambia de alto: se recalculan las partes que dependen de él.
+    window.dispatchEvent(new Event('resize'));
+  }
+
+  /** Dice un texto en voz alta (si está activado y el equipo puede). */
+  function speak(text) {
+    if (!viewPrefs().voz || !canSpeak() || !text) return;
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'es-CL';
+      const voices = window.speechSynthesis.getVoices();
+      const es = voices.find((x) => /^es[-_]CL/i.test(x.lang)) || voices.find((x) => /^es\b|^es[-_]/i.test(x.lang));
+      if (es) u.voice = es;
+      u.rate = 0.95;
+      window.speechSynthesis.speak(u);
+    } catch (e) {
+      /* sin voz */
+    }
+  }
+
   /** Versión Pro, modo simple: sólo la hoja y el escáner (sin Preguntas ni Cursos). */
   function simpleMode() {
     return document.documentElement.dataset.modo === 'simple';
@@ -4446,8 +4505,21 @@
     document.addEventListener('click', (e) => {
       for (const m of $$('details.menu[open]')) {
         const inside = m.contains(e.target);
-        if (!inside || (e.target.closest('.menu-list') && e.target.closest('button, label'))) m.open = false;
+        // El menú «Aa» queda abierto para probar los tamaños.
+        if (!inside || (m.id !== 'viewMenu' && e.target.closest('.menu-list') && e.target.closest('button, label'))) m.open = false;
       }
+    });
+
+    // Ver más grande, contraste y avisos al corregir.
+    $('#viewMenu').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-letra]');
+      if (b) setViewPref('letra', Number(b.dataset.letra));
+    });
+    $('#vmContrast').addEventListener('change', (e) => setViewPref('contraste', e.target.checked));
+    $('#vmNotice').addEventListener('change', (e) => setViewPref('aviso', e.target.checked));
+    $('#vmVoice').addEventListener('change', (e) => {
+      setViewPref('voz', e.target.checked);
+      if (e.target.checked) speak('Listo. Diré el nombre y la nota de cada hoja.');
     });
 
     // Hoja de respuestas: campos del encabezado y nombre del establecimiento.
@@ -5047,6 +5119,7 @@
   }
 
   bind();
+  applyView();
   renderDonation();
   fillExamForm();
   renderKey();

@@ -329,9 +329,12 @@
       cls += ' warn';
       title = meta.error || 'La prueba cambió en otro equipo.';
     }
-    chip.textContent = text;
+    // En el celular sólo se ve el ícono (el texto queda en el título y para lectores de pantalla).
+    const [icon, ...rest] = text.split(' ');
+    chip.innerHTML = `<span aria-hidden="true">${icon}</span><span class="cc-t"> ${esc(rest.join(' '))}</span>`;
     chip.className = cls;
     chip.title = title;
+    chip.setAttribute('aria-label', rest.join(' '));
   }
 
   function render(mode) {
