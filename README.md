@@ -469,6 +469,14 @@ servidor del colegio, etc.) funciona igual: basta con subir los archivos.
 > Para usar la cámara desde el celular, la página debe servirse por **HTTPS**
 > (GitHub Pages y los servicios mencionados ya lo hacen).
 
+### Página de presentación (borrador): `finde-libre/`
+
+Portada de **Finde Libre · Corrector de pruebas** (nombre propuesto), en una
+carpeta aparte para revisarla antes de usar un dominio propio: con GitHub Pages
+queda en `https://<usuario>.github.io/<repositorio>/finde-libre/`. Sus botones
+abren la app actual (`../index.html` y `../pro.html`), que no cambia. Al pasar
+a findelibre.cl, esta página será la portada y esos enlaces apuntarán a la app.
+
 ## Videos del manual
 
 Cada parte del manual tiene un espacio para un video. Para agregarlos, abre
