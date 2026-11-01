@@ -1,7 +1,7 @@
 /*
- * Genera pro.html (versión Pro) a partir de index.html y de las partes de
+ * Genera pro.html (versión Pro) a partir de lector.html y de las partes de
  * pro/partes.html. Cada parte "<!-- @@ nombre -->" reemplaza el comentario
- * "<!-- pro:nombre -->" de index.html, así la versión normal no cambia y la
+ * "<!-- pro:nombre -->" de lector.html, así la versión normal no cambia y la
  * Pro recibe automáticamente todo lo demás (lector, pestañas, manual…).
  *
  *   node scripts/build-pro.js          escribe pro.html
@@ -13,7 +13,7 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const PRO_TITLE = 'Lector de Hojas de Respuesta Pro';
-const NOTICE = '<!-- Archivo generado por scripts/build-pro.js a partir de index.html y pro/partes.html: no editar a mano. -->';
+const NOTICE = '<!-- Archivo generado por scripts/build-pro.js a partir de lector.html y pro/partes.html: no editar a mano. -->';
 
 /** Partes de pro/partes.html: { nombre: contenido }. */
 function parseParts(text) {
@@ -34,7 +34,7 @@ function buildProPage(indexHtml, partsText) {
   const parts = parseParts(partsText);
   let html = indexHtml;
   const swap = (from, to) => {
-    if (html.indexOf(from) < 0) throw new Error(`No se encontró en index.html: ${from}`);
+    if (html.indexOf(from) < 0) throw new Error(`No se encontró en lector.html: ${from}`);
     html = html.replace(from, to);
   };
   swap('<!doctype html>\n', `<!doctype html>\n${NOTICE}\n`);
@@ -43,8 +43,8 @@ function buildProPage(indexHtml, partsText) {
   for (const [name, body] of Object.entries(parts)) {
     const anchor = `<!-- pro:${name} -->`;
     const at = html.indexOf(anchor);
-    if (at < 0) throw new Error(`index.html no tiene el punto de inserción ${anchor}`);
-    if (html.indexOf(anchor, at + anchor.length) >= 0) throw new Error(`${anchor} aparece más de una vez en index.html`);
+    if (at < 0) throw new Error(`lector.html no tiene el punto de inserción ${anchor}`);
+    if (html.indexOf(anchor, at + anchor.length) >= 0) throw new Error(`${anchor} aparece más de una vez en lector.html`);
     const lineStart = html.lastIndexOf('\n', at) + 1;
     const before = html.slice(lineStart, at);
     let text;
@@ -63,25 +63,46 @@ function buildProPage(indexHtml, partsText) {
 }
 
 function build() {
-  const index = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const index = fs.readFileSync(path.join(ROOT, 'lector.html'), 'utf8');
   const parts = fs.readFileSync(path.join(ROOT, 'pro', 'partes.html'), 'utf8');
   return buildProPage(index, parts);
 }
 
+/**
+ * La misma página en /app/ (la dirección corta de CorrigeYa en la web): con
+ * <base href="../"> usa los mismos css/, js/ y vendor/ de la raíz.
+ */
+function buildApp(pro) {
+  const html = pro === undefined ? build() : pro;
+  const head = html.indexOf('<head>');
+  if (head < 0) throw new Error('lector.html no tiene <head>');
+  const at = head + '<head>'.length;
+  return html.slice(0, at) + '\n  <base href="../">' + html.slice(at);
+}
+
 if (require.main === module) {
-  const out = path.join(ROOT, 'pro.html');
   const html = build();
+  const outputs = [
+    ['pro.html', html],
+    [path.join('app', 'index.html'), buildApp(html)],
+  ];
   if (process.argv.includes('--check')) {
-    const current = fs.existsSync(out) ? fs.readFileSync(out, 'utf8') : '';
-    if (current !== html) {
-      console.error('pro.html no está al día: ejecuta  node scripts/build-pro.js');
-      process.exit(1);
+    for (const [file, text] of outputs) {
+      const out = path.join(ROOT, file);
+      const current = fs.existsSync(out) ? fs.readFileSync(out, 'utf8') : '';
+      if (current !== text) {
+        console.error(`${file} no está al día: ejecuta  node scripts/build-pro.js`);
+        process.exit(1);
+      }
     }
-    console.log('pro.html al día');
+    console.log('pro.html y app/index.html al día');
   } else {
-    fs.writeFileSync(out, html);
-    console.log('pro.html listo');
+    for (const [file, text] of outputs) {
+      fs.mkdirSync(path.dirname(path.join(ROOT, file)), { recursive: true });
+      fs.writeFileSync(path.join(ROOT, file), text);
+    }
+    console.log('pro.html y app/index.html listos');
   }
 }
 
-module.exports = { buildProPage, parseParts, build };
+module.exports = { buildProPage, parseParts, build, buildApp };

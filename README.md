@@ -632,8 +632,10 @@ entregar una corrección equivocada sin avisar.
 
 | Archivo | Contenido |
 | --- | --- |
-| `index.html`, `css/styles.css` | Interfaz |
-| `pro.html` (generado), `pro/partes.html`, `css/pro.css`, `scripts/build-pro.js` | Versión Pro |
+| `index.html` | Portada de corrigeya.cl (presentación de CorrigeYa) |
+| `lector.html`, `css/styles.css` | Lector normal: interfaz (también la app normal de Android) |
+| `pro.html` y `app/index.html` (generados), `pro/partes.html`, `css/pro.css`, `scripts/build-pro.js` | Versión Pro / CorrigeYa (`corrigeya.cl/app/`) |
+| `traer.html`, `js/traer.js`, `mudanza/`, `docs/mudanza.md` | Traer los datos guardados en la dirección antigua (jesukrister.github.io) |
 | `js/pro/libro-core.js`, `js/pro/libro.js` | Cursos y libro de notas (lógica y pantalla) |
 | `js/pro/respaldo-core.js`, `js/pro/respaldo.js`, `js/pro/comun.js` | Respaldo completo, Guardar en Google Drive y utilidades de la versión Pro |
 | `js/pro/copias-core.js`, `js/pro/copias.js` | Copias automáticas, recordatorio de respaldo y respaldo automático (Descargas o carpeta) |

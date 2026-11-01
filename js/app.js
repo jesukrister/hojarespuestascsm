@@ -2237,7 +2237,7 @@
       mathlivePromise = loadScript(MATH_BASE + 'mathlive.min.js')
         .then(() => {
           const ML = window.MathLive;
-          ML.MathfieldElement.fontsDirectory = new URL(MATH_BASE + 'fonts/', location.href).href;
+          ML.MathfieldElement.fontsDirectory = new URL(MATH_BASE + 'fonts/', document.baseURI).href;
           ML.MathfieldElement.soundsDirectory = null;
           // El teclado en pantalla se muestra dentro del cuadro de diálogo.
           const kb = window.mathVirtualKeyboard;
@@ -5640,7 +5640,7 @@
       /* sin almacenamiento: se muestra */
     }
     const inApp = !!window.NativeApp || document.documentElement.classList.contains('native-app');
-    $('#moveGo').href = inApp ? cfg.appPlay : 'pro.html';
+    $('#moveGo').href = inApp ? cfg.appPlay : 'app/';
     $('#moveGo').textContent = inApp ? 'Instalar CorrigeYa (Google Play)' : 'Abrir CorrigeYa';
     $('#moveData').textContent = inApp
       ? 'Para llevar tu prueba: en Prueba → ⋯ → «Exportar configuración», y en CorrigeYa → ⋯ → «Importar configuración».'

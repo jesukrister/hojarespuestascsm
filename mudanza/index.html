@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="referrer" content="no-referrer">
+  <title>Traer tus datos a CorrigeYa</title>
+  <!--
+    Mudanza de datos: jesukrister.github.io → corrigeya.cl
+
+    Esta página se publica en https://jesukrister.github.io/mudanza/ (repositorio
+    aparte, «jesukrister/mudanza», con GitHub Pages). Está en el mismo sitio que la
+    dirección antigua (jesukrister.github.io/hojarespuestascsm/), así que puede leer
+    lo que el Lector de Hojas guardó en este navegador, y se lo entrega SÓLO a
+    corrigeya.cl, cuando corrigeya.cl/traer.html la abre y la persona acepta.
+    No envía nada a ningún servidor. Ver docs/mudanza.md.
+  -->
+  <style>
+    :root { --bg: #f3f5f8; --surface: #fff; --text: #1c2430; --muted: #5a6575; --primary: #1f4e79; --ok: #1e7a3c; --border: #dde3ea; color-scheme: light; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #10151c; --surface: #161c24; --text: #e7ecf2; --muted: #9aa6b5; --primary: #9cc8f0; --ok: #6fd28d; --border: #2a3340; color-scheme: dark; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: var(--bg); color: var(--text); font: 17px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { width: min(520px, 100%); background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; box-shadow: 0 10px 30px rgba(0, 0, 0, .08); }
+    h1 { margin: 0 0 8px; font-size: 1.35rem; color: var(--primary); }
+    p { margin: 8px 0; }
+    ul { margin: 8px 0; padding-left: 1.2rem; }
+    .muted { color: var(--muted); font-size: .92rem; }
+    .ok { color: var(--ok); font-weight: 700; }
+    a { color: var(--primary); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>📦 Traer tus datos a CorrigeYa</h1>
+    <div id="estado"><p>Buscando lo que guardaste en este navegador…</p></div>
+    <p class="muted">Tus datos pasan directo de esta página a <b>corrigeya.cl</b>, en este mismo navegador. No se suben a ningún servidor.</p>
+  </main>
+  <script>
+    (function () {
+      'use strict';
+      // Únicas direcciones a las que se entregan los datos.
+      var DESTINOS = ['https://corrigeya.cl', 'https://www.corrigeya.cl'];
+      // Para probar en el computador de desarrollo (sólo si esta página corre en localhost).
+      if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) DESTINOS.push('http://localhost:8090', 'http://127.0.0.1:8090');
+      var PREFIJO = 'lectorHojas';
+      var BASES = ['lectorHojas', 'lectorHojasPro', 'lectorHojasPro.datos'];
+      var estado = document.getElementById('estado');
+      // La copia de esta página que queda en corrigeya.cl no sirve: tiene que correr en el sitio antiguo.
+      if (/(^|\.)corrigeya\.cl$/.test(location.hostname)) {
+        estado.innerHTML = '<p>Esta página funciona en la dirección antigua. Para traer tus datos, abre <a href="/traer.html">corrigeya.cl/traer.html</a>.</p>';
+        return;
+      }
+      var opener = window.opener;
+      var destino = null; // origen de corrigeya.cl que abrió esta página
+      var datos = null;
+      var resumen = null;
+
+      function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+      }
+      function pedido(r) {
+        return new Promise(function (ok, mal) { r.onsuccess = function () { ok(r.result); }; r.onerror = function () { mal(r.error); }; });
+      }
+      // Abre una base de datos sólo si ya existe (no crea bases vacías).
+      function abrirSiExiste(nombre) {
+        return new Promise(function (ok) {
+          var nueva = false;
+          var r;
+          try { r = indexedDB.open(nombre); } catch (e) { return ok(null); }
+          r.onupgradeneeded = function (e) { if (e.oldVersion === 0) { nueva = true; r.transaction.abort(); } };
+          r.onsuccess = function () { if (nueva) { r.result.close(); ok(null); } else ok(r.result); };
+          r.onerror = function () { ok(null); };
+          r.onblocked = function () { ok(null); };
+        });
+      }
+      function volcar(db) {
+        var out = { name: db.name, version: db.version, stores: [] };
+        var nombres = Array.prototype.slice.call(db.objectStoreNames);
+        return nombres.reduce(function (p, sn) {
+          return p.then(function () {
+            var st = db.transaction(sn, 'readonly').objectStore(sn);
+            return Promise.all([pedido(st.getAllKeys()), pedido(st.getAll())]).then(function (r) {
+              out.stores.push({
+                name: sn,
+                keyPath: st.keyPath,
+                autoIncrement: st.autoIncrement,
+                indexes: Array.prototype.map.call(st.indexNames, function (n) { var i = st.index(n); return { name: n, keyPath: i.keyPath, unique: i.unique, multiEntry: i.multiEntry }; }),
+                keys: r[0],
+                values: r[1],
+              });
+            });
+          });
+        }, Promise.resolve()).then(function () { db.close(); return out; });
+      }
+      function nombresDeBases() {
+        if (!window.indexedDB) return Promise.resolve([]);
+        if (indexedDB.databases) {
+          return indexedDB.databases().then(function (l) {
+            var n = l.map(function (d) { return d.name; }).filter(function (x) { return x && x.indexOf(PREFIJO) === 0; });
+            return n.length ? n : BASES;
+          }, function () { return BASES; });
+        }
+        return Promise.resolve(BASES);
+      }
+
+      function leerTodo() {
+        var local = {};
+        try {
+          for (var i = 0; i < localStorage.length; i++) {
+            var k = localStorage.key(i);
+            if (k && k.indexOf(PREFIJO) === 0) local[k] = localStorage.getItem(k);
+          }
+        } catch (e) { /* sin almacenamiento */ }
+        return nombresDeBases().then(function (nombres) {
+          return Promise.all(nombres.map(function (n) { return abrirSiExiste(n).then(function (db) { return db ? volcar(db).catch(function () { return null; }) : null; }); }));
+        }).then(function (bases) {
+          return { v: 1, local: local, bases: bases.filter(Boolean), desde: location.origin, at: Date.now() };
+        });
+      }
+
+      function resumir(d) {
+        var lineas = [];
+        function prueba(clave, nombre) {
+          try {
+            var s = JSON.parse(d.local[clave] || 'null');
+            if (s && s.exam) {
+              var n = Array.isArray(s.results) ? s.results.length : 0;
+              lineas.push(nombre + ': la prueba «' + (s.exam.title || 'sin título') + '»' + (n ? ' con ' + n + (n === 1 ? ' hoja corregida' : ' hojas corregidas') : ''));
+            }
+          } catch (e) { /* nada */ }
+        }
+        prueba('lectorHojas.v1', 'Lector de Hojas');
+        prueba('lectorHojasPro.v1', 'Versión Pro');
+        var kv = null;
+        d.bases.forEach(function (b) {
+          if (b.name !== 'lectorHojasPro.datos') return;
+          b.stores.forEach(function (s) {
+            if (s.name !== 'kv') return;
+            kv = {};
+            s.keys.forEach(function (k, i) { kv[k] = s.values[i]; });
+          });
+        });
+        if (kv && kv.libro && Array.isArray(kv.libro.courses) && kv.libro.courses.length) {
+          var c = kv.libro.courses.length;
+          lineas.push(c + (c === 1 ? ' curso' : ' cursos') + ' con su libro de notas');
+        }
+        if (kv && kv.biblioteca && Array.isArray(kv.biblioteca.items) && kv.biblioteca.items.length) {
+          var p = kv.biblioteca.items.length;
+          lineas.push(p + (p === 1 ? ' prueba guardada' : ' pruebas guardadas') + ' en «Mis evaluaciones»');
+        }
+        var fotos = 0;
+        d.bases.forEach(function (b) { b.stores.forEach(function (s) { if (s.name === 'images') fotos += s.values.length; }); });
+        if (fotos) lineas.push(fotos + (fotos === 1 ? ' foto de hoja' : ' fotos de hojas'));
+        var vacio = !lineas.length && !Object.keys(d.local).some(function (k) { return /\.v1$/.test(k); });
+        return { lineas: lineas, vacio: vacio };
+      }
+
+      function mostrarResumen(extra) {
+        if (resumen.vacio) {
+          estado.innerHTML = '<p>No encontramos datos del Lector de Hojas guardados en <b>este navegador</b>.</p><p>Si lo usabas en otro equipo o en otro navegador (por ejemplo, Chrome en vez de Safari), abre <b>corrigeya.cl</b> ahí y vuelve a presionar «Traer mis datos».</p>';
+          return;
+        }
+        estado.innerHTML = '<p>En este navegador encontramos:</p><ul>' + resumen.lineas.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>' + (extra || '');
+      }
+
+      function enviar(msg) {
+        if (!opener) return;
+        // Sólo llega si quien abrió esta página es corrigeya.cl (el navegador lo revisa).
+        (destino ? [destino] : DESTINOS).forEach(function (o) { try { opener.postMessage(msg, o); } catch (e) { /* otro origen */ } });
+      }
+
+      window.addEventListener('message', function (e) {
+        if (DESTINOS.indexOf(e.origin) < 0 || e.source !== opener || !e.data || typeof e.data.tipo !== 'string') return;
+        destino = e.origin;
+        if (e.data.tipo === 'lector-mudanza:hola' && resumen) enviar({ tipo: 'lector-mudanza:lista', resumen: resumen });
+        else if (e.data.tipo === 'lector-mudanza:pedir' && datos) {
+          estado.innerHTML = '<p>Enviando tus datos a corrigeya.cl…</p>';
+          enviar({ tipo: 'lector-mudanza:datos', datos: datos });
+        } else if (e.data.tipo === 'lector-mudanza:recibido') {
+          estado.innerHTML = '<p class="ok">✔ Listo: tus datos ya están en corrigeya.cl.</p><p>Puedes cerrar esta pestaña.</p>';
+          setTimeout(function () { window.close(); }, 1500);
+        }
+      });
+
+      leerTodo().then(function (d) {
+        datos = d;
+        resumen = resumir(d);
+        if (!opener) {
+          mostrarResumen('<p>Para llevarlos, abre <a href="https://corrigeya.cl/traer.html">corrigeya.cl/traer.html</a> en este mismo navegador y presiona <b>«Buscar mis datos»</b>.</p>');
+          return;
+        }
+        mostrarResumen(resumen.vacio ? '' : '<p>Vuelve a la pestaña de <b>corrigeya.cl</b> para confirmar.</p>');
+        enviar({ tipo: 'lector-mudanza:lista', resumen: resumen });
+      }, function () {
+        estado.innerHTML = '<p>Este navegador no dejó leer los datos guardados (puede pasar en una ventana de incógnito). Ábrela en una ventana normal del navegador que usabas.</p>';
+      });
+    })();
+  </script>
+</body>
+</html>

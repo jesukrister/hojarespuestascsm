@@ -3,1184 +3,445 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Genera hojas de respuesta, escanéalas con la cámara y corrige pruebas de alternativas automáticamente.">
+  <title>CorrigeYa · Corrector de pruebas para profesores</title>
+  <meta name="description" content="Corrige pruebas de alternativas con una foto del celular. Imprime la hoja de respuestas, sácale una foto y la nota sale al tiro, con la escala de 1,0 a 7,0.">
   <meta name="theme-color" content="#1f4e79">
-  <title>Lector de Hojas de Respuesta</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231f4e79'/%3E%3Ccircle cx='10' cy='11' r='4' fill='%23fff'/%3E%3Ccircle cx='22' cy='11' r='4' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Ccircle cx='10' cy='22' r='4' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Ccircle cx='22' cy='22' r='4' fill='%23fff'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="css/styles.css">
-  <script>try { var v = JSON.parse(localStorage.getItem('lectorHojas.vista') || '{}') || {}; if (v.letra === 1 || v.letra === 2) document.documentElement.dataset.letra = v.letra; if (v.contraste) document.documentElement.dataset.contraste = '1'; if (v.tema === 'oscuro' || (v.tema === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.dataset.tema = 'oscuro'; } catch (e) {}</script>
-  <!-- pro:head -->
+  <meta property="og:title" content="CorrigeYa · Corrector de pruebas">
+  <meta property="og:description" content="Corrige ya tus pruebas con una foto. Y tu finde, libre.">
+  <meta property="og:image" content="https://corrigeya.cl/corrigeya/logo.svg">
+  <meta property="og:url" content="https://corrigeya.cl/">
+  <link rel="canonical" href="https://corrigeya.cl/">
+  <link rel="icon" href="corrigeya/logo.svg" type="image/svg+xml">
+  <!--
+    Portada de corrigeya.cl: la presentación de CorrigeYa.
+    CorrigeYa gratis = la app que hoy es la versión Pro (app/, la misma página que pro.html).
+    El Lector normal sigue en lector.html (es también la app normal de Android).
+    CorrigeYa Plus (de pago, $1.990 al mes) aún no existe: se muestra como «Próximamente».
+  -->
+  <style>
+    :root {
+      --bg: #f3f5f8;
+      --surface: #fff;
+      --text: #1c2430;
+      --muted: #5d6877;
+      --border: #dde3ea;
+      --primary: #1f4e79;
+      --primary-soft: #e6eef6;
+      --ok: #17733a;
+      --ok-soft: #e7f5ec;
+      --warn: #9a5b00;
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    a { color: var(--primary); }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 22px; border-radius: 14px; font-weight: 800; font-size: 1.05rem; text-decoration: none; border: 2px solid transparent; }
+    .btn.primary { background: var(--primary); color: #fff; }
+    .btn.primary:hover { background: #173c5e; }
+    .btn.soft { background: var(--primary-soft); color: var(--primary); }
+    .btn.line { border-color: var(--border); background: var(--surface); color: var(--text); }
+    h2 { font-size: 2rem; line-height: 1.15; margin: 0 0 10px; }
+    .kicker { color: var(--ok); font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.85rem; margin: 0 0 6px; }
+    .sub { color: var(--muted); font-size: 1.1rem; margin: 0 0 28px; max-width: 60ch; }
+    section { padding: 56px 0; }
+
+    /* Encabezado */
+    header { position: sticky; top: 0; z-index: 10; background: rgba(243, 245, 248, 0.94); backdrop-filter: blur(6px); border-bottom: 1px solid var(--border); }
+    .head { display: flex; align-items: center; gap: 14px; padding: 12px 20px; }
+    .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; }
+    .brand img { width: 42px; height: 42px; }
+    .brand b { display: block; font-size: 1.25rem; line-height: 1.1; }
+    .brand small { color: var(--muted); font-weight: 600; font-size: 0.82rem; }
+    nav { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+    nav a { text-decoration: none; color: var(--text); font-weight: 600; font-size: 0.98rem; }
+    nav .btn { padding: 10px 16px; font-size: 0.98rem; color: #fff; }
+
+    /* Portada */
+    .hero { padding: 48px 0 40px; }
+    .hero .wrap { display: grid; grid-template-columns: 1.15fr 1fr; gap: 40px; align-items: center; }
+    .hero h1 { font-size: 3rem; line-height: 1.08; margin: 0 0 16px; letter-spacing: -0.01em; }
+    .hero h1 em { font-style: normal; color: var(--ok); }
+    .lead { font-size: 1.22rem; color: #3d4756; margin: 0 0 26px; max-width: 34em; }
+    .cta { display: flex; flex-wrap: wrap; gap: 12px; }
+    .trust { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 22px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: 0.95rem; font-weight: 600; }
+
+    /* Ilustración: hoja + celular con la nota */
+    .art { position: relative; height: 430px; }
+    .sheet { position: absolute; left: 0; top: 18px; width: 64%; height: 380px; background: #fff; border-radius: 10px; box-shadow: 0 18px 40px rgba(16, 24, 40, 0.14); padding: 22px 20px; transform: rotate(-4deg); }
+    .sheet::before, .sheet::after { content: ''; position: absolute; width: 18px; height: 18px; background: #111; top: 12px; }
+    .sheet::before { left: 12px; }
+    .sheet::after { right: 12px; }
+    .sheet h4 { margin: 14px 0 12px; font-size: 0.95rem; }
+    .row { display: flex; align-items: center; gap: 7px; margin: 7px 0; font-size: 0.8rem; font-weight: 700; color: var(--muted); }
+    .row b { width: 18px; text-align: right; }
+    .row i { width: 18px; height: 18px; border-radius: 50%; border: 1.6px solid #9aa5b1; display: inline-block; }
+    .row i.f { background: #222; border-color: #222; }
+    .phone { position: absolute; right: 0; top: 0; width: 46%; height: 420px; background: #111; border-radius: 34px; padding: 12px; box-shadow: 0 24px 50px rgba(16, 24, 40, 0.3); }
+    .screen { height: 100%; border-radius: 24px; overflow: hidden; display: flex; flex-direction: column; background: #fff; }
+    .notice { flex: 1; background: var(--ok); color: #fff; display: grid; align-content: center; justify-items: center; text-align: center; gap: 4px; padding: 14px; }
+    .notice .chk { font-size: 2.6rem; line-height: 1; }
+    .notice b { font-size: 1.3rem; }
+    .notice span { font-size: 0.85rem; }
+    .notice strong { font-size: 2rem; font-weight: 800; line-height: 1.1; margin-top: 4px; }
+    .notice small { margin-top: 8px; font-size: 0.78rem; background: rgba(255, 255, 255, 0.16); border-radius: 8px; padding: 6px 8px; }
+    .screen .next { margin: 10px; border-radius: 12px; background: var(--primary); color: #fff; font-weight: 800; text-align: center; padding: 12px; font-size: 0.95rem; }
+
+    /* Pasos */
+    .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; counter-reset: paso; }
+    .step { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 20px; }
+    .step .ic { font-size: 2.2rem; }
+    .step h3 { margin: 10px 0 6px; font-size: 1.15rem; }
+    .step h3::before { counter-increment: paso; content: counter(paso) '. '; color: var(--primary); }
+    .step p { margin: 0; color: var(--muted); font-size: 0.98rem; }
+    .step.ok { background: var(--ok-soft); border-color: var(--ok); }
+    .step.ok h3::before { color: var(--ok); }
+
+    /* Lo que hace */
+    .white { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .feats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .feat { padding: 20px; border-radius: var(--radius); background: var(--bg); }
+    .feat .ic { font-size: 1.8rem; }
+    .feat h3 { margin: 8px 0 6px; font-size: 1.1rem; }
+    .feat p { margin: 0; color: var(--muted); font-size: 0.98rem; }
+
+    /* Para todos los profes */
+    .easy { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: center; }
+    .easy ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 14px; }
+    .easy li { display: flex; gap: 14px; align-items: flex-start; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+    .easy li span { font-size: 1.6rem; line-height: 1; }
+    .easy li b { display: block; }
+    .easy li small { color: var(--muted); font-size: 0.95rem; }
+    .quote { background: var(--primary); color: #fff; border-radius: 22px; padding: 30px; font-size: 1.35rem; font-weight: 700; line-height: 1.35; }
+    .quote small { display: block; margin-top: 12px; font-size: 0.95rem; font-weight: 500; opacity: 0.85; }
+
+    /* Versiones */
+    .plans { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .plan { background: var(--surface); border: 2px solid var(--border); border-radius: 20px; padding: 26px; display: flex; flex-direction: column; }
+    .plan.pro { border-color: var(--primary); }
+    .plan h3 { margin: 0; font-size: 1.5rem; }
+    .plan .tag { display: inline-block; margin: 6px 0 14px; font-weight: 700; color: var(--muted); }
+    .plan ul { margin: 0 0 22px; padding: 0; list-style: none; display: grid; gap: 8px; flex: 1; }
+    .plan li::before { content: '✔ '; color: var(--ok); font-weight: 800; }
+    .plan.pro .tag { color: var(--primary); }
+    .plan-note { margin: -4px 0 10px; color: var(--muted); }
+    .plan-small { display: block; margin-top: 8px; color: var(--muted); font-size: 0.9rem; text-align: center; }
+    .btn.soon { background: var(--primary-soft); color: var(--primary); cursor: default; }
+    .badge { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 6px; background: linear-gradient(135deg, #d69e2e, #b7791f); color: #fff; font-size: 0.75rem; font-weight: 800; vertical-align: middle; }
+
+    /* Preguntas */
+    .faq { display: grid; gap: 10px; max-width: 820px; }
+    details { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 4px 18px; }
+    summary { cursor: pointer; font-weight: 700; padding: 12px 0; font-size: 1.05rem; }
+    details p { margin: 0 0 14px; color: #3d4756; }
+
+    /* Cierre y pie */
+    .final { text-align: center; }
+    .final h2 { font-size: 2.2rem; }
+    .final .cta { justify-content: center; }
+    .donate-box { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px 30px; background: var(--ok-soft); border: 1px solid #b9dfc6; border-radius: 22px; padding: 28px; }
+    .donate-box .sub { margin-bottom: 0; }
+    .donate-box > div:first-child { flex: 1 1 380px; }
+    .dn { flex: 1 1 320px; }
+    .dn-data { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0 0 14px; padding: 16px 18px; border-radius: 14px; background: #fff; border: 1px solid #b9dfc6; }
+    .dn-data dt { color: var(--muted); }
+    .dn-data dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+    button.btn { cursor: pointer; font: inherit; font-weight: 800; }
+    .dn-msg { margin: 10px 0 0; color: var(--ok); font-weight: 700; min-height: 1.4em; }
+    footer { padding: 28px 0 40px; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--border); }
+    footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; }
+
+    @media (max-width: 960px) {
+      .hero .wrap, .easy { grid-template-columns: 1fr; }
+      .art { height: 400px; max-width: 460px; width: 100%; margin: 0 auto; }
+      .steps { grid-template-columns: 1fr 1fr; }
+      .feats { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 640px) {
+      body { font-size: 16px; }
+      nav a:not(.btn) { display: none; }
+      .brand small { display: none; }
+      .hero { padding-top: 30px; }
+      .hero h1 { font-size: 2.15rem; }
+      h2 { font-size: 1.6rem; }
+      .cta .btn { flex: 1 1 100%; }
+      .steps, .feats, .plans { grid-template-columns: 1fr; }
+      section { padding: 40px 0; }
+      .art { height: 360px; }
+      .sheet { height: 320px; }
+      .phone { height: 350px; width: 50%; }
+    }
+  </style>
 </head>
 <body>
-  <div class="app">
-    <header class="app-header">
-      <div class="brand">
-        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6"/><circle cx="10" cy="11" r="4" class="f"/><circle cx="22" cy="11" r="4" class="o"/><circle cx="10" cy="22" r="4" class="o"/><circle cx="22" cy="22" r="4" class="f"/></svg>
-        <h1 title="Crea la hoja, fotografíala y obtén la corrección al instante.">Lector<span class="brand-mid"> de Hojas</span><span class="brand-long"> de Respuesta</span><!-- pro:badge --></h1>
-      </div>
-      <nav class="tabs" role="tablist" aria-label="Secciones">
-        <button role="tab" data-tab="inicio" aria-selected="true"><span class="tab-ic" aria-hidden="true">🏠</span><span class="tab-t">Inicio</span></button>
-        <button role="tab" data-tab="prueba" data-group="prueba evaluacion hoja" aria-selected="false"><span class="tab-ic" aria-hidden="true">✏️</span><span class="tab-t">Prueba</span></button>
-        <button role="tab" data-tab="corregir" aria-selected="false" class="tab-cam"><span class="tab-ic" aria-hidden="true">📷</span><span class="tab-t">Corregir</span><span id="resultsBadge" class="badge" hidden>0</span></button>
-        <!-- pro:tabs -->
-        <button role="tab" data-tab="manual" aria-selected="false" class="tab-manual"><span class="tab-ic" aria-hidden="true">📘</span><span class="tab-t">Ayuda</span></button>
+  <header>
+    <div class="head">
+      <a class="brand" href="#">
+        <img src="corrigeya/logo.svg" alt="">
+        <span><b>CorrigeYa</b><small>Corrige ya. Tu finde, libre.</small></span>
+      </a>
+      <nav aria-label="Secciones">
+        <a href="#como">Cómo funciona</a>
+        <a href="#planes">Planes</a>
+        <a href="#preguntas">Preguntas</a>
+        <a class="btn primary" href="app/">Abrir la app</a>
       </nav>
-      <div class="head-actions">
-        <!-- pro:header-status -->
-        <details class="menu view-menu" id="viewMenu">
-          <summary class="btn secondary view-btn" title="Ver más grande, más contraste y avisos al corregir" aria-label="Ver más grande">Aa</summary>
-          <div class="menu-list view-list">
-            <p class="vm-title">👓 Ver más grande</p>
-            <span class="seg vm-size" role="radiogroup" aria-label="Tamaño de la letra">
-              <button type="button" role="radio" data-letra="0" title="Letra normal">A</button>
-              <button type="button" role="radio" data-letra="1" title="Letra grande">A+</button>
-              <button type="button" role="radio" data-letra="2" title="Letra muy grande">A++</button>
-            </span>
-            <label class="check"><input type="checkbox" id="vmContrast"> Más contraste</label>
-            <hr>
-            <p class="vm-title">🌙 Modo noche</p>
-            <span class="seg vm-theme" role="radiogroup" aria-label="Colores de la app">
-              <button type="button" role="radio" data-tema="claro" title="Fondo claro">☀️ Claro</button>
-              <button type="button" role="radio" data-tema="oscuro" title="Fondo oscuro">🌙 Oscuro</button>
-              <button type="button" role="radio" data-tema="auto" title="Como esté configurado el teléfono o el computador">Auto</button>
-            </span>
-            <hr>
-            <p class="vm-title">📷 Al corregir cada foto</p>
-            <label class="check"><input type="checkbox" id="vmNotice"> Aviso grande con el nombre y la nota</label>
-            <label class="check" id="vmVoiceWrap"><input type="checkbox" id="vmVoice"> Decir el nombre y la nota en voz alta</label>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <div>
+          <h1>Corrige ya tus pruebas con una foto.<br><em>Y tu finde, libre.</em></h1>
+          <p class="lead">Imprime la hoja de respuestas, sácale una foto con el celular y la nota sale al tiro. Las notas quedan solas en el libro de cada curso: nada que corregir el domingo.</p>
+          <div class="cta">
+            <a class="btn primary" href="app/">📷 Empezar a corregir, gratis</a>
+            <a class="btn soft" href="#como">▶ Cómo funciona</a>
           </div>
-        </details>
-        <button type="button" class="btn secondary tour-start" id="btnTutorial" data-tutorial title="Tutorial paso a paso">🧭<span class="tour-t"> Tutorial</span></button>
-      </div>
-    </header>
-
-    <main>
-      <!-- pro:main -->
-      <nav class="sub-steps" id="pruebaSteps" aria-label="Pasos de la prueba" hidden>
-        <button type="button" data-tab="prueba"><i>1</i><span>Datos<span class="ss-x"> y clave</span></span></button>
-        <span class="ss-line" aria-hidden="true"></span>
-        <button type="button" data-tab="evaluacion"><i>2</i><span>Preguntas<small class="ss-opt"> (opcional)</small></span></button>
-        <span class="ss-line" aria-hidden="true"></span>
-        <button type="button" data-tab="hoja"><i>3</i><span>Imprimir<span class="ss-x"> hoja</span></span></button>
-      </nav>
-
-      <!-- 0. INICIO -------------------------------------------------------->
-      <section id="tab-inicio" class="tab-panel" role="tabpanel">
-        <div class="home-top">
-          <h2 class="home-hello">¿Qué quieres hacer hoy?</h2>
-          <!-- pro:inicio-modo -->
-        </div>
-        <div class="home-tiles">
-          <button type="button" class="home-tile main" data-home="corregir"><span class="ic" aria-hidden="true">📷</span><span><b>Corregir hojas</b><small id="homeCorrSub"></small></span></button>
-          <button type="button" class="home-tile" data-home="nueva"><span class="ic" aria-hidden="true">✏️</span><span><b>Crear una prueba nueva</b><small>Paso a paso, con tus mismos ajustes</small></span></button>
-          <button type="button" class="home-tile" data-home="abrir"><span class="ic" aria-hidden="true">📂</span><span><b id="homeOpenTitle">Abrir una prueba guardada</b><small id="homeOpenSub">Archivo de configuración (.json)</small></span></button>
-        </div>
-        <div class="home-cols">
-          <div class="card home-current" id="homeCurrent"></div>
-          <div class="home-side">
-            <!-- pro:inicio -->
-            <div class="card home-donate donate-wrap" id="homeDonate" hidden>
-              <h2>💚 ¿La app te ahorró tiempo?</h2>
-              <p class="small" id="homeDonateText">Es gratis y lo seguirá siendo. Si te gusta, puedes apoyar su desarrollo con una donación, del monto que quieras.</p>
-              <div class="actions">
-                <a class="btn primary small donate-link" target="_blank" rel="noopener" data-donate-from="inicio">❤ Apoyar con una donación</a>
-                <button type="button" class="btn ghost small" data-donate-hide="60">Ahora no</button>
-                <button type="button" class="btn ghost small" data-donate-hide="365">Ya doné 🙌</button>
-              </div>
-            </div>
-            <div class="card home-help">
-              <h2>🧭 ¿Primera vez?</h2>
-              <p class="muted small">El tutorial te muestra la app paso a paso, con burbujas. En <b>Ayuda</b> está el manual completo.</p>
-              <div class="actions">
-                <button type="button" class="btn secondary small" data-tutorial>🧭 Ver el tutorial</button>
-                <button type="button" class="btn ghost small" data-goto="manual">📘 Ayuda</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- 1. PRUEBA ------------------------------------------------------->
-      <section id="tab-prueba" class="tab-panel" role="tabpanel" hidden>
-        <p class="man-help"><button type="button" class="link-btn" data-manual="prueba">📘 ¿Cómo se usa esta pestaña?</button></p>
-        <!-- pro:prueba -->
-        <div class="card pz-basics">
-          <div class="card-head">
-            <h2>Datos de la prueba</h2>
-            <div class="pz-head-actions">
-              <!-- pro:prueba-head -->
-              <details class="menu" id="pzMenu">
-                <summary class="btn ghost small" title="Más opciones" aria-label="Más opciones">⋯</summary>
-                <div class="menu-list">
-                  <button id="btnWizard" type="button">🧭 Asistente paso a paso (una pregunta por pantalla)</button>
-                  <!-- pro:prueba-menu -->
-                  <button id="btnExportExam" type="button">⬇ Exportar configuración (archivo)</button>
-                  <label for="importExamInput">⬆ Importar configuración…</label>
-                  <button id="btnClearKey" type="button" class="danger">Borrar la clave</button>
-                </div>
-              </details>
-              <input id="importExamInput" type="file" accept="application/json,.json" hidden>
-            </div>
-          </div>
-          <div class="form-grid pz-grid">
-            <label class="span-2">Título
-              <input id="exTitle" type="text" maxlength="80" placeholder="Prueba de Matemática – Unidad 2">
-            </label>
-            <label class="span-2">Subtítulo (asignatura, curso, profesor…)
-              <input id="exSubtitle" type="text" maxlength="100" placeholder="8° Básico A · Prof. …">
-            </label>
-            <!-- pro:prueba-curso -->
-            <div class="field">
-              <span class="field-label" id="exQuestionsLbl">N° de preguntas</span>
-              <span class="num-step">
-                <button type="button" class="num-btn" data-step="#exQuestions" data-delta="-1" aria-label="Una pregunta menos">−</button>
-                <input id="exQuestions" type="number" min="1" max="120" step="1" inputmode="numeric" aria-labelledby="exQuestionsLbl">
-                <button type="button" class="num-btn" data-step="#exQuestions" data-delta="1" aria-label="Una pregunta más">＋</button>
-              </span>
-            </div>
-            <div class="field">
-              <span class="field-label" id="exChoicesLbl">Alternativas</span>
-              <span class="seg" id="exChoicesSeg" role="radiogroup" aria-labelledby="exChoicesLbl"></span>
-              <select id="exChoices" class="visually-hidden" tabindex="-1" aria-hidden="true">
-                <option value="2">2 (A–B)</option>
-                <option value="3">3 (A–C)</option>
-                <option value="4">4 (A–D)</option>
-                <option value="5">5 (A–E)</option>
-                <option value="6">6 (A–F)</option>
-              </select>
-            </div>
-          </div>
-          <p id="layoutError" class="alert error" hidden></p>
-          <!-- pro:prueba-pie -->
-        </div>
-
-        <div class="card">
-          <div class="card-head">
-            <h2>Clave de respuestas</h2>
-            <span id="keyStatus" class="muted"></span>
-            <label class="btn secondary small key-photo" for="keyPhotoInput" title="Rellena una hoja de respuestas con las respuestas correctas y fotografíala: la clave se carga de una vez.">📷 Leerla de una hoja</label>
-            <input id="keyPhotoInput" type="file" accept="image/*" hidden>
-          </div>
-          <label>Escritura rápida
-            <input id="keyText" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false"
-                   placeholder="Ej.: ABCDA BCDEA …  (use - para una pregunta sin clave o anulada)">
-          </label>
-          <div id="keyGrid" class="key-grid" aria-label="Clave por pregunta"></div>
-          <div id="formKeys" class="form-keys" hidden></div>
-          <p id="keyPhotoMsg" class="alert" hidden></p>
-        </div>
-
-        <div class="card pz-opts">
-          <h2 class="pz-opts-title">Más opciones <span class="muted small">si no las cambias, se usan las de siempre</span></h2>
-          <details class="opt" id="optOA">
-            <summary><span class="opt-ic" aria-hidden="true">🎯</span><span class="opt-t"><b>Objetivos de aprendizaje (OA)</b><span class="opt-v" id="oaStatus"></span></span></summary>
-            <div class="opt-body">
-              <p class="muted small">Agrupa las preguntas por objetivo para ver el logro de cada OA en los resultados y en el Excel. Un objetivo por línea, con el nombre, dos puntos y las preguntas: <code>OA12: 1-4</code> · <code>OA13 Comprensión lectora: 5, 6, 9 a 11</code>.</p>
-              <textarea id="oaText" rows="4" spellcheck="false" placeholder="OA12: 1-4&#10;OA13: 5-6&#10;OA14: 7-10"></textarea>
-              <div id="oaSummary" class="oa-summary"></div>
-              <div class="form-grid" style="margin-top:12px">
-                <label>Logrado (L) desde
-                  <span class="with-unit"><input id="lvlAchieved" type="number" min="1" max="100" step="1"><span>%</span></span>
-                </label>
-                <label>Medianamente logrado (ML) desde
-                  <span class="with-unit"><input id="lvlPartial" type="number" min="0" max="99" step="1"><span>%</span></span>
-                  <small>Bajo este porcentaje: No logrado (NL).</small>
-                </label>
-              </div>
-            </div>
-          </details>
-          <details class="opt" id="optScore">
-            <summary><span class="opt-ic" aria-hidden="true">🧮</span><span class="opt-t"><b>Puntaje y nota</b><span class="opt-v" id="scoreSummary"></span></span></summary>
-            <div class="opt-body">
-              <div class="form-grid">
-                <label>Puntos por respuesta correcta
-                  <input id="scPoints" type="number" min="0.1" step="0.1">
-                </label>
-                <label>Descuento por respuesta incorrecta
-                  <input id="scPenalty" type="number" min="0" step="0.05">
-                  <small>0 = sin descuento. Las dobles marcas cuentan como incorrectas.</small>
-                </label>
-                <label>Exigencia (%)
-                  <input id="scExigencia" type="number" min="1" max="99" step="1">
-                </label>
-                <label>Nota mínima / aprobación / máxima
-                  <span class="inline-3">
-                    <input id="scMin" type="number" step="0.1" aria-label="Nota mínima">
-                    <input id="scPass" type="number" step="0.1" aria-label="Nota de aprobación">
-                    <input id="scMax" type="number" step="0.1" aria-label="Nota máxima">
-                  </span>
-                </label>
-              </div>
-              <!-- pro:escala -->
-            </div>
-          </details>
-          <!-- pro:prueba-desarrollo -->
-          <details class="opt" id="optId">
-            <summary><span class="opt-ic" aria-hidden="true">🪪</span><span class="opt-t"><b>Cómo se identifica el estudiante</b><span class="opt-v" id="idSummary"></span></span></summary>
-            <div class="opt-body">
-              <div class="form-grid">
-                <label>Dígitos de identificación
-                  <input id="exIdDigits" type="number" min="0" max="10" step="1" inputmode="numeric">
-                  <small>Con 2, cada estudiante pinta su N° de lista (01, 02…) y la app sabe de quién es la hoja. Usa más dígitos para un código. 0 = sin identificación.</small>
-                </label>
-              </div>
-            </div>
-          </details>
-          <details class="opt" id="optRoster">
-            <summary><span class="opt-ic" aria-hidden="true">👥</span><span class="opt-t"><b>Lista del curso</b><span class="opt-v" id="rosterSummary"></span></span></summary>
-            <div class="opt-body">
-              <p class="muted small">Un nombre por línea, en orden de lista. Si la hoja tiene dígitos de identificación, el número marcado se asocia con la línea correspondiente (1 = primera línea).</p>
-              <!-- pro:roster -->
-              <textarea id="roster" rows="8" placeholder="Ana Aravena&#10;Benjamín Bustos&#10;…"></textarea>
-            </div>
-          </details>
-          <details class="opt" id="optForms">
-            <summary><span class="opt-ic" aria-hidden="true">🔀</span><span class="opt-t"><b>Filas (versiones de la prueba)</b><span class="opt-v" id="formsSummary"></span></span></summary>
-            <div class="opt-body">
-              <p id="formsDocNote" class="muted small" hidden>Las filas vienen de la evaluación escrita en <strong>Preguntas</strong> (la app las armó al mezclarla). Para cambiarlas, usa Preguntas → Filas.</p>
-              <div id="formsManualBox">
-                <p class="muted small">¿Hiciste la prueba fuera de la app (Word, papel) con versiones A, B, C…? Elige cuántas filas tiene y escribe la clave de cada una. Cada hoja sale con su fila impresa y el lector la corrige con su propia clave.</p>
-                <span class="seg" id="formsCountSeg" role="radiogroup" aria-label="Cantidad de filas"></span>
-                <div id="manualFormKeys" class="mf-keys"></div>
-                <p id="formsOrderNote" class="alert" hidden>Las notas salen bien en todas las filas. Si en cada fila <strong>cambiaste el orden de las preguntas</strong>, el análisis por pregunta y por OA compara la pregunta 1 de cada fila (que puede ser otra pregunta). Para un análisis exacto, escribe la prueba en <strong>Preguntas</strong> y deja que la app arme las filas.</p>
-              </div>
-            </div>
-          </details>
-          <details class="opt" id="optPaper">
-            <summary><span class="opt-ic" aria-hidden="true">📄</span><span class="opt-t"><b>Tamaño de papel</b><span class="opt-v" id="paperSummary"></span></span></summary>
-            <div class="opt-body">
-              <div class="form-grid">
-                <label>Tamaño de papel
-                  <select id="exPaper"></select>
-                </label>
-              </div>
-            </div>
-          </details>
-        </div>
-
-        <div class="next-bar">
-          <span id="nextStatus" class="next-status"></span>
-          <button class="btn ghost" type="button" data-goto="evaluacion">Escribir las preguntas (opcional)</button>
-          <button class="btn primary" type="button" data-goto="hoja">Siguiente: imprimir la hoja →</button>
-        </div>
-      </section>
-
-      <!-- 2. EVALUACIÓN --------------------------------------------------->
-      <section id="tab-evaluacion" class="tab-panel" role="tabpanel" hidden>
-        <p class="man-help"><button type="button" class="link-btn" data-manual="evaluacion">📘 ¿Cómo se usa esta pestaña?</button></p>
-        <div class="seg ev-toggle" id="evToggle" role="radiogroup" aria-label="Mostrar">
-          <button type="button" role="radio" data-evmode="editar" aria-checked="true">✏️ Editar</button>
-          <button type="button" role="radio" data-evmode="ver" aria-checked="false">👁 Ver la prueba</button>
-        </div>
-        <div class="ev-split" id="evSplit" data-mode="editar">
-          <div class="card ev-editor">
-            <div class="ev-tabs" role="tablist" aria-label="Partes de la evaluación">
-              <button type="button" role="tab" data-evtab="preguntas" aria-selected="true">Preguntas</button>
-              <button type="button" role="tab" data-evtab="membrete" aria-selected="false">Membrete</button>
-              <button type="button" role="tab" data-evtab="diseno" aria-selected="false">Diseño</button>
-              <button type="button" role="tab" data-evtab="filas" aria-selected="false">Filas</button>
-              <!-- pro:ev-tabs -->
-            </div>
-            <div class="ev-status">
-              <span id="docSummary" class="ev-sum"></span>
-              <button type="button" id="evWarnChip" class="ev-warn" hidden></button>
-            </div>
-
-            <div class="ev-pane" data-evpane="preguntas">
-              <p class="muted small">Pega las preguntas y alternativas desde Word, PDF o cualquier documento, aunque vengan desordenadas o con formatos distintos: se ordenan solas.</p>
-              <details class="tips-box">
-                <summary>¿Qué formatos se reconocen?</summary>
-                <ul class="tips">
-                  <li>Preguntas numeradas como <code>1.</code> <code>1)</code> <code>1.-</code> <code>Pregunta 1:</code>, o sin número.</li>
-                  <li>Alternativas <code>a)</code> <code>A)</code> <code>a.</code> <code>(a)</code>, una por línea o varias en la misma línea.</li>
-                  <li>Marca la alternativa correcta con <code>*</code> (<code>*b) Santiago</code>) o agrega al final una línea <code>Clave: 1A 2C 3B…</code> para cargar la clave automáticamente.</li>
-                  <li>Escribe <code>OA12</code> en una línea sola para asignar las preguntas siguientes a ese objetivo.</li>
-                  <li><strong>Tipos de pregunta:</strong> separa la prueba en ítems con encabezados como <code>I. Selección múltiple</code>, <code>II. Verdadero o falso: Justifica las falsas.</code> o <code>III. Desarrollo (10 puntos)</code>. Sin encabezados: una pregunta sin alternativas es de desarrollo, y una afirmación que empieza con <code>____</code> o <code>( )</code> es de verdadero o falso.</li>
-                  <li>Verdadero o falso: la respuesta puede ir al final como <code>(V)</code> o <code>(F)</code>, o en la clave (<code>Clave: 1A 2C 1V 2F</code>).</li>
-                  <li>Desarrollo: indica el espacio con <code>[8 líneas]</code>, <code>[recuadro 10]</code> o <code>[en blanco 6]</code> al final de la pregunta (también se ajusta en la vista previa).</li>
-                  <li>Un texto separado por una línea en blanco antes de una pregunta (por ejemplo, una lectura) se imprime junto a esa pregunta.</li>
-                  <li><strong>Términos pareados:</strong> escribe un par por línea con <code>=</code> entre el término y su definición: <code>Fotosíntesis = Proceso por el cual…</code> (también sirven <code>:</code>, <code>-</code>, <code>→</code> o una tabla pegada de Word). Conviene ponerle un título al ítem, como <code>III. Términos pareados</code>. La columna B se desordena sola. También puedes escribir <code>Columna A</code> y <code>Columna B</code> por separado e indicar la respuesta al final del término: <code>1. Fotosíntesis (b)</code>. Un término sin pareja queda como distractor.</li>
-                  <li><strong>Completación:</strong> bajo <code>IV. Completación</code>, escribe la respuesta entre corchetes: <code>La capital de Chile es [Santiago].</code> (o deja <code>____</code>). Las respuestas forman el banco de palabras; agrega distractores con una línea <code>Banco de palabras: Lima, Quito</code>.</li>
-                  <li><strong>Ordenar secuencia:</strong> bajo <code>V. Ordenar secuencia</code>, escribe la pregunta y sus elementos (<code>a)</code>, <code>b)</code>… o <code>- </code>) <em>en el orden correcto</em>: al imprimir se desordenan y el estudiante escribe 1, 2, 3…</li>
-                  <li><strong>Respuesta breve:</strong> un ítem <code>Respuesta breve</code> es de desarrollo con 2 líneas por pregunta.</li>
-                </ul>
-              </details>
-              <div id="docMathBar" class="math-bar" hidden>
-                <button id="docMathInsert" class="btn secondary small" type="button">∑ Insertar fórmula</button>
-                <span class="muted small">Para cambiar una fórmula ya escrita, pon el cursor sobre ella y presiona el botón.</span>
-              </div>
-              <textarea id="docText" rows="16" spellcheck="false" placeholder="1. ¿Cuál es la capital de Chile?&#10;a) Santiago  b) Lima  c) Quito  d) Bogotá&#10;&#10;2) ¿Qué océano baña las costas de Chile?&#10;A. Atlántico&#10;*B. Pacífico&#10;C. Índico"></textarea>
-              <label class="check" style="margin-top:8px"><input id="docSort" type="checkbox" checked> Ordenar según la numeración del texto (si las preguntas están desordenadas)</label>
-              <details class="more-tools">
-                <summary>Más herramientas</summary>
-                <label class="check"><input id="docMathTools" type="checkbox"> Activar el editor de fórmulas matemáticas</label>
-                <p class="muted small">Agrega el botón <strong>∑ Insertar fórmula</strong> sobre el cuadro de texto, con un teclado en pantalla para escribir fracciones, raíces, potencias y otros símbolos (Matemática, Física, Química…). Si no lo usas, déjalo desactivado.</p>
-              </details>
-              <ul id="docWarnings" class="warn-list" hidden></ul>
-              <div class="actions">
-                <button id="docApply" class="btn secondary" type="button">↪ Usar estas preguntas en la hoja de respuestas</button>
-              </div>
-              <p class="muted small">Ajusta la cantidad de preguntas y alternativas de la hoja, y carga la clave y los objetivos (OA) si vienen en el texto.</p>
-              <p class="alert small">💡 Para agregar una <strong>imagen, tabla, gráfico o texto</strong> a una pregunta, usa <strong>＋ Añadir elemento</strong> en esa pregunta de la vista previa. Para editar o quitar un elemento, haz clic sobre él.</p>
-            </div>
-
-            <div class="ev-pane" data-evpane="membrete" hidden>
-              <div class="form-grid">
-                <label class="span-2">Establecimiento
-                  <input id="docSchool" type="text" maxlength="120" placeholder="Colegio …">
-                </label>
-                <label>Logo
-                  <span class="logo-row">
-                    <label class="btn ghost small" for="docLogoInput">Elegir imagen…</label>
-                    <input id="docLogoInput" type="file" accept="image/*" hidden>
-                    <img id="docLogoPreview" alt="" hidden>
-                    <button id="docLogoRemove" class="btn ghost small" type="button" hidden>Quitar</button>
-                  </span>
-                </label>
-                <label>Título de la evaluación
-                  <input id="docTitle" type="text" maxlength="120" placeholder="(usa el título de la prueba)">
-                </label>
-                <label>Asignatura
-                  <input id="docSubject" type="text" maxlength="80">
-                </label>
-                <label>Profesor(a)
-                  <input id="docTeacher" type="text" maxlength="80">
-                </label>
-                <label>Curso / nivel
-                  <input id="docCourse" type="text" maxlength="60">
-                </label>
-              </div>
-              <fieldset class="checks">
-                <legend>Datos que completa el estudiante</legend>
-                <label class="check"><input type="checkbox" data-docfield="nombre"> Nombre</label>
-                <label class="check"><input type="checkbox" data-docfield="curso"> Curso</label>
-                <label class="check"><input type="checkbox" data-docfield="fecha"> Fecha</label>
-                <label class="check"><input type="checkbox" data-docfield="rut"> RUT</label>
-                <label class="check"><input type="checkbox" data-docfield="puntaje"> Puntaje</label>
-                <label class="check"><input type="checkbox" data-docfield="nota"> Nota</label>
-              </fieldset>
-              <label>Objetivos de Aprendizaje
-                <textarea id="docObjectives" rows="3" placeholder="Uno por línea, por ejemplo:&#10;OA 5: Explicar el proceso de independencia de Chile.&#10;OA 6: Analizar fuentes históricas."></textarea>
-                <small>Se imprimen en un recuadro antes de las instrucciones. Déjalo vacío para no mostrarlo.
-                  <button id="docObjectivesFromExam" class="btn ghost small" type="button">Usar los OA definidos en la prueba</button></small>
-              </label>
-              <label>Instrucciones
-                <textarea id="docInstructions" rows="3"></textarea>
-              </label>
-            </div>
-
-            <div class="ev-pane" data-evpane="diseno" hidden>
-              <p class="muted small">Elige un estilo (después puedes ajustarlo):</p>
-              <div class="ev-presets" role="radiogroup" aria-label="Estilo">
-                <button type="button" role="radio" class="ev-preset" data-preset="clasica" aria-checked="false"><span class="mini" aria-hidden="true"><i></i><i></i><i class="s"></i><i></i><i class="s"></i></span><b>Clásica</b><small>1 columna · 12 pt</small></button>
-                <button type="button" role="radio" class="ev-preset" data-preset="ahorro" aria-checked="false"><span class="mini two" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><b>Ahorra papel</b><small>2 columnas · 10 pt</small></button>
-                <button type="button" role="radio" class="ev-preset" data-preset="grande" aria-checked="false"><span class="mini big" aria-hidden="true"><i></i><i></i><i class="s"></i></span><b>Letra grande</b><small>1 columna · 14 pt</small></button>
-              </div>
-              <div class="ev-quick">
-                <div class="ev-q"><span class="field-label" id="docColumnsLbl">Columnas</span><span class="seg" data-seg-for="docColumns" role="radiogroup" aria-labelledby="docColumnsLbl"></span></div>
-                <div class="ev-q"><span class="field-label" id="docFontSizeLbl">Tamaño de letra</span><span class="seg" data-seg-for="docFontSize" role="radiogroup" aria-labelledby="docFontSizeLbl"></span></div>
-                <div class="ev-q"><span class="field-label" id="docLettersLbl">Letras de las alternativas</span><span class="seg" data-seg-for="docLetters" role="radiogroup" aria-labelledby="docLettersLbl"></span></div>
-              </div>
-              <select id="docColumns" class="visually-hidden" tabindex="-1" aria-hidden="true"><option value="1" data-short="1">Una columna</option><option value="2" data-short="2">Dos columnas</option></select>
-              <select id="docFontSize" class="visually-hidden" tabindex="-1" aria-hidden="true">
-                <option value="10">10</option><option value="11">11</option><option value="12">12</option>
-                <option value="13">13</option><option value="14">14</option><option value="16">16</option>
-              </select>
-              <select id="docLetters" class="visually-hidden" tabindex="-1" aria-hidden="true"><option value="a)">a) b) c)</option><option value="A)">A) B) C)</option><option value="A.">A. B. C.</option><option value="(a)">(a) (b) (c)</option></select>
-              <details class="opt ev-more">
-                <summary><span class="opt-ic" aria-hidden="true">⚙️</span><span class="opt-t"><b>Más ajustes de diseño</b><span class="opt-v">letra, alternativas, numeración, desarrollo, papel…</span></span></summary>
-                <div class="opt-body">
-                  <div class="form-grid">
-                    <label>Tipo de letra
-                      <select id="docFont"></select>
-                    </label>
-                    <label>Disposición de las alternativas
-                      <select id="docOptLayout">
-                        <option value="auto">Automática (según su largo)</option>
-                        <option value="list">Una debajo de otra</option>
-                        <option value="grid">En dos columnas</option>
-                        <option value="row">En una fila</option>
-                      </select>
-                    </label>
-                    <label>Numeración de las preguntas
-                      <select id="docNumbering">
-                        <option value="section">Reiniciar en cada ítem</option>
-                        <option value="continuous">Continua en toda la prueba</option>
-                      </select>
-                    </label>
-                    <label>Desarrollo: espacio por pregunta
-                      <select id="docOpenLines"></select>
-                      <small>Se puede cambiar en cada pregunta desde la vista previa.</small>
-                    </label>
-                    <label>Desarrollo: tipo de espacio
-                      <select id="docOpenStyle">
-                        <option value="lines">Con líneas</option>
-                        <option value="box">Recuadro</option>
-                        <option value="blank">En blanco</option>
-                      </select>
-                    </label>
-                    <label>Verdadero o falso: líneas para justificar
-                      <select id="docTfJustify">
-                        <option value="0">Sin justificación</option>
-                        <option value="1">1 línea</option>
-                        <option value="2">2 líneas</option>
-                        <option value="3">3 líneas</option>
-                      </select>
-                    </label>
-                    <label>Puntaje total (opcional)
-                      <input id="docTotalPoints" type="text" maxlength="12" placeholder="Ej.: 42">
-                      <small>Se muestra junto a “Puntaje”. Si la prueba es sólo de alternativas, se calcula solo.</small>
-                    </label>
-                    <label>Papel
-                      <select id="docPaper"></select>
-                    </label>
-                  </div>
-                  <label class="check" style="margin-top:10px"><input id="docShowOA" type="checkbox"> Mostrar el OA junto a cada pregunta</label>
-                  <label class="check"><input id="docFillBank" type="checkbox"> Completación: mostrar el banco de palabras</label>
-                </div>
-              </details>
-            </div>
-
-            <div class="ev-pane" data-evpane="filas" hidden>
-              <p class="muted small">Filas (versiones) para evitar la copia. <span id="docFormsInfo"></span></p>
-              <div class="form-grid">
-                <label>Cantidad de filas
-                  <select id="docForms">
-                    <option value="1">Una sola versión</option>
-                    <option value="2">2 filas (A y B)</option>
-                    <option value="3">3 filas (A, B y C)</option>
-                    <option value="4">4 filas (A, B, C y D)</option>
-                  </select>
-                </label>
-                <div class="forms-opts">
-                  <label class="check"><input id="docShuffleQ" type="checkbox"> Cambiar el orden de las preguntas</label>
-                  <label class="check"><input id="docShuffleO" type="checkbox"> Cambiar el orden de las alternativas</label>
-                  <button id="docReshuffle" class="btn ghost small" type="button">🔀 Mezclar de nuevo</button>
-                </div>
-              </div>
-              <ul class="tips">
-                <li>La <strong>fila A</strong> mantiene el orden original. En las filas B, C y D las preguntas cambian de lugar dentro de cada ítem y las alternativas se reordenan (procurando que la respuesta correcta no quede en la misma letra que en otra fila). También se reordenan los términos pareados y las secuencias.</li>
-                <li>No se mueven: las preguntas de desarrollo, las alternativas como “Todas las anteriores” o “A y B”, ni las preguntas que el texto nombra (“responde las preguntas 1 a 3”).</li>
-                <li>Cada fila tiene su propia hoja de respuestas (con la fila impresa): al escanear se reconoce la fila y se corrige con su clave. Los resultados y el análisis por pregunta y por OA se muestran según la fila A.</li>
-              </ul>
-              <p id="docFormsStatus" class="alert warn" hidden></p>
-            </div>
-            <!-- pro:evaluacion -->
-          </div>
-
-          <div class="ev-preview">
-            <div class="ev-pbar">
-              <label id="docPreviewFormWrap" class="inline-select" hidden>Ver
-                <select id="docPreviewForm"></select>
-              </label>
-              <label id="docPrintWhichWrap" class="inline-select" hidden>Imprimir
-                <select id="docPrintWhich"></select>
-              </label>
-              <span class="spacer"></span>
-              <button id="docPrintKey" class="btn secondary small" type="button">🗝️ Pauta</button>
-              <button id="docPrint" class="btn primary small" type="button">🖨️ Imprimir evaluación</button>
-            </div>
-            <div id="docOrphans" class="alert warn" hidden></div>
-            <div class="doc-preview-wrap"><div id="docPreview" class="doc-preview"></div></div>
-            <p class="muted small ev-note">Al imprimir puedes elegir «Guardar como PDF». Las preguntas no se cortan entre páginas.</p>
-          </div>
-        </div>
-        <button type="button" class="btn primary ev-fab" id="evFab">🖨️ Imprimir</button>
-      </section>
-
-      <!-- 3. HOJA ---------------------------------------------------------->
-      <section id="tab-hoja" class="tab-panel" role="tabpanel" hidden>
-        <p class="man-help"><button type="button" class="link-btn" data-manual="hoja">📘 ¿Cómo se usa esta pestaña?</button></p>
-        <div class="card">
-          <div class="card-head">
-            <h2>Hoja de respuestas</h2>
-            <div class="actions">
-              <button id="btnPrint" class="btn primary" type="button">🖨️ Imprimir</button>
-              <button id="btnDownloadSvg" class="btn secondary" type="button">Descargar SVG</button>
-              <button id="btnDownloadSample" class="btn ghost" type="button" title="Genera una imagen de la hoja rellenada con la clave, útil para probar el lector">Descargar ejemplo rellenado</button>
-            </div>
-          </div>
-          <div class="form-grid sheet-options">
-            <label>Hojas de respuesta por página
-              <select id="exFormat"></select>
-              <small>Con 2 o 4 por página se ahorra papel: recorta por la línea punteada antes de escanear.</small>
-            </label>
-            <label id="sheetFormWrap" hidden>Fila
-              <select id="sheetForm"></select>
-              <small>Imprime las hojas de cada fila (la fila queda impresa y el lector la reconoce).</small>
-            </label>
-            <label id="sheetFormStyleWrap" hidden>Cómo se indica la fila
-              <select id="sheetFormStyle">
-                <option value="bubbles">Círculo ya relleno (A B C D)</option>
-                <option value="box">Recuadro con la letra (FILA B)</option>
-              </select>
-              <small>El estudiante no marca nada: la fila viene impresa y el lector la reconoce en ambos casos.</small>
-            </label>
-            <label>Establecimiento (opcional)
-              <input id="sheetSchool" type="text" maxlength="120" placeholder="Se muestra bajo el título">
-            </label>
-            <fieldset class="checks">
-              <legend>Campos del encabezado</legend>
-              <label class="check"><input type="checkbox" data-sheetfield="curso"> Curso</label>
-              <label class="check"><input type="checkbox" data-sheetfield="fecha"> Fecha</label>
-              <label class="check"><input type="checkbox" data-sheetfield="rut"> RUT</label>
-            </fieldset>
-          </div>
-          <p id="formsHint" class="alert forms-hint" hidden>🔀 ¿Necesitas hojas de las filas B, C o D? <button type="button" class="link-btn" id="formsHintGo">Actívalas en Datos y clave → Filas</button> (no hace falta escribir las preguntas).</p>
-          <p id="formatError" class="alert error" hidden></p>
-          <ul class="tips">
-            <li>Imprime en el tamaño de papel elegido, <strong>a escala 100 %</strong> (“Tamaño real”), sin encabezados del navegador.</li>
-            <li id="cutTip" hidden>Recorta cada hoja por la línea punteada (✂) y fotografía cada una por separado.</li>
-            <li>Las cuatro marcas negras de las esquinas y el cuadrado pequeño junto a la marca superior izquierda son necesarios para leer la hoja: no los recortes ni los cubras.</li>
-            <li>Las fotocopias funcionan bien siempre que las marcas se vean negras y nítidas.</li>
+          <ul class="trust">
+            <li>✔ Escala de 1,0 a 7,0</li>
+            <li>✔ Gratis, sin anuncios</li>
+            <li>✔ Las fotos no salen de tu equipo</li>
           </ul>
-          <div id="sheetPreview" class="sheet-preview" aria-label="Vista previa de la hoja"></div>
         </div>
-        <!-- pro:hoja -->
-      </section>
-
-      <!-- 4. CORREGIR: escanear y resultados en la misma pantalla ----------->
-      <section id="tab-corregir" class="tab-panel" role="tabpanel" hidden>
-        <p class="man-help"><button type="button" class="link-btn" data-manual="escanear">📘 ¿Cómo se usa esta pestaña?</button></p>
-        <div class="corr-grid">
-          <div class="corr-side">
-            <div class="card scan-card">
-              <h2>Escanear hojas</h2>
-              <p id="corrTest" class="corr-test muted small"></p>
-              <!-- pro:escanear-curso -->
-              <div class="scan-buttons">
-                <label class="btn primary big" for="cameraInput">📷 Tomar foto</label>
-                <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden>
-                <label class="btn secondary big" for="filesInput">🖼️ Subir imágenes</label>
-                <input id="filesInput" type="file" accept="image/*" multiple hidden>
+        <div class="art" aria-hidden="true">
+          <div class="sheet">
+            <h4>Prueba de Historia · Unidad 2</h4>
+            <div class="row"><b>1</b><i></i><i class="f"></i><i></i><i></i></div>
+            <div class="row"><b>2</b><i class="f"></i><i></i><i></i><i></i></div>
+            <div class="row"><b>3</b><i></i><i></i><i></i><i class="f"></i></div>
+            <div class="row"><b>4</b><i></i><i></i><i class="f"></i><i></i></div>
+            <div class="row"><b>5</b><i></i><i class="f"></i><i></i><i></i></div>
+            <div class="row"><b>6</b><i class="f"></i><i></i><i></i><i></i></div>
+            <div class="row"><b>7</b><i></i><i></i><i class="f"></i><i></i></div>
+            <div class="row"><b>8</b><i></i><i></i><i></i><i class="f"></i></div>
+            <div class="row"><b>9</b><i></i><i class="f"></i><i></i><i></i></div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="notice">
+                <span class="chk">✔</span>
+                <b>Ana Aravena</b>
+                <span>18 de 20 correctas</span>
+                <strong>Nota 6,3</strong>
+                <small>Llevas 24 de 32 · Faltan 8</small>
               </div>
-              <!-- pro:escanear -->
-              <div id="scanProgress" class="scan-progress" hidden></div>
-              <ul id="scanQueue" class="scan-queue"></ul>
-              <div class="scan-more">
-                <button id="btnTranscribe" class="btn ghost small" type="button">✍️ Transcribir una hoja dañada</button>
-                <details class="tips-box">
-                  <summary>⚙️ Consejos para la foto y sensibilidad</summary>
-                  <ul class="tips">
-                    <li>Hoja sobre una superficie plana y de color contrastante, con las <strong>cuatro esquinas visibles</strong>.</li>
-                    <li>Buena luz, sin sombras fuertes ni reflejos sobre las burbujas.</li>
-                    <li>Toma la foto desde arriba; una inclinación moderada o la hoja girada no son problema.</li>
-                    <li>Evita que la hoja esté muy doblada o arrugada.</li>
-                  </ul>
-                  <div class="threshold-row">
-                    <label class="check"><input id="thrAuto" type="checkbox" checked> Sensibilidad automática</label>
-                    <label class="range" id="thrRangeWrap">Umbral de marca
-                      <input id="thrRange" type="range" min="0.15" max="0.7" step="0.01" disabled>
-                      <output id="thrValue">auto</output>
-                    </label>
-                  </div>
-                </details>
-              </div>
-              <p class="muted small center">También puedes arrastrar imágenes a esta pantalla. Puedes elegir varias fotos a la vez.</p>
-              <div id="dropHint" class="drop-hint" hidden>Suelta las imágenes para escanearlas</div>
+              <div class="next">📷 Siguiente hoja</div>
             </div>
           </div>
-
-          <div class="corr-main">
-            <div id="resultsEmpty" class="card empty">
-              <p><strong>Aún no hay hojas corregidas.</strong></p>
-              <p class="muted">Toma una foto o sube las imágenes: cada estudiante va apareciendo aquí con su nota.</p>
-            </div>
-            <div id="resultsContent" hidden>
-              <div id="groupFilter" class="group-filter" role="group" aria-label="Curso" hidden></div>
-              <div id="statsCards" class="stats"></div>
-              <div class="card results-card">
-                <div class="card-head results-head">
-                  <h2>Estudiantes</h2>
-                  <button type="button" id="reviewFilter" class="review-filter" aria-pressed="false" hidden></button>
-                  <input id="resultsSearch" type="search" placeholder="🔍 Buscar" aria-label="Buscar estudiante" autocomplete="off">
-                  <details class="menu" id="dlMenu">
-                    <summary class="btn secondary small">⬇ Descargar ▾</summary>
-                    <div class="menu-list">
-                      <button id="btnExportZip" type="button">📦 Evidencias (ZIP): planilla Excel y cada hoja corregida</button>
-                      <button id="btnExportFolder" type="button" hidden>📁 Guardar las evidencias en una carpeta…</button>
-                      <button id="btnExportCsv" type="button">📄 Sólo la planilla (CSV)</button>
-                      <!-- pro:resultados-acciones -->
-                      <hr>
-                      <button id="btnClearResults" type="button" class="danger">🗑 Borrar todos los resultados…</button>
-                    </div>
-                  </details>
-                </div>
-                <p id="exportProgress" class="muted small" hidden></p>
-                <div class="table-wrap">
-                  <table id="resultsTable" class="results-table"></table>
-                </div>
-                <p id="resultsNone" class="muted small" hidden></p>
-                <p class="muted small results-hint">Toca a un estudiante para ver su hoja corregida y cambiar una respuesta si se leyó mal.</p>
-                <!-- pro:resultados -->
-              </div>
-              <h2 class="corr-section">📈 Análisis de la prueba</h2>
-              <details id="oaResultsCard" class="card" hidden>
-                <summary><h2>Logro por objetivo de aprendizaje</h2></summary>
-                <div class="table-wrap"><table id="oaTable" class="item-table"></table></div>
-                <h3 class="sub-h">Logro de cada estudiante por objetivo</h3>
-                <div class="table-wrap"><table id="oaMatrix" class="results-table oa-matrix"></table></div>
-              </details>
-              <!-- pro:resultados-oa -->
-              <details class="card" id="itemCard">
-                <summary><h2>Análisis por pregunta</h2></summary>
-                <div class="table-wrap">
-                  <table id="itemTable" class="item-table"></table>
-                </div>
-              </details>
-              <!-- pro:resultados-analisis -->
-            </div>
-          </div>
-        </div>
-      </section>
-      <!-- pro:panels -->
-
-      <!-- 6. MANUAL -------------------------------------------------------->
-      <section id="tab-manual" class="tab-panel" role="tabpanel" hidden>
-        <div class="card man-intro">
-          <div class="card-head">
-            <h2>📘 Manual de uso</h2>
-            <div class="actions">
-              <button type="button" class="btn primary small" data-tutorial>🧭 Tutorial guiado</button>
-              <button id="manPrint" class="btn ghost small" type="button">🖨️ Imprimir manual</button>
-            </div>
-          </div>
-          <p>Esta guía explica, paso a paso, cómo crear una prueba, imprimir las hojas de respuesta, escanearlas con el celular y ver los resultados. Cada parte tiene su video.</p>
-          <label class="man-search">Buscar en el manual
-            <input id="manSearch" type="search" placeholder="Ej.: clave, foto, filas, Excel…" autocomplete="off">
-          </label>
-          <nav class="man-index" aria-label="Índice del manual">
-            <button type="button" data-man-go="inicio"><b>0</b>Cómo funciona</button>
-            <button type="button" data-man-go="prueba"><b>1</b>Prueba: datos y clave</button>
-            <button type="button" data-man-go="evaluacion"><b>2</b>Prueba: preguntas</button>
-            <button type="button" data-man-go="filas"><b>2b</b>Filas A, B, C y D</button>
-            <button type="button" data-man-go="hoja"><b>3</b>Prueba: imprimir la hoja</button>
-            <button type="button" data-man-go="escanear"><b>4</b>Corregir: escanear las hojas</button>
-            <button type="button" data-man-go="resultados"><b>5</b>Corregir: notas y evidencias</button>
-            <button type="button" data-man-go="respaldo"><b>6</b>Guardar y respaldar</button>
-            <!-- pro:manual-index -->
-            <button type="button" data-man-go="problemas"><b>?</b>Problemas frecuentes</button>
-          </nav>
-          <p class="donate-wrap man-donate" hidden>¿Te sirve la plataforma? Es gratuita; si quieres, puedes apoyar su desarrollo: <a class="donate-link" target="_blank" rel="noopener">❤ Apoya este proyecto</a></p>
-          <p id="manNoResults" class="alert warn" hidden>No se encontró nada con esas palabras. Prueba con otra palabra, por ejemplo “clave” o “foto”.</p>
-        </div>
-
-        <!-- 0 -->
-        <article class="card man-section" id="man-inicio" data-man="inicio">
-          <h2><span class="man-num">0</span>Cómo funciona la plataforma</h2>
-          <div class="man-video" data-video="inicio"></div>
-          <p>La plataforma corrige pruebas de alternativas a partir de una <strong>foto de la hoja de respuestas</strong>. Al abrirla, <b>Inicio</b> te muestra tu prueba actual y qué paso sigue. Se usa en cuatro pasos:</p>
-          <ol class="man-flow">
-            <li><b>Prueba → Datos y clave</b><span>Dices cuántas preguntas tiene y cuál es la respuesta correcta de cada una.</span></li>
-            <li><b>Prueba → Preguntas</b><span>(Opcional) Pegas tus preguntas y la plataforma arma la prueba lista para imprimir.</span></li>
-            <li><b>Prueba → Imprimir hoja</b><span>Imprimes las hojas de respuesta donde los estudiantes marcan.</span></li>
-            <li><b>Corregir</b><span>Le sacas una foto a cada hoja con el celular y al lado van apareciendo las notas del curso. Ahí descargas el Excel y las hojas corregidas.</span></li>
-          </ol>
-          <p>El menú (arriba en el computador, abajo en el celular) tiene <b>Inicio</b>, <b>Prueba</b> (con sus tres pasos: Datos y clave · Preguntas · Imprimir hoja), <b>Corregir</b> y <b>Ayuda</b>. En Inicio también está <b>Crear una prueba nueva</b>: empieza en blanco, pero conserva tus ajustes (papel, puntaje, membrete y lista del curso).</p>
-          <h3>Qué necesitas</h3>
-          <ul class="man-list">
-            <li>Un computador o celular con internet para abrir la página.</li>
-            <li>Una impresora (las hojas también se pueden fotocopiar).</li>
-            <li>Un celular con cámara para fotografiar las hojas.</li>
-          </ul>
-          <p class="man-tip"><b>💡 Bueno saber:</b> todo se guarda en tu navegador, en tu equipo. Las fotos y las notas <strong>no se envían a ningún servidor</strong>.</p>
-          <h3>Ver más grande</h3>
-          <p>Arriba a la derecha está el botón <b>Aa</b>: agranda la letra y los botones (<b>A+</b> o <b>A++</b>), activa <b>más contraste</b>, cambia al <b>modo noche</b> (fondo oscuro, o <b>Auto</b> para que siga al teléfono) y elige qué pasa al corregir cada foto (un aviso grande con el nombre y la nota, y si quieres que lo diga en voz alta). Se recuerda en ese equipo.</p>
-        </article>
-
-        <!-- 1 -->
-        <article class="card man-section" id="man-prueba" data-man="prueba">
-          <h2><span class="man-num">1</span>Prueba · Datos y clave</h2>
-          <div class="man-video" data-video="prueba"></div>
-          <p>Aquí le cuentas a la plataforma cómo es tu prueba. Arriba está lo básico; lo demás está plegado en <b>Más opciones</b> y, si no lo cambias, se usa lo de siempre.</p>
-          <p class="man-tip"><b>🧭 Asistente paso a paso:</b> al tocar <b>Crear una prueba nueva</b> se abre un asistente que pregunta una cosa por pantalla: el nombre, cuántas preguntas, cuántas alternativas y la respuesta correcta de cada pregunta (tocas la letra y pasa sola a la siguiente). También se abre desde el menú <b>⋯</b> de esta pestaña. Si prefieres el formulario completo, toca <b>✕ Salir</b> o desmarca «Usar este asistente cada vez».</p>
-          <ol class="man-steps">
-            <li><b>Escribe el título</b> (por ejemplo, “Prueba de Ciencias – Unidad 2”) y, si quieres, un subtítulo con el curso o el profesor.</li>
-            <li><b>Indica el N° de preguntas</b> (de 1 a 120; puedes usar los botones <b>−</b> y <b>＋</b>) y toca cuántas <b>alternativas</b> tiene cada una (4 = A a D, 5 = A a E, etc.).</li>
-            <li><b>Ingresa la clave</b> (las respuestas correctas) de una de estas tres formas:
-              <ul>
-                <li>haciendo clic en la letra correcta de cada pregunta (van en bloques de 5, como en la hoja);</li>
-                <li>escribiéndola seguida en “Escritura rápida”, por ejemplo <code>ABCDA BCDEA</code> (usa <code>-</code> para anular una pregunta);</li>
-                <li>rellenando una hoja con las respuestas correctas y usando <b>📷 Leerla de una hoja</b>.</li>
-              </ul>
-            </li>
-            <li>Presiona <b>Siguiente: imprimir la hoja →</b> (abajo). Ahí mismo te avisa si falta algo de la clave.</li>
-          </ol>
-          <h3>Más opciones (plegadas)</h3>
-          <p>Cada opción muestra a la derecha cómo está. Tócala para abrirla:</p>
-          <ul class="man-list">
-            <li><b>🎯 Objetivos de aprendizaje (OA):</b> un objetivo por línea con sus preguntas, por ejemplo <code>OA12: 1-4</code> y <code>OA13: 5-8</code>. Así verás el logro de cada OA en los resultados.</li>
-            <li><b>🧮 Puntaje y nota:</b> puntos por respuesta correcta, descuento por incorrecta (0 = sin descuento), exigencia (por defecto 60 %) y la escala de notas (1,0 a 7,0).</li>
-            <li><b>🪪 Cómo se identifica el estudiante:</b> los dígitos que marca en la hoja. Con <b>2</b> marca su número de lista (01 a 99). Con 0 no hay recuadro.</li>
-            <li><b>👥 Lista del curso:</b> pega los nombres en orden de lista, uno por línea. El número que marca el estudiante se cambia por su nombre, y al corregir verás quién falta.</li>
-            <li><b>📄 Tamaño de papel:</b> carta, A4 u oficio, el mismo que usarás en la impresora.</li>
-          </ul>
-          <p>En el botón <b>⋯</b> (arriba a la derecha) están <b>Exportar</b> e <b>Importar configuración</b> y <b>Borrar la clave</b>.</p>
-          <p class="man-warn"><b>⚠️ Importante:</b> si ya escaneaste hojas y cambias el número de preguntas, de alternativas, de dígitos o el papel, los resultados guardados se borran (la hoja ya no sería la misma).</p>
-          <button class="btn secondary small" type="button" data-goto="prueba">Ir a Datos y clave →</button>
-        </article>
-
-        <!-- 2 -->
-        <article class="card man-section" id="man-evaluacion" data-man="evaluacion">
-          <h2><span class="man-num">2</span><span>Prueba · Preguntas: crear la prueba para imprimir <small>(opcional)</small></span></h2>
-          <div class="man-video" data-video="evaluacion"></div>
-          <p>Si ya tienes tu prueba impresa, puedes saltarte este paso. Si no, la plataforma la arma por ti con membrete y formato. A la izquierda escribes y a la derecha ves cómo queda la prueba, al instante (en el celular, cambia con <b>✏️ Editar</b> y <b>👁 Ver la prueba</b>).</p>
-          <ol class="man-steps">
-            <li>En <b>Preguntas</b>, <b>copia tus preguntas</b> desde Word, PDF o donde las tengas, y <b>pégalas</b> en el cuadro grande. No importa si vienen desordenadas: se ordenan solas. Arriba ves cuántas reconoció y, si hay algo raro, un aviso <b>⚠</b> (tócalo para verlo).</li>
-            <li>En <b>Membrete</b>, completa el colegio, logo, asignatura, profesor, curso, los datos que llenará el estudiante (nombre, RUT, fecha…), los Objetivos de Aprendizaje y las instrucciones.</li>
-            <li>En <b>Diseño</b>, elige un estilo: <b>Clásica</b> (1 columna, letra 12), <b>Ahorra papel</b> (2 columnas, letra 10) o <b>Letra grande</b> (letra 14). Después puedes ajustar las columnas, el tamaño de letra y las letras de las alternativas. Lo demás está en <b>Más ajustes de diseño</b>.</li>
-            <li>En la vista previa puedes cambiar el tipo de cada pregunta, el espacio para responder y usar <b>＋ Añadir elemento</b> para agregar una imagen, tabla, gráfico o texto.</li>
-            <li>Presiona <b>🖨️ Imprimir evaluación</b>. En la ventana de impresión puedes elegir “Guardar como PDF”. Con <b>🗝️ Pauta</b> obtienes las respuestas correctas.</li>
-            <li>Presiona <b>↪ Usar estas preguntas en la hoja de respuestas</b>: se copian el número de preguntas, la clave y los OA a <b>Datos y clave</b>.</li>
-          </ol>
-          <h3>Cómo escribir cada tipo de pregunta</h3>
-          <p>Separa la prueba en ítems con un título (por ejemplo <code>II. Verdadero o falso</code>). Debajo de cada título escribe las preguntas así:</p>
-          <div class="man-table-wrap">
-            <table class="man-table">
-              <thead><tr><th>Tipo</th><th>Cómo escribirlo</th></tr></thead>
-              <tbody>
-                <tr><td><b>Selección múltiple</b></td><td><code>1. ¿Cuál es la capital de Chile?</code><br><code>a) Lima b) Santiago c) Quito</code><br>Marca la correcta con un asterisco (<code>*b)</code>) o escribe al final <code>Clave: 1B 2C 3A</code>.</td></tr>
-                <tr><td><b>Verdadero o falso</b></td><td><code>1. El agua hierve a 100 °C. (V)</code><br>La respuesta <code>(V)</code> o <code>(F)</code> al final es opcional (sirve para la pauta).</td></tr>
-                <tr><td><b>Desarrollo</b></td><td><code>1. Explica dos causas de la independencia. [8 líneas]</code><br>También <code>[recuadro 10]</code> o <code>[en blanco 6]</code>.</td></tr>
-                <tr><td><b>Respuesta breve</b></td><td>Un ítem titulado <code>Respuesta breve</code>: cada pregunta lleva 2 líneas.</td></tr>
-                <tr><td><b>Términos pareados</b></td><td>Escribe el título del ítem y debajo <b>un par por línea</b>, con el término, el signo <code>=</code> y su definición:
-                  <pre class="man-example">III. Términos pareados
-Fotosíntesis = Proceso por el cual las plantas producen su alimento
-Mitocondria = Organelo que produce energía
-Núcleo = Contiene el material genético</pre>
-                  En lugar de <code>=</code> también sirven <code>:</code>, <code>-</code> o <code>→</code>, o una tabla de dos columnas copiada de Word. La plataforma arma la columna A (términos numerados) y la columna B (definiciones desordenadas). Un término sin definición queda como distractor.</td></tr>
-                <tr><td><b>Completación</b></td><td><code>1. La capital de Chile es [Santiago].</code><br>La palabra entre corchetes se cambia por una línea y va al banco de palabras. Agrega distractores con <code>Banco de palabras: Lima, Quito</code>.</td></tr>
-                <tr><td><b>Ordenar secuencia</b></td><td><code>1. Ordena cronológicamente:</code> y debajo <code>a)</code>, <code>b)</code>, <code>c)</code>… <b>en el orden correcto</b>. Al imprimir se desordenan.</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <p class="man-tip"><b>💡 Consejo:</b> a la hoja de respuestas solo van las preguntas de <b>selección múltiple</b>. Las demás (verdadero o falso, desarrollo, etc.) se responden en la misma prueba y se corrigen a mano.</p>
-          <h3>Fórmulas matemáticas (opcional)</h3>
-          <p>Para escribir fracciones, raíces, potencias y otros símbolos sin un teclado especial:</p>
-          <ol class="man-steps">
-            <li>Bajo el cuadro de texto, abre <b>Más herramientas</b> y marca <b>Activar el editor de fórmulas matemáticas</b>. Solo hay que hacerlo una vez.</li>
-            <li>En el cuadro de texto, pon el cursor donde va la fórmula y presiona <b>∑ Insertar fórmula</b>.</li>
-            <li>Escribe la fórmula con los botones de arriba (fracción, raíz, potencia…), con tu teclado (<b>/</b> hace una fracción y <b>^</b> una potencia) o con el <b>⌨️ Teclado en pantalla</b>.</li>
-            <li>Presiona <b>Insertar</b>. En el cuadro de texto la fórmula queda escrita entre <code>\(</code> y <code>\)</code>, y en la vista previa se ve como en un libro.</li>
-            <li>Para cambiarla, pon el cursor sobre ella y presiona otra vez <b>∑ Insertar fórmula</b>.</li>
-          </ol>
-          <p class="man-tip"><b>💡 Bueno saber:</b> las fórmulas sirven en enunciados, alternativas, términos pareados y oraciones para completar. Si no enseñas Matemática, puedes ignorar esta opción: viene desactivada.</p>
-          <button class="btn secondary small" type="button" data-goto="evaluacion">Ir a Preguntas →</button>
-        </article>
-
-        <!-- 2b -->
-        <article class="card man-section" id="man-filas" data-man="filas">
-          <h2><span class="man-num">2b</span>Filas A, B, C y D (para evitar la copia)</h2>
-          <div class="man-video" data-video="filas"></div>
-          <p>Puedes hacer de 2 a 4 versiones de la misma prueba. En cada fila cambia el orden de las preguntas y de las alternativas, así un estudiante no puede copiar al compañero de al lado.</p>
-          <ol class="man-steps">
-            <li>En <b>Prueba → Preguntas → Filas</b>, elige la <b>cantidad de filas</b> (2, 3 o 4).</li>
-            <li>Deja marcadas las opciones <b>Cambiar el orden de las preguntas</b> y <b>de las alternativas</b> (o desmarca la que no quieras).</li>
-            <li>En la vista previa, usa el selector <b>Ver: Fila A / Fila B…</b> para revisar cada una. Si no te gusta la mezcla, presiona <b>🔀 Mezclar de nuevo</b>.</li>
-            <li>Presiona <b>↪ Usar estas preguntas en la hoja de respuestas</b>. <b>Este paso es obligatorio</b>: así la plataforma sabe cómo corregir cada fila.</li>
-            <li>Imprime las pruebas (<b>Imprimir: Todas las filas</b>) y, en la pestaña <b>Hoja</b>, las hojas de respuesta de todas las filas.</li>
-            <li>Entrega a cada estudiante la <b>prueba y la hoja de la misma fila</b>. En la hoja, la fila viene impresa con el círculo ya relleno (<b>FILA Ⓐ Ⓑ ● Ⓓ</b>) o, si lo prefieres, en un recuadro “FILA B” (se elige en la paso Imprimir hoja). El estudiante no marca nada.</li>
-          </ol>
-          <p class="man-tip"><b>💡 Bueno saber:</b> al escanear, la plataforma reconoce la fila de cada hoja y la corrige con su propia clave. En los resultados, todas las preguntas se muestran con la numeración de la fila A para comparar al curso completo.</p>
-          <p class="man-warn"><b>⚠️ Importante:</b> si cambias las preguntas o presionas “Mezclar de nuevo” después de imprimir, las filas cambian. Vuelve a imprimir o no cambies nada hasta terminar de corregir.</p>
-          <p class="man-tip"><b>🔀 ¿Hiciste la prueba fuera de la app (Word, papel)?</b> No necesitas escribir las preguntas: en <b>Datos y clave → Más opciones → Filas</b> elige cuántas filas tiene y escribe la clave de cada una. Luego imprime las hojas de todas las filas en <b>Imprimir hoja</b>. Las notas salen bien; si cambiaste el orden de las preguntas entre filas, el análisis por pregunta compara la pregunta 1 de cada fila.</p>
-          <button class="btn secondary small" type="button" data-goto="evaluacion">Ir a Preguntas →</button>
-        </article>
-
-        <!-- 3 -->
-        <article class="card man-section" id="man-hoja" data-man="hoja">
-          <h2><span class="man-num">3</span>Prueba · Imprimir hoja: las hojas de respuesta</h2>
-          <div class="man-video" data-video="hoja"></div>
-          <ol class="man-steps">
-            <li>Elige cuántas <b>hojas de respuesta por página</b>: 1, 2 (media hoja) o 4 (cuarto de hoja). Con 2 o 4 ahorras papel y tinta; después se recortan por la línea punteada ✂.</li>
-            <li>Elige los <b>campos</b> que quieres en la hoja (curso, fecha, RUT) y escribe el nombre del colegio si quieres.</li>
-            <li>Si tu prueba tiene filas, elige qué imprimir: <b>una página por fila</b> o <b>filas alternadas</b> en la misma página.</li>
-            <li>Presiona <b>🖨️ Imprimir</b>. En la ventana de impresión elige <b>escala 100 %</b> o “Tamaño real” y desactiva los encabezados del navegador.</li>
-            <li>Imprime una hoja y, si quieres, <b>fotocópiala</b> las veces que necesites.</li>
-          </ol>
-          <h3>Qué decirles a los estudiantes</h3>
-          <ul class="man-list">
-            <li>Rellenar <b>completo</b> un círculo por pregunta, con lápiz grafito o pasta oscura.</li>
-            <li>Si se equivocan, borrar bien la marca anterior.</li>
-            <li>No doblar la hoja ni rayar los cuadrados negros de las esquinas.</li>
-            <li>Marcar su número de lista en el recuadro “N° de lista / código”.</li>
-          </ul>
-          <p class="man-warn"><b>⚠️ Importante:</b> los cuadrados negros de las esquinas, los de los costados y los cuadritos de abajo son los que permiten leer la hoja. No los recortes, no los cubras y no escribas encima.</p>
-          <p class="man-tip"><b>💡 Para practicar:</b> el botón <b>Descargar ejemplo rellenado</b> crea una imagen de una hoja ya marcada. Súbela en la pestaña Corregir para ver cómo funciona.</p>
-          <button class="btn secondary small" type="button" data-goto="hoja">Ir a Imprimir hoja →</button>
-        </article>
-
-        <!-- 4 -->
-        <article class="card man-section" id="man-escanear" data-man="escanear">
-          <h2><span class="man-num">4</span>Pestaña Corregir: escanear las hojas</h2>
-          <div class="man-video" data-video="escanear"></div>
-          <ol class="man-steps">
-            <li>Abre la página en el celular y entra a <b>Corregir</b>.</li>
-            <li>Presiona <b>📷 Tomar foto</b> y fotografía una hoja. En el computador, usa <b>🖼️ Subir imágenes</b> para elegir varias fotos a la vez (o arrástralas a la página).</li>
-            <li>Espera unos segundos: aparece un <b>aviso grande</b> con el nombre y la nota del estudiante (verde si está bien, amarillo si hay que revisar algo, rojo si no se pudo leer) y cuántos te faltan. Toca <b>📷 Siguiente hoja</b> para fotografiar la próxima. El estudiante también se agrega (resaltado) a la lista de <b>Estudiantes</b>. Si prefieres sin aviso, o quieres que diga la nota en voz alta, cámbialo en <b>Aa</b> (arriba).</li>
-            <li>Si tienes la lista del curso, arriba ves <b>cuántos llevas y quién falta</b> (por número de lista).</li>
-            <li>Toca <b>Ver</b> (o el nombre en la lista) para ver la hoja con la corrección: <span class="man-dot ok"></span> verde = correcta, <span class="man-dot bad"></span> rojo = incorrecta, círculo azul punteado = la respuesta correcta.</li>
-            <li>Si una pregunta tiene un <b>recuadro amarillo</b>, la marca era dudosa: mírala y, si hace falta, corrígela eligiendo la letra en la lista de la derecha.</li>
-            <li>Sigue con la próxima hoja.</li>
-          </ol>
-          <h3>Cómo sacar una buena foto</h3>
-          <ul class="man-list">
-            <li>Pon la hoja sobre una mesa de color distinto al blanco.</li>
-            <li>Que se vean <b>las cuatro esquinas</b> con sus cuadrados negros.</li>
-            <li>Buena luz, sin sombras fuertes ni reflejos.</li>
-            <li>Foto desde arriba. No importa si la hoja queda un poco girada o inclinada.</li>
-          </ul>
-          <p class="man-tip"><b>💡 Bueno saber:</b> si corriges una respuesta a mano, queda marcada con un triángulo morado, para que se sepa que la cambió el docente.</p>
-          <h3>Hojas que no se pueden escanear (dobladas, rayadas o rotas)</h3>
-          <ol class="man-steps">
-            <li>Presiona <b>✍️ Transcribir una hoja dañada</b> (o el botón <b>✍️ Transcribir esta hoja</b> que aparece junto a una foto rechazada).</li>
-            <li>Escribe el <b>N° de lista</b> del estudiante y, si la prueba tiene filas, elige su <b>fila</b>.</li>
-            <li>Copia lo que marcó el estudiante: toca la letra de cada pregunta, o escríbelas seguidas en <b>Escritura rápida</b> (por ejemplo <code>ABCDA BC-DA</code>; el guion es una pregunta en blanco). Si marcó dos alternativas, toca las dos.</li>
-            <li>Presiona <b>Agregar a los resultados</b>: la plataforma genera la hoja rellenada, la corrige y la agrega con la etiqueta <span class="tag form">transcrita</span>.</li>
-            <li>Si quieres la hoja en papel o PDF, presiona <b>🖨️ Hoja en PDF</b> (en la ventana de impresión elige “Guardar como PDF”).</li>
-          </ol>
-          <p class="man-tip"><b>💡 Consejo:</b> adjunta una foto de la hoja original dañada: queda guardada como evidencia junto a la hoja transcrita.</p>
-          <button class="btn secondary small" type="button" data-goto="corregir">Ir a la pestaña Corregir →</button>
-        </article>
-
-        <!-- 5 -->
-        <article class="card man-section" id="man-resultados" data-man="resultados">
-          <h2><span class="man-num">5</span>Pestaña Corregir: notas, análisis y evidencias</h2>
-          <div class="man-video" data-video="resultados"></div>
-          <ol class="man-steps">
-            <li>Arriba verás el <b>resumen del curso</b>: nota promedio, aprobación, la pregunta más difícil y el objetivo más bajo.</li>
-            <li>En la lista de <b>Estudiantes</b> cada uno tiene una barrita con sus respuestas (verde = correcta, rojo = incorrecta, gris = omitida), su puntaje y su nota. Usa <b>🔍 Buscar</b> para encontrar a alguien.</li>
-            <li>Toca un nombre para ver su hoja corregida en un cuadro. Ahí puedes corregir el nombre, el código o una respuesta, y pasar al <b>Siguiente</b> o al <b>Anterior</b> sin cerrarlo (también con las flechas del teclado).</li>
-            <li>Las hojas con la etiqueta <span class="tag warn">revisar</span> tienen algo dudoso. Toca <b>⚠ … para revisar</b> para ver sólo esas.</li>
-            <li>Más abajo, en <b>📈 Análisis de la prueba</b>, están plegados el <b>Logro por objetivo de aprendizaje</b> (L, ML o NL) y el <b>Análisis por pregunta</b> (qué preguntas le costaron más al curso y qué alternativas marcaron).</li>
-            <li>Presiona <b>⬇ Descargar ▾ → Evidencias (ZIP)</b> para guardar todo en tu computador.</li>
-          </ol>
-          <h3>Qué trae la carpeta de evidencias</h3>
-          <ul class="man-list">
-            <li><b>resultados.xlsx</b>: planilla Excel con puntajes, notas, logro por OA y análisis por pregunta. Cada estudiante tiene enlaces que abren su hoja.</li>
-            <li><b>hojas_corregidas</b>: la hoja de cada estudiante con la corrección, en JPG.</li>
-            <li><b>fotos_originales</b>: las fotos tal como se tomaron.</li>
-          </ul>
-          <p class="man-tip"><b>💡 Consejo:</b> descomprime el ZIP antes de abrir el Excel, para que los enlaces a las imágenes funcionen. En Chrome o Edge, en <b>Descargar ▾</b> también está <b>📁 Guardar las evidencias en una carpeta…</b>, que guarda todo directamente, sin ZIP.</p>
-          <button class="btn secondary small" type="button" data-goto="corregir">Ir a la pestaña Corregir →</button>
-        </article>
-
-        <!-- 6 -->
-        <article class="card man-section" id="man-respaldo" data-man="respaldo">
-          <h2><span class="man-num">6</span>Guardar y respaldar tu trabajo</h2>
-          <div class="man-video" data-video="respaldo"></div>
-          <ul class="man-list">
-            <li>Todo se guarda solo en <b>este navegador y este equipo</b>. Si abres la página en otro computador, no verás tu prueba.</li>
-            <li>Para usar la prueba en otro equipo (o compartirla con un colega), ve a la pestaña Prueba, toca <b>⋯</b> y elige <b>Exportar configuración</b>. Se descarga un archivo que después abres con <b>⋯ → Importar configuración</b>.</li>
-            <li>Al terminar de corregir, <b>descarga las evidencias (ZIP)</b>: es tu respaldo de las notas y las hojas.</li>
-            <li>Si borras los datos de navegación del navegador, o usas una ventana de incógnito, se pierde lo guardado.</li>
-            <li>Para empezar una prueba nueva, cambia la configuración y usa <b>Descargar ▾ → Borrar todos los resultados</b> en la pestaña Corregir (después de descargar las evidencias).</li>
-          </ul>
-        </article>
-
-        <!-- pro:manual -->
-
-        <!-- ? -->
-        <article class="card man-section" id="man-problemas" data-man="problemas">
-          <h2><span class="man-num">?</span>Problemas frecuentes</h2>
-          <div class="man-video" data-video="problemas"></div>
-          <div class="man-faq">
-            <details><summary>Dice “No se encontraron las cuatro marcas negras de las esquinas”.</summary>
-              <p>La foto no muestra la hoja completa o hay poca luz. Vuelve a sacarla con las cuatro esquinas visibles, sobre una mesa oscura y sin sombras.</p></details>
-            <details><summary>A la hoja le falta una parte (por ejemplo, la impresora cortó la franja de abajo).</summary>
-              <p>Pasa si la hoja se configuró en un papel y se imprimió en otro más corto (por ejemplo, <b>oficio</b> impreso en <b>carta</b>: se pierden las marcas negras de abajo), o si una esquina está rota o tapada.</p>
-              <p>Igual puedes escanearla: si se ven al menos cinco de las marcas negras (por ejemplo, las dos de arriba y los cuadraditos de los costados), la plataforma ubica la hoja con ellas y avisa “Faltan … marcas negras”. Revisa esas hojas en Corregir. Si faltan más marcas, usa <b>✍️ Transcribir esta hoja</b>.</p>
-              <p>Para la próxima evaluación, elige en la pestaña Prueba el mismo papel que tiene la impresora (o la fotocopiadora) y, al imprimir, escala 100 %.</p></details>
-            <details><summary>Dice “Esta hoja corresponde a otra prueba”.</summary>
-              <p>La hoja es de otra evaluación (otro número de preguntas, alternativas o dígitos que la prueba configurada con su clave). Si en realidad es la misma evaluación, presiona <b>Usar la configuración de esta hoja</b>: la plataforma se ajusta a la hoja y la vuelve a leer; después revisa la clave en la pestaña Prueba.</p>
-              <p>No hace falta hacer nada si solo cambia el papel o las hojas por página (por ejemplo, un cuarto de hoja impreso ampliado): la hoja se lee sola con su propio diseño. Y si todavía no configuraste la prueba (sin clave ni resultados), la plataforma toma la configuración de la primera hoja que escanees.</p></details>
-            <details><summary>Dice “Las filas de respuestas no quedaron bien alineadas”.</summary>
-              <p>La hoja está muy doblada o curvada. Alísala sobre una mesa y vuelve a sacar la foto. La plataforma prefiere rechazar la foto antes que corregir mal.</p>
-              <p>Si aun así no se puede leer, presiona <b>✍️ Transcribir esta hoja</b> y copia las respuestas del estudiante: la hoja se agrega a los resultados sin escanearla.</p></details>
-            <details><summary>Una hoja está rota o rayada y no se puede escanear.</summary>
-              <p>En Corregir, presiona <b>✍️ Transcribir una hoja dañada</b>, escribe el N° de lista y copia las alternativas que marcó el estudiante. La plataforma genera su hoja rellenada, la corrige y la agrega a los resultados con la etiqueta “transcrita”, para que se sepa que la ingresó el docente.</p></details>
-            <details><summary>Una pregunta tiene un recuadro amarillo (marca dudosa).</summary>
-              <p>El estudiante marcó muy suave, borró mal o marcó dos veces. Mira la hoja y elige la letra correcta en la lista de la derecha. Si muchas marcas salen dudosas, en Corregir abre <b>⚙️ Consejos para la foto y sensibilidad</b>, desmarca “Sensibilidad automática” y ajusta el umbral.</p></details>
-            <details><summary>Aparece “código repetido”.</summary>
-              <p>Dos hojas tienen el mismo número de lista: puede ser un error del estudiante o la misma hoja escaneada dos veces. Abre ambas, corrige el código o elimina la repetida.</p></details>
-            <details><summary>No se pudo leer la fila (A, B, C o D).</summary>
-              <p>Quizás el borde izquierdo de la hoja quedó fuera de la foto. Abre la hoja en Corregir y elige la fila en el selector “Fila”, o vuelve a sacar la foto.</p></details>
-            <details><summary>La hoja se imprimió más grande o más pequeña.</summary>
-              <p>Al imprimir, elige escala 100 % o “Tamaño real” (no “Ajustar a la página”) y el mismo papel configurado en la pestaña Prueba.</p></details>
-            <details><summary>Los términos pareados no aparecen como columnas.</summary>
-              <p>Revisa que cada par esté en <b>una sola línea</b>, con el término, un signo <code>=</code> (o <code>:</code>) y la definición, por ejemplo <code>Fotosíntesis = Proceso por el cual las plantas producen su alimento</code>. Pon los pares uno debajo del otro, bajo un título como <code>III. Términos pareados</code>. Si algo no se reconoce, aparece un aviso en amarillo bajo el cuadro de texto.</p></details>
-            <details><summary>¿Cómo escribo fracciones, raíces o potencias?</summary>
-              <p>En Prueba → Preguntas, abre <b>Más herramientas</b> (bajo el cuadro de texto) y activa el <b>editor de fórmulas matemáticas</b>. Aparecerá el botón <b>∑ Insertar fórmula</b>, con un teclado en pantalla. Más detalles en la parte 2 de este manual.</p></details>
-            <details><summary>¿Puedo usar fotocopias?</summary>
-              <p>Sí, siempre que los cuadrados negros se vean negros y nítidos.</p></details>
-            <details><summary>¿Hay una app para el celular?</summary>
-              <p>Sí, para Android, en <b>Google Play</b>. Mientras está en prueba, pide acceso por Instagram a <b>@historiaycosos</b> o <b>@framsesk0</b> y te enviamos el enlace para instalarla. En la app, los archivos (Excel, ZIP, PDF) se guardan en <b>Descargas/LectorHojas</b> y se pueden compartir; para imprimir se usa el servicio de impresión del teléfono, que también permite <b>Guardar como PDF</b>. Las actualizaciones llegan solas desde Google Play y tus pruebas y resultados se conservan.</p></details>
-            <details><summary>¿Necesito internet?</summary>
-              <p>Solo para abrir la página. La lectura de las fotos se hace en tu equipo: las imágenes no se envían a ningún servidor.</p></details>
-          </div>
-        </article>
-      </section>
-
-    </main>
-
-    <footer class="app-footer">
-      <p>Todo el procesamiento ocurre en tu dispositivo: las imágenes no se envían a ningún servidor.</p>
-      <p class="donate-wrap" hidden><a class="btn secondary small donate-link" target="_blank" rel="noopener">❤ Apoya este proyecto</a></p>
-      <p class="legal">© 2026 Francesco Vivero · Uso gratuito. Prohibida su copia, modificación o redistribución sin autorización del autor. · <a href="privacidad.html">Política de privacidad</a></p>
-    </footer>
-  </div>
-
-  <dialog id="resultDialog" class="el-dialog result-dialog" aria-label="Hoja corregida del estudiante">
-    <div class="rd-bar">
-      <button type="button" class="btn ghost small" data-rd="prev">‹ Anterior</button>
-      <span id="rdPos" class="muted small"></span>
-      <button type="button" class="btn ghost small" data-rd="next">Siguiente ›</button>
-      <span class="spacer"></span>
-      <button type="button" class="btn ghost small" data-rd="close" aria-label="Cerrar">✕ Cerrar</button>
-    </div>
-    <div id="resultDetail" class="rd-body"></div>
-  </dialog>
-
-  <dialog id="donateDialog" class="el-dialog donate-dialog" aria-labelledby="dnTitle">
-    <h2 id="dnTitle">💚 Gracias por apoyar</h2>
-    <p class="muted">La app es gratis. Si quieres, transfiere el monto que quieras a esta cuenta:</p>
-    <dl id="dnData" class="dn-data"></dl>
-    <div class="actions">
-      <button type="button" class="btn primary" id="dnCopy">📋 Copiar los datos</button>
-      <a class="btn secondary" id="dnCard" target="_blank" rel="noopener" hidden>💳 Pagar con tarjeta</a>
-      <button type="button" class="btn ghost" id="dnClose">Cerrar</button>
-    </div>
-    <p class="muted small">Copia los datos y pégalos en la app de tu banco para agregar el destinatario.</p>
-  </dialog>
-
-  <dialog id="moveDialog" class="el-dialog move-dialog" aria-labelledby="moveTitle">
-    <h2 id="moveTitle">✨ Lector de Hojas ahora es CorrigeYa</h2>
-    <p>La app sigue siendo <b>gratis para corregir</b>, ahora con cursos y libro de notas, escaneo continuo y más. Esta versión ya no recibirá novedades.</p>
-    <p id="moveData" class="muted small"></p>
-    <div class="actions">
-      <a class="btn primary big" id="moveGo">Abrir CorrigeYa</a>
-      <button type="button" class="btn ghost" id="moveLater">Seguir aquí por ahora</button>
-    </div>
-  </dialog>
-
-  <dialog id="wizDialog" class="el-dialog wiz" aria-labelledby="wizQ">
-    <div class="wiz-top">
-      <b>✏️ Prueba nueva</b>
-      <span class="wiz-dots" id="wizDots" aria-hidden="true"></span>
-      <button type="button" class="btn ghost small" id="wizClose" title="Cerrar el asistente y ver el formulario completo">✕ Salir</button>
-    </div>
-    <div class="wiz-body" id="wizBody"></div>
-    <div class="wiz-foot">
-      <button type="button" class="btn secondary" id="wizBack">← Atrás</button>
-      <button type="button" class="btn primary" id="wizNext">Siguiente →</button>
-    </div>
-  </dialog>
-
-  <dialog id="scanNotice" class="el-dialog scan-notice" aria-labelledby="snTitle">
-    <div class="sn-card">
-      <div class="sn-icon" id="snIcon" aria-hidden="true">✔</div>
-      <h2 id="snTitle"></h2>
-      <p id="snSub" class="sn-sub"></p>
-      <p id="snGrade" class="sn-grade"></p>
-      <p id="snMsg" class="sn-msg" hidden></p>
-      <ul id="snList" class="sn-list" hidden></ul>
-      <ul id="snTips" class="sn-tips" hidden>
-        <li>Que se vean las <b>cuatro esquinas negras</b> de la hoja.</li>
-        <li>Buena luz, sin sombras ni reflejos.</li>
-        <li>Foto desde arriba, con la hoja plana.</li>
-      </ul>
-      <p id="snProgress" class="sn-progress"></p>
-    </div>
-    <div class="sn-actions">
-      <button type="button" class="btn primary big" id="snNext">📷 Siguiente hoja</button>
-      <div class="sn-more">
-        <button type="button" class="btn secondary" id="snView">👁 Ver la hoja</button>
-        <button type="button" class="btn secondary" id="snAction" hidden></button>
-        <button type="button" class="btn ghost" id="snDone">Listo</button>
-      </div>
-    </div>
-  </dialog>
-
-  <dialog id="trDialog" class="el-dialog tr-dialog" aria-labelledby="trDialogTitle">
-    <div class="el-head">
-      <h2 id="trDialogTitle">Transcribir una hoja dañada</h2>
-      <button type="button" class="btn ghost small" data-tr-close aria-label="Cerrar">✕</button>
-    </div>
-    <div class="tr-body">
-      <p class="muted small">Para una hoja doblada, rayada o rota que no se puede escanear: copia lo que marcó el estudiante en su hoja original. Toca la letra de cada pregunta (dos letras si marcó dos; ninguna si la dejó en blanco). La plataforma genera la hoja rellenada y la agrega a los resultados, marcada como <strong>transcrita por el docente</strong>.</p>
-      <div class="form-grid tight">
-        <label id="trCodeWrap">N° de lista / código
-          <input id="trCode" type="text" inputmode="numeric" autocomplete="off">
-        </label>
-        <label>Nombre (opcional)
-          <input id="trName" type="text" autocomplete="off">
-        </label>
-        <label id="trFormWrap" hidden><span id="trFormLabel">Fila</span>
-          <select id="trForm"></select>
-        </label>
-      </div>
-      <label>Escritura rápida
-        <input id="trText" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Ej.: ABCDA BC-DA …  (- = en blanco)">
-      </label>
-      <p id="trStatus" class="muted small"></p>
-      <div id="trGrid" class="key-grid tr-grid" aria-label="Respuestas del estudiante"></div>
-      <div id="trDev" class="tr-dev" hidden></div>
-      <label class="tr-photo">Foto de la hoja original (opcional: queda como evidencia)
-        <input id="trPhoto" type="file" accept="image/*">
-      </label>
-      <p id="trPhotoName" class="muted small" hidden></p>
-    </div>
-    <div class="el-foot">
-      <button type="button" class="btn secondary" id="trPrint">🖨️ Hoja en PDF</button>
-      <span class="spacer"></span>
-      <button type="button" class="btn ghost" data-tr-close>Cancelar</button>
-      <button type="button" class="btn primary" id="trAdd">Agregar a los resultados</button>
-    </div>
-  </dialog>
-
-  <dialog id="mathDialog" class="el-dialog math-dialog" aria-labelledby="mathDialogTitle">
-    <div class="el-head">
-      <h2 id="mathDialogTitle">Insertar fórmula</h2>
-      <button type="button" class="btn ghost small" data-math-close aria-label="Cerrar">✕</button>
-    </div>
-    <p class="muted small">Escribe la fórmula con tu teclado o con el teclado en pantalla. Por ejemplo, escribe <b>/</b> para una fracción y <b>^</b> para una potencia.</p>
-    <div class="math-quick" aria-label="Símbolos frecuentes">
-      <button type="button" data-math-insert="\frac{#@}{#?}" title="Fracción">a⁄b</button>
-      <button type="button" data-math-insert="\sqrt{#0}" title="Raíz cuadrada">√</button>
-      <button type="button" data-math-insert="\sqrt[#?]{#0}" title="Raíz n-ésima">ⁿ√</button>
-      <button type="button" data-math-insert="#@^{#?}" title="Potencia">xⁿ</button>
-      <button type="button" data-math-insert="#@_{#?}" title="Subíndice">xₙ</button>
-      <button type="button" data-math-insert="\times" title="Multiplicación">×</button>
-      <button type="button" data-math-insert="\div" title="División">÷</button>
-      <button type="button" data-math-insert="\pm" title="Más o menos">±</button>
-      <button type="button" data-math-insert="\le" title="Menor o igual">≤</button>
-      <button type="button" data-math-insert="\ge" title="Mayor o igual">≥</button>
-      <button type="button" data-math-insert="\ne" title="Distinto">≠</button>
-      <button type="button" data-math-insert="\pi" title="Pi">π</button>
-      <button type="button" data-math-insert="^{\circ}" title="Grados">°</button>
-      <button type="button" data-math-insert="\angle" title="Ángulo">∠</button>
-      <button type="button" data-math-insert="\infty" title="Infinito">∞</button>
-      <button type="button" data-math-insert="\left(#0\right)" title="Paréntesis">( )</button>
-    </div>
-    <div id="mathFieldHost" class="math-field-host"><p class="muted small">Cargando el editor…</p></div>
-    <p id="mathError" class="alert error" hidden></p>
-    <div class="actions end">
-      <button type="button" class="btn ghost" id="mathKeyboardToggle">⌨️ Teclado en pantalla</button>
-      <button type="button" class="btn ghost" data-math-close>Cancelar</button>
-      <button type="button" class="btn primary" id="mathInsertBtn">Insertar</button>
-    </div>
-    <div id="mathKeyboardHost" class="math-keyboard-host"></div>
-  </dialog>
-
-  <dialog id="elDialog" class="el-dialog" aria-labelledby="elDialogTitle">
-    <form method="dialog" class="el-form">
-      <div class="el-head">
-        <h2 id="elDialogTitle">Añadir elemento</h2>
-        <button type="button" class="btn ghost small" data-el-close aria-label="Cerrar">✕</button>
-      </div>
-      <div class="el-types" role="tablist">
-        <button type="button" data-eltype="image">🖼️ Imagen</button>
-        <button type="button" data-eltype="table">▦ Tabla</button>
-        <button type="button" data-eltype="chart">📊 Gráfico</button>
-        <button type="button" data-eltype="text">¶ Texto</button>
-      </div>
-      <div class="el-body">
-        <div class="el-fields">
-          <div data-elpanel="image">
-            <div id="elImageZone" class="el-drop" tabindex="0">
-              <label class="btn secondary" for="elImageInput">Elegir imagen…</label>
-              <input id="elImageInput" type="file" accept="image/*" hidden>
-              <p class="muted small">o arrástrala aquí, o <strong>pégala con Ctrl+V</strong> (copiada desde Word, una página web o un recorte de pantalla).</p>
-            </div>
-          </div>
-          <div data-elpanel="table">
-            <label>Contenido de la tabla
-              <textarea id="elTableText" rows="7" spellcheck="false" placeholder="Pega aquí una tabla copiada desde Excel o Word,&#10;o escribe una fila por línea separando columnas con | o ;&#10;&#10;País | Capital | Población (millones)&#10;Chile | Santiago | 19,5&#10;Perú | Lima | 33,7"></textarea>
-            </label>
-            <label class="check"><input id="elTableHeader" type="checkbox" checked> La primera fila es el encabezado</label>
-          </div>
-          <div data-elpanel="chart">
-            <div class="form-grid tight">
-              <label>Tipo de gráfico
-                <select id="elChartType"></select>
-              </label>
-              <label>Título
-                <input id="elChartTitle" type="text" maxlength="120">
-              </label>
-              <label>Nombre del eje de categorías
-                <input id="elChartX" type="text" maxlength="60" placeholder="Ej.: Mes">
-              </label>
-              <label>Nombre del eje de valores
-                <input id="elChartY" type="text" maxlength="60" placeholder="Ej.: Toneladas">
-              </label>
-            </div>
-            <label>Datos (una fila por categoría)
-              <textarea id="elChartData" rows="6" spellcheck="false" placeholder="Enero; 12&#10;Febrero; 8,5&#10;Marzo; 14&#10;&#10;Para varias series, agrega una primera fila con sus nombres:&#10;; 2022; 2023&#10;Enero; 12; 15"></textarea>
-            </label>
-            <ul id="elChartErrors" class="warn-list" hidden></ul>
-            <label class="check"><input id="elChartValues" type="checkbox" checked> Mostrar los valores sobre el gráfico</label>
-            <label class="check"><input id="elChartBW" type="checkbox" checked> Blanco y negro (grises y texturas, ideal para fotocopiar)</label>
-          </div>
-          <div data-elpanel="text">
-            <label>Texto
-              <textarea id="elText" rows="7" placeholder="Por ejemplo, una lectura, una cita o una fuente."></textarea>
-            </label>
-            <label class="check"><input id="elTextBoxed" type="checkbox"> Con recuadro</label>
-          </div>
-          <div class="form-grid tight el-common">
-            <label>Ubicación
-              <select id="elPosition">
-                <option value="after">Después del enunciado</option>
-                <option value="before">Antes del enunciado</option>
-              </select>
-            </label>
-            <label data-elnottext>Ancho
-              <select id="elWidth">
-                <option value="30">Pequeño (30 %)</option>
-                <option value="50">Mediano (50 %)</option>
-                <option value="70">Grande (70 %)</option>
-                <option value="100">Todo el ancho</option>
-              </select>
-            </label>
-            <label data-elnottext class="span-2">Texto al pie (opcional)
-              <input id="elCaption" type="text" maxlength="160" placeholder="Ej.: Fuente: INE, 2023">
-            </label>
-          </div>
-        </div>
-        <div class="el-preview-col">
-          <p class="muted small">Vista previa</p>
-          <div id="elPreview" class="el-preview testdoc"></div>
         </div>
       </div>
-      <div class="el-foot">
-        <button type="button" id="elDelete" class="btn ghost danger">Eliminar elemento</button>
-        <span class="spacer"></span>
-        <button type="button" class="btn ghost" data-el-close>Cancelar</button>
-        <button type="button" id="elSave" class="btn primary">Guardar</button>
+    </section>
+
+    <section id="como">
+      <div class="wrap">
+        <p class="kicker">Cómo funciona</p>
+        <h2>Cuatro pasos y listo</h2>
+        <p class="sub">Sirve con la prueba que ya tienes: en Word, impresa o escrita a mano. La app solo necesita saber cuántas preguntas tiene y cuál es la respuesta correcta.</p>
+        <div class="steps">
+          <div class="step"><div class="ic">📝</div><h3>Crea la hoja</h3><p>Un asistente te pregunta, paso a paso, cuántas preguntas tiene la prueba y la respuesta correcta de cada una.</p></div>
+          <div class="step"><div class="ic">🖨️</div><h3>Imprímela</h3><p>Una hoja por estudiante, o 2 o 4 por página para ahorrar papel. También se puede fotocopiar.</p></div>
+          <div class="step"><div class="ic">📷</div><h3>Foto a cada hoja</h3><p>Con el celular. En segundos aparece el nombre del estudiante y su nota, en grande.</p></div>
+          <div class="step ok"><div class="ic">🌤️</div><h3>Tu finde, libre</h3><p>Las notas ya están en el libro de cada curso, con sus promedios. Nada que corregir el domingo.</p></div>
+        </div>
       </div>
-    </form>
-  </dialog>
+    </section>
 
-  <div id="printArea" class="print-area" aria-hidden="true"></div>
-  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <section class="white">
+      <div class="wrap">
+        <p class="kicker">Hecho para la sala de clases</p>
+        <h2>Todo lo que necesitas para corregir pruebas de alternativas</h2>
+        <p class="sub">Pensado para profes chilenos: notas de 1,0 a 7,0, exigencia, N° de lista y filas A, B, C y D.</p>
+        <div class="feats">
+          <div class="feat"><div class="ic">🔢</div><h3>Notas al tiro</h3><p>Puntaje, porcentaje de logro y nota con tu exigencia (60 % o la que uses), incluso con descuento por respuesta incorrecta.</p></div>
+          <div class="feat"><div class="ic">👥</div><h3>Sabe quién es quién</h3><p>El estudiante pinta su N° de lista y la app pone su nombre. Ves cuántos llevas y quién falta.</p></div>
+          <div class="feat"><div class="ic">🔀</div><h3>Filas A, B, C y D</h3><p>Cada hoja trae su fila impresa y se corrige con su propia clave, para que nadie copie al de al lado.</p></div>
+          <div class="feat"><div class="ic">📊</div><h3>Excel y evidencias <span class="badge">PLUS</span></h3><p>Planilla con todas las notas y la hoja corregida de cada estudiante, por si un apoderado pregunta.</p></div>
+          <div class="feat"><div class="ic">🎯</div><h3>Análisis de la prueba</h3><p>Qué pregunta costó más y el logro por objetivo de aprendizaje (OA), para saber qué reforzar.</p></div>
+          <div class="feat"><div class="ic">✍️</div><h3>¿Hoja rayada o rota?</h3><p>La transcribes a mano en la app y queda corregida igual que las demás.</p></div>
+        </div>
+      </div>
+    </section>
 
-  <!-- pro:dialogs -->
+    <section>
+      <div class="wrap easy">
+        <div>
+          <p class="kicker">Para todos los profes</p>
+          <h2>Fácil de verdad, aunque no seas «de la tecnología»</h2>
+          <p class="sub">Botones grandes, una pregunta por pantalla y nada de palabras raras.</p>
+          <ul>
+            <li><span>🧭</span><div><b>Asistente paso a paso</b><small>Para crear la prueba sin perderse.</small></div></li>
+            <li><span>👓</span><div><b>Letra más grande</b><small>Con el botón Aa agrandas la letra y los botones.</small></div></li>
+            <li><span>🔊</span><div><b>Te dice la nota en voz alta</b><small>Si quieres, al corregir cada hoja dice el nombre y la nota.</small></div></li>
+            <li><span>📘</span><div><b>Manual y tutorial</b><small>Con burbujas que te muestran cada paso.</small></div></li>
+          </ul>
+        </div>
+        <div class="quote">«Una prueba de 40 estudiantes se corrige mientras tomas once.»<small>Sin ingresar respuestas a mano ni pasar notas a una planilla.</small></div>
+      </div>
+    </section>
 
+    <section id="planes" class="white">
+      <div class="wrap">
+        <p class="kicker">Planes</p>
+        <h2>Corregir es gratis. Siempre.</h2>
+        <p class="sub">Corregir y llevar las notas es gratis. Con CorrigeYa Plus te llevas además las notas a Excel, los informes, la nube y tu trabajo docente ordenado en un solo lugar.</p>
+        <div class="plans">
+          <div class="plan">
+            <h3>CorrigeYa</h3>
+            <span class="tag">Gratis</span>
+            <ul>
+              <li>Hoja de respuestas de 1 a 120 preguntas, filas A a D</li>
+              <li>Corregir con foto, escaneo continuo y PDF de la fotocopiadora</li>
+              <li>Cursos y libro de notas con promedios</li>
+              <li>Una prueba para varios cursos</li>
+              <li>Estudiantes PIE, análisis por pregunta y por OA</li>
+            </ul>
+            <a class="btn primary" href="app/">📷 Empezar a corregir</a>
+          </div>
+          <div class="plan pro">
+            <h3>CorrigeYa <span class="badge">PLUS</span></h3>
+            <span class="tag"><span data-precio>$1.990</span> al mes · Vista previa</span>
+            <p class="plan-note">Todo lo gratis, y además tu trabajo docente ordenado:</p>
+            <ul>
+              <li>📊 Notas y evidencias en Excel (ZIP con cada hoja corregida)</li>
+              <li>📄 Informes por estudiante y para UTP</li>
+              <li>☁️ Guardado en la nube: tus cursos en el celular y el computador</li>
+              <li>🟢 Modo simple: sólo la hoja y el escáner, con menos botones</li>
+              <li>📅 Agenda: pruebas, clases, reuniones y entregas en un calendario</li>
+              <li>🕘 Horario semanal: «¿qué curso tengo ahora?» en la pantalla de inicio</li>
+              <li>📨 Informes de notas para apoderados, listos para enviar</li>
+              <li>🔔 Recordatorios: notas pendientes y cierre de semestre</li>
+              <li>🏁 Cierre de semestre en un toque: promedios finales listos para el libro digital del colegio</li>
+              <li>💬 Mensajes a apoderados listos para WhatsApp: notas y avisos de pruebas</li>
+              <li>🗂️ Banco de preguntas personal, por unidad y OA</li>
+              <li>📚 Pruebas listas del currículum, por asignatura, nivel y OA</li>
+              <li>🚨 Estudiantes en riesgo: quién tiene promedio bajo o va bajando</li>
+              <li>📈 Comparar cursos y años: 8°A con 8°B, o con la misma prueba del año pasado</li>
+              <li>✍️ Retroalimentación con un toque, según los errores de cada estudiante</li>
+              <li>🎨 Hojas con el logo del colegio y diseños especiales</li>
+              <li>🤝 Soporte prioritario por WhatsApp y ayuda para empezar</li>
+            </ul>
+            <a class="btn primary" href="app/?plus=1">👀 Probar la vista previa</a>
+            <small class="plan-small">Gratis mientras está en vista previa. Ya puedes probar la agenda, los recordatorios y el horario.</small>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="preguntas">
+      <div class="wrap">
+        <p class="kicker">Preguntas frecuentes</p>
+        <h2>Lo que suelen preguntar los profes</h2>
+        <div class="faq">
+          <details><summary>¿Tiene costo?</summary><p>Corregir pruebas, los cursos y el libro de notas son gratis, sin anuncios. CorrigeYa Plus, opcional, cuesta <span data-precio>$1.990</span> al mes y suma el Excel, los informes, la nube, el modo simple, la agenda y otras herramientas para el trabajo docente.</p></details>
+          <details><summary>¿Sirve con mi prueba de siempre?</summary><p>Sí. La prueba la haces como siempre (Word, impresa o a mano); los estudiantes marcan sus respuestas en la hoja de respuestas que imprime CorrigeYa. Si quieres, también puedes escribir las preguntas en la app y ella arma la prueba.</p></details>
+          <details><summary>¿Las fotos de mis estudiantes se suben a internet?</summary><p>No. La lectura de las hojas se hace en tu propio celular o computador: las fotos y las notas se quedan en tu equipo.</p></details>
+          <details><summary>¿Necesito internet?</summary><p>Solo para abrir la página. La corrección se hace en el equipo.</p></details>
+          <details><summary>¿Cuántas alternativas puede tener cada pregunta?</summary><p>De 2 a 6 (A a F), con hasta 120 preguntas por prueba.</p></details>
+          <details><summary>¿Cómo paso las notas al libro de clases?</summary><p>Las notas quedan guardadas en el libro de notas de cada curso, con sus promedios. Con CorrigeYa Plus, además, las descargas en Excel.</p></details>
+          <details><summary>¿Qué pasa si una hoja viene doblada o rayada?</summary><p>Si no se puede leer, la app te dice por qué y te deja transcribirla a mano en unos segundos.</p></details>
+          <details><summary>¿Hay app para el celular?</summary><p>Funciona en el navegador del celular. La app para Android viene pronto en Google Play.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <section id="apoyar" class="donate" hidden>
+      <div class="wrap donate-box">
+        <div>
+          <p class="kicker">Apoya el proyecto</p>
+          <h2>¿Te devolvimos un finde? 💚</h2>
+          <p class="sub">Corregir con CorrigeYa es gratis y lo seguirá siendo. Es un proyecto independiente, hecho en Chile. Si te sirve, puedes apoyar con una donación del monto que quieras: ayuda a mantenerla y a seguir mejorándola.</p>
+        </div>
+        <div class="dn">
+          <dl id="dnData" class="dn-data" hidden></dl>
+          <div class="cta">
+            <button type="button" class="btn primary" id="dnCopy" hidden>📋 Copiar datos para transferir</button>
+            <a class="btn line" id="donateBtn" target="_blank" rel="noopener" hidden>💳 Donar con tarjeta</a>
+          </div>
+          <p class="dn-msg" id="dnMsg" role="status"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="final white">
+      <div class="wrap">
+        <h2>Corrige ya. Este finde, libre.</h2>
+        <p class="sub" style="margin-left:auto;margin-right:auto">Abre CorrigeYa, crea la hoja y prueba con una foto. En cinco minutos ves cómo funciona.</p>
+        <div class="cta">
+          <a class="btn primary" href="app/">📷 Empezar a corregir, gratis</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>© 2026 Francesco Vivero · CorrigeYa, corrector de pruebas · Hecho en Chile</span>
+      <span class="donate-foot" hidden><a id="donateFoot" target="_blank" rel="noopener">❤ Donar</a> ·</span>
+      <span>¿Dudas? Escríbenos a @historiaycosos o @framsesk0 en Instagram · <a href="privacidad.html">Política de privacidad</a></span>
+    </div>
+  </footer>
+  <script>window.PAGINA_USO = 'corrigeya';</script>
   <script src="js/lanzamiento.js"></script>
   <script src="js/web.js"></script>
-  <script src="js/native.js"></script>
-  <script src="js/layout.js"></script>
-  <script src="js/omr.js"></script>
-  <script src="js/grading.js"></script>
-  <script src="js/sheet.js"></script>
-  <script src="js/charts.js"></script>
-  <script src="js/testdoc.js"></script>
-  <script src="js/zip.js"></script>
-  <script src="js/xlsx.js"></script>
-  <script src="js/manual-videos.js"></script>
+  <script>
+    // Precio de CorrigeYa Plus: el que se cambia en el panel /admin.
+    if (window.LectorWeb) {
+      window.LectorWeb.onConfig(function (c) {
+        if (!c || !c.precioCorto) return;
+        document.querySelectorAll('[data-precio]').forEach(function (el) { el.textContent = c.precioCorto; });
+      });
+    }
+  </script>
   <script src="js/donaciones.js"></script>
-  <script src="js/app.js"></script>
-  <!-- pro:scripts -->
-  <script src="js/tutorial.js"></script>
+  <script>
+    // Donaciones: los mismos datos que la app (js/donaciones.js): transferencia
+    // directa y/o enlace de pago con tarjeta. Si no hay ninguno, no se muestra nada.
+    (function () {
+      var d = window.DONACIONES || {};
+      var url = String(d.url || '').trim();
+      if (!/^https:\/\/\S+$/i.test(url)) url = '';
+      var t = d.transferencia || {};
+      var v = function (k) { return String(t[k] || '').trim(); };
+      var rows = [['Nombre', v('nombre')], ['RUT', v('rut')], ['Banco', v('banco')], ['Tipo de cuenta', v('tipo') || 'Cuenta corriente'], ['N° de cuenta', v('numero')], ['Correo', v('correo')]];
+      var transfer = v('nombre') && v('rut') && v('banco') && v('numero');
+      if (!url && !transfer) return;
+      document.getElementById('apoyar').hidden = false;
+      document.querySelector('.donate-foot').hidden = false;
+      document.getElementById('donateFoot').href = '#apoyar';
+      document.getElementById('donateFoot').removeAttribute('target');
+      if (url) {
+        var btn = document.getElementById('donateBtn');
+        btn.href = url;
+        btn.hidden = false;
+      }
+      if (!transfer) return;
+      var dl = document.getElementById('dnData');
+      var text = [];
+      rows.forEach(function (r) {
+        if (!r[1]) return;
+        var dt = document.createElement('dt');
+        var dd = document.createElement('dd');
+        dt.textContent = r[0];
+        dd.textContent = r[1];
+        dl.appendChild(dt);
+        dl.appendChild(dd);
+        text.push(r[0] + ': ' + r[1]);
+      });
+      dl.hidden = false;
+      var copy = document.getElementById('dnCopy');
+      copy.hidden = false;
+      copy.addEventListener('click', function () {
+        var msg = document.getElementById('dnMsg');
+        var done = function () { msg.textContent = '✔ Datos copiados: pégalos en la app de tu banco. ¡Gracias! 💚'; };
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(text.join('\n')).then(done, function () { msg.textContent = 'No se pudo copiar: anota los datos de arriba.'; });
+        } else msg.textContent = 'Anota los datos de arriba para transferir.';
+      });
+    })();
+  </script>
 </body>
 </html>

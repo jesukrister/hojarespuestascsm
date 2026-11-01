@@ -9,7 +9,9 @@ const out = join(root, 'www');
 const pdfDir = join(root, 'vendor', 'pdf');
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out);
-for (const item of ['index.html', 'privacidad.html', 'css', 'js', 'vendor']) {
+// La app normal abre www/index.html: es el Lector normal (lector.html en la web).
+cpSync(join(root, 'lector.html'), join(out, 'index.html'));
+for (const item of ['privacidad.html', 'css', 'js', 'vendor']) {
   cpSync(join(root, item), join(out, item), { recursive: true, filter: (src) => src !== pdfDir && !src.startsWith(pdfDir + sep) });
 }
 // App Pro (android/app/src/pro): usa los mismos archivos, pero su página

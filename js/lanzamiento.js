@@ -25,6 +25,8 @@ window.LANZAMIENTO = {
   appPlay: 'https://play.google.com/store/apps/details?id=cl.lectorhojas.app.pro',
   // Servidor de la nube (nube/lector-nube.mjs): también guarda lo que se cambia en /admin.
   servidor: 'https://lector-nube.colegiosmiqq.workers.dev',
+  // Página que entrega los datos guardados en la dirección antigua (mudanza/, docs/mudanza.md).
+  mudanza: 'https://jesukrister.github.io/mudanza/',
 };
 
 // Prueba del lanzamiento sólo en este equipo (?lanzamiento=1 / ?lanzamiento=0).

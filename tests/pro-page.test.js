@@ -2,17 +2,33 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { build, parseParts } = require('../scripts/build-pro.js');
+const { build, buildApp, parseParts } = require('../scripts/build-pro.js');
 
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
-test('pro.html está al día con index.html y pro/partes.html', () => {
+test('pro.html está al día con lector.html y pro/partes.html', () => {
   assert.equal(read('pro.html'), build(), 'Ejecuta: node scripts/build-pro.js');
 });
 
+test('app/index.html es CorrigeYa con <base href="../"> (misma página que pro.html)', () => {
+  const app = read('app/index.html');
+  assert.equal(app, buildApp(), 'Ejecuta: node scripts/build-pro.js');
+  assert.match(app, /<head>\n  <base href="\.\.\/">/);
+  assert.equal(app.replace('\n  <base href="../">', ''), read('pro.html'));
+});
+
+test('la portada es la presentación de CorrigeYa y la app normal sigue en lector.html', () => {
+  const portada = read('index.html');
+  assert.match(portada, /<title>[^<]*CorrigeYa/);
+  assert.doesNotMatch(portada, /src="js\/app\.js"/);
+  assert.match(portada, /href="app\/"/);
+  assert.match(read('lector.html'), /src="js\/app\.js"/);
+  assert.match(read('corrigeya/index.html'), /url=\.\.\//);
+});
+
 test('la versión normal no carga nada de la versión Pro', () => {
-  const html = read('index.html');
+  const html = read('lector.html');
   assert.doesNotMatch(html, /data-edition/);
   assert.doesNotMatch(html, /js\/pro\/|css\/pro\.css|data-tab="cursos"/);
 });

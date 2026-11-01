@@ -95,6 +95,9 @@
   });
   Pro.ready.then(() => {
     if (stored()) return;
+    // Quien llega a corrigeya.cl desde la dirección antigua ve primero el aviso para traer sus
+    // datos (que ya traen el modo que eligió): la pregunta queda para la próxima vez.
+    if (window.LectorWeb && window.LectorWeb.ofreceMudanza && document.getElementById('webMudanza')) return;
     const busy = Pro.book.courses.length > 0 || app.state.results.length > 0;
     $('#proModeDialog').dataset.busy = busy ? '1' : '';
     const rec = busy ? 'avanzado' : 'simple';

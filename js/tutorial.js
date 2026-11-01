@@ -575,7 +575,9 @@
   });
 
   // La primera vez (sin trabajo guardado) se ofrece el tutorial.
-  if (!seen() && !hasWork() && !/[?&]sintutorial\b/.test(location.search)) {
+  // Quien llega a corrigeya.cl desde la dirección antigua ve primero el aviso para traer sus datos.
+  const mudanza = !!(window.LectorWeb && window.LectorWeb.ofreceMudanza);
+  if (!seen() && !hasWork() && !mudanza && !/[?&]sintutorial\b/.test(location.search)) {
     setTimeout(() => {
       if (!active() && !document.querySelector('dialog[open]')) menu(true);
     }, 900);

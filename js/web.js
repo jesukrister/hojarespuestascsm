@@ -45,6 +45,44 @@
 
   const pagina = window.PAGINA_USO || (document.documentElement.dataset.edition === 'pro' ? 'pro' : 'normal');
 
+  /* ---------- Traer los datos de la dirección antigua (traer.html) ---------- */
+
+  // En corrigeya.cl, quien llega sin datos ve un aviso para traer lo que guardó en
+  // jesukrister.github.io. Se mira antes de que la app guarde nada.
+  const MUDANZA_VISTA = 'lectorHojas.mudanzaVista';
+  const enDominio = /(^|\.)corrigeya\.cl$/.test(location.hostname) || !!store.get('lectorHojas.mudanzaUrl');
+  const sinDatos = !store.get('lectorHojas.v1') && !store.get('lectorHojasPro.v1');
+  const ofrecerMudanza = !enApp && enDominio && pagina !== 'corrigeya' && sinDatos && !store.get('lectorHojas.mudanzaHecha') && !store.get(MUDANZA_VISTA);
+  const urlTraer = () => new URL('traer.html', document.baseURI).href;
+  function mostrarMudanza() {
+    const btn = document.getElementById('btnTraer');
+    if (btn && !enApp && enDominio) {
+      btn.hidden = false;
+      btn.addEventListener('click', () => (location.href = urlTraer()));
+    }
+    if (!ofrecerMudanza || document.getElementById('webMudanza')) return;
+    const div = document.createElement('div');
+    div.id = 'webMudanza';
+    div.className = 'web-aviso web-mudanza';
+    div.setAttribute('role', 'status');
+    const span = document.createElement('span');
+    span.textContent = '📦 ¿Usabas el Lector de Hojas en la dirección antigua? Trae tus pruebas, hojas y cursos.';
+    const link = document.createElement('a');
+    link.href = urlTraer();
+    link.textContent = 'Traer mis datos';
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.setAttribute('aria-label', 'Cerrar el aviso');
+    x.textContent = '✕';
+    x.addEventListener('click', () => {
+      store.set(MUDANZA_VISTA, '1');
+      div.remove();
+    });
+    div.append(span, link, x);
+    document.body.prepend(div);
+    estilosAviso();
+  }
+
   function azar() {
     const b = new Uint8Array(16);
     crypto.getRandomValues(b);
@@ -166,6 +204,10 @@
     });
     div.appendChild(x);
     if (!viejo) document.body.prepend(div);
+    estilosAviso();
+  }
+
+  function estilosAviso() {
     if (!document.getElementById('webAvisoCss')) {
       const css = document.createElement('style');
       css.id = 'webAvisoCss';
@@ -175,6 +217,8 @@
         '.web-aviso button{position:absolute;right:.4rem;top:50%;transform:translateY(-50%);border:0;background:transparent;color:inherit;font-size:18px;cursor:pointer;padding:.3rem .5rem;border-radius:6px}' +
         '.web-aviso button:hover{background:rgba(0,0,0,.08)}' +
         'html[data-tema="oscuro"] .web-aviso{background:#3a3210;color:#fbefc0;border-color:#5c4f17}html[data-tema="oscuro"] .web-aviso a{color:#9cc8f0}' +
+        '.web-mudanza{background:#e3effa;color:#163a5c;border-color:#b9d3ec}.web-mudanza a{background:#1f4e79;color:#fff!important;padding:.25rem .8rem;border-radius:999px;text-decoration:none}' +
+        'html[data-tema="oscuro"] .web-mudanza{background:#16283a;color:#d6e6f5;border-color:#27425e}' +
         '@media print{.web-aviso{display:none}}';
       document.head.appendChild(css);
     }
@@ -216,9 +260,14 @@
     },
     contar,
     pedir,
+    /** ¿Se muestra el aviso para traer los datos de la dirección antigua? */
+    ofreceMudanza: ofrecerMudanza,
     /** Número al azar de este navegador para los códigos de Plus. */
     equipo: () => idGuardado(EQUIPO_KEY),
   };
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mostrarMudanza);
+  else mostrarMudanza();
 
   if (!activo) return;
   document.addEventListener('visibilitychange', () => {

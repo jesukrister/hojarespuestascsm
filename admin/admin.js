@@ -363,7 +363,7 @@
   /* ---------- Uso de la página ---------- */
 
   let usoActual = null;
-  const PAGINAS = { pro: 'CorrigeYa / Pro', normal: 'Lector normal', corrigeya: 'Presentación' };
+  const PAGINAS = { pro: 'CorrigeYa (app)', normal: 'Lector normal', corrigeya: 'Portada' };
 
   async function cargarUso() {
     const dias = $('#usoDias').value;
@@ -438,7 +438,7 @@
 
   let codigos = [];
   let ahoraServidor = Date.now();
-  const enlaceCodigo = (c) => new URL('../pro.html?codigo=' + encodeURIComponent(c), location.href).href;
+  const enlaceCodigo = (c) => new URL('../app/?codigo=' + encodeURIComponent(c), location.href).href;
   const duracion = (dias) => (dias === 0 ? 'Sin término' : dias === 1 ? '1 día' : dias % 365 === 0 ? `${dias / 365} año${dias > 365 ? 's' : ''}` : dias % 30 === 0 && dias >= 60 ? `${dias / 30} meses` : `${dias} días`);
 
   function estadoCodigo(c) {
@@ -529,7 +529,7 @@
       const mensaje =
         nuevos.length === 1
           ? `¡Hola! Te regalo CorrigeYa Plus ${dur}. Ábrelo en este enlace y presiona «Canjear»:\n${enlaceCodigo(nuevos[0])}\n\nTu código: ${nuevos[0]}`
-          : `Códigos de CorrigeYa Plus (${dur}). Cada uno se canjea en ${new URL('../pro.html', location.href).href} → ⭐ Plus:\n` + nuevos.join('\n');
+          : `Códigos de CorrigeYa Plus (${dur}). Cada uno se canjea en ${new URL('../app/', location.href).href} → ⭐ Plus:\n` + nuevos.join('\n');
       $('#codNuevosTexto').value = mensaje;
       $('#codNuevos').hidden = false;
       $('#codNota').value = '';
