@@ -23,7 +23,7 @@
   const MAX_IMAGE_SIDE = 2000;
   const PREVIEW_WIDTH = 1200;
   const PHOTO_MAX_SIDE = 1600;
-  const TABS = ['inicio', 'prueba', 'evaluacion', 'hoja', 'corregir'].concat(PRO ? ['cursos'] : [], ['manual']);
+  const TABS = ['inicio', 'prueba', 'evaluacion', 'hoja', 'corregir'].concat(PRO ? ['cursos', 'agenda'] : [], ['manual']);
   // Nombres antiguos (enlaces y botones): Escanear y Resultados ahora son la pestaña Corregir.
   const TAB_ALIAS = { escanear: 'corregir', resultados: 'corregir' };
 
@@ -529,7 +529,7 @@
   function simpleMode() {
     return document.documentElement.dataset.modo === 'simple';
   }
-  const SIMPLE_HIDDEN = { evaluacion: 'prueba', cursos: 'inicio' };
+  const SIMPLE_HIDDEN = { evaluacion: 'prueba', cursos: 'inicio', agenda: 'inicio' };
 
   function showTab(name) {
     name = TAB_ALIAS[name] || name;

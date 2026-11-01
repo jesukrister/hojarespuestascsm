@@ -88,7 +88,9 @@
     const date = new Date();
     if (Pro.library) await Pro.library.ready;
     const library = Pro.library ? JSON.parse(JSON.stringify(Pro.library.get())) : null;
-    const bytes = R.buildBackup({ state: snapshot, images, assets, book, library, edition: 'pro', date });
+    if (Pro.agenda) await Pro.agenda.ready;
+    const agenda = Pro.agenda ? JSON.parse(JSON.stringify(Pro.agenda.get())) : null;
+    const bytes = R.buildBackup({ state: snapshot, images, assets, book, library, agenda, edition: 'pro', date });
     return { bytes, date, hash };
   }
 
@@ -229,7 +231,11 @@
     if (libItems && Pro.library) {
       html += `<label class="choice"><input type="checkbox" id="rsLib" checked><span><b>Mis evaluaciones</b>: ${libItems} evaluación(es) guardada(s). Se juntan con las de este equipo.</span></label>`;
     }
-    if (!(book && book.courses.length) && !exam && !libItems) {
+    const agItems = data.agenda ? (data.agenda.events || []).length + (data.agenda.blocks || []).length : 0;
+    if (agItems && Pro.agenda) {
+      html += `<label class="choice"><input type="checkbox" id="rsAgenda" checked><span><b>Agenda y horario</b>: ${agItems} elemento(s). Se juntan con los de este equipo.</span></label>`;
+    }
+    if (!(book && book.courses.length) && !exam && !libItems && !agItems) {
       await Pro.confirm({ title, html: `<p>${fromCopy ? 'La copia' : 'El respaldo'} está vacío.</p>`, ok: 'Entendido', cancel: null });
       return;
     }
@@ -240,7 +246,8 @@
     const replace = !!document.querySelector('input[name="rsMode"][value="replace"]:checked');
     const doExam = !!($('#rsExam') && $('#rsExam').checked);
     const doLib = !!($('#rsLib') && $('#rsLib').checked);
-    if (!doBook && !doExam && !doLib) return app.toast('No elegiste nada para restaurar.');
+    const doAgenda = !!($('#rsAgenda') && $('#rsAgenda').checked);
+    if (!doBook && !doExam && !doLib && !doAgenda) return app.toast('No elegiste nada para restaurar.');
     try {
       progress('Restaurando…');
       if (Pro.safetyCopy) await Pro.safetyCopy(safety);
@@ -252,6 +259,11 @@
         const cur = Pro.library.get();
         const merge = window.NubeCore ? window.NubeCore.mergeList : (a, b) => a.concat(b.filter((x) => !a.some((y) => y.id === x.id)));
         await Pro.library.set({ folders: merge(null, cur.folders, data.library.folders || []), items: merge(null, cur.items, data.library.items || []) });
+      }
+      if (doAgenda) {
+        const cur = Pro.agenda.get();
+        const merge = window.NubeCore ? window.NubeCore.mergeList : (a, b) => a.concat(b.filter((x) => !a.some((y) => y.id === x.id)));
+        await Pro.agenda.set({ events: merge(null, cur.events, data.agenda.events || []), blocks: merge(null, cur.blocks, data.agenda.blocks || []) });
       }
       if (doExam) {
         if (!fromCopy) {
@@ -275,7 +287,7 @@
       progress('');
       Pro.renderAll();
       renderBackupInfo();
-      app.toast(doBook ? (fromCopy ? 'Cursos y libro de notas recuperados.' : 'Cursos y libro de notas restaurados.') : 'Mis evaluaciones restauradas.');
+      app.toast(doBook ? (fromCopy ? 'Cursos y libro de notas recuperados.' : 'Cursos y libro de notas restaurados.') : doLib ? 'Mis evaluaciones restauradas.' : 'Agenda y horario restaurados.');
     } catch (e) {
       console.error(e);
       progress('');

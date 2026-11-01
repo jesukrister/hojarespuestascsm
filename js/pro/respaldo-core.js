@@ -119,6 +119,7 @@
       assets: data.assets || {},
       libro: data.book || null,
       biblioteca: data.library || null,
+      agenda: data.agenda || null,
       ajustes: data.settings || {},
     };
     entries.unshift({ name: 'LEEME.txt', data: LEEME });
@@ -127,7 +128,7 @@
   }
 
   /**
-   * @returns { created, state, images: [{ id, sheet, photo, scale, overlay }], assets, book, library, settings }
+   * @returns { created, state, images: [{ id, sheet, photo, scale, overlay }], assets, book, library, agenda, settings }
    */
   async function parseBackup(input) {
     const files = await readZip(input);
@@ -159,6 +160,7 @@
       assets: m.assets && typeof m.assets === 'object' ? m.assets : {},
       book: m.libro && typeof m.libro === 'object' ? m.libro : null,
       library: m.biblioteca && typeof m.biblioteca === 'object' ? m.biblioteca : null,
+      agenda: m.agenda && typeof m.agenda === 'object' ? m.agenda : null,
       settings: m.ajustes && typeof m.ajustes === 'object' ? m.ajustes : {},
     };
   }

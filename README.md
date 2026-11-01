@@ -153,6 +153,18 @@ pestañas, manual…) es el mismo código, así que las mejoras llegan a las dos
   simple deja sólo la hoja de respuestas y el escáner (sin Preguntas, Cursos,
   OA, desarrollo, PIE, análisis, informes, Mis evaluaciones ni nube); sólo
   esconde partes de la pantalla, los datos son los mismos.
+- **CorrigeYa Plus (vista previa oculta)**: funciones de pago en preparación
+  ($1.990 al mes). Por ahora sólo se ven en el equipo donde se abre la app con
+  `?plus=1` al final de la dirección (`?plus=0` las quita):
+  - **Agenda**: pruebas, clases, reuniones, entregas y otros eventos con fecha,
+    hora, curso, notas y aviso; las evaluaciones del libro de notas aparecen
+    solas; recordatorios de notas pendientes y del cierre del semestre o
+    trimestre; exportar a Google Calendar o al calendario del teléfono (.ics,
+    con sus avisos y el horario semanal repetido hasta fin de año).
+  - **Horario semanal**: bloques por día con curso, asignatura y sala; en
+    Inicio, la tarjeta «Hoy» muestra qué curso hay ahora, cuál sigue, lo de hoy
+    y mañana y los recordatorios.
+  - Va en el respaldo y en la nube como los demás datos.
 - **Nube (opcional)**: cuenta con correo y contraseña (código por correo para
   crearla o recuperar la contraseña). Los cursos, el libro de notas y la prueba
   con sus resultados se guardan solos (al abrir, tras cada cambio, al salir y
@@ -627,6 +639,8 @@ entregar una corrección equivocada sin avisar.
 | `js/pro/biblioteca-core.js`, `js/pro/biblioteca.js` | Mis evaluaciones: pruebas guardadas en carpetas |
 | `js/pro/nube-core.js`, `js/pro/nube.js` | Nube: cuenta, sincronización y combinación de cambios de dos equipos |
 | `js/pro/modo.js` | Modo simple / avanzado |
+| `js/pro/plus.js` | CorrigeYa Plus: vista previa (más adelante, la suscripción) |
+| `js/pro/agenda-core.js`, `js/pro/agenda.js` | Plus: agenda, recordatorios, horario semanal y calendario .ics |
 | `nube/lector-nube.mjs`, `nube/correo.gs`, `nube/GUIA.md` | Servidor de la nube (Cloudflare Worker + D1), correos con código (Apps Script) y guía para activarlo |
 | `vendor/pdf/` | pdf.js (lectura de PDF en la versión Pro; en Android sólo va en la app Pro) |
 | `js/app.js` | Lógica de la interfaz y almacenamiento |

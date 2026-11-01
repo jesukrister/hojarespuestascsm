@@ -152,6 +152,26 @@
         },
       },
       {
+        name: 'agenda',
+        read: () => JSON.stringify(Pro.agenda ? Pro.agenda.get() : { events: [], blocks: [] }),
+        isEmpty: (t) => {
+          const d = parse(t) || {};
+          return !(d.events || []).length && !(d.blocks || []).length;
+        },
+        merge: (b, l, r) => ({
+          value: Object.assign({}, l, {
+            events: N.mergeList(b && b.events, l.events, r && r.events),
+            blocks: N.mergeList(b && b.blocks, l.blocks, r && r.blocks),
+          }),
+          lost: false,
+        }),
+        apply: async (text) => {
+          if (!Pro.agenda) return undefined;
+          await Pro.agenda.set(parse(text));
+          return JSON.stringify(Pro.agenda.get());
+        },
+      },
+      {
         name: 'recursos',
         read: () => sortedJson(assets),
         isEmpty: (t) => !Object.keys(parse(t) || {}).length,
@@ -200,6 +220,7 @@
   async function runSync({ pruebaPushOnly }) {
     await Pro.ready;
     if (Pro.library) await Pro.library.ready;
+    if (Pro.agenda) await Pro.agenda.ready;
     await loadAssets();
     const a = api();
     const list = await a.list();
@@ -467,7 +488,7 @@
   async function signedInWith(res) {
     meta = { correo: res.correo, sesion: res.sesion, docs: {}, at: 0 };
     for (const name of Object.keys(bases)) delete bases[name];
-    for (const name of ['libro', 'biblioteca', 'recursos', 'prueba']) await kv.del(BASE_KEY(name)).catch(() => {});
+    for (const name of ['libro', 'biblioteca', 'agenda', 'recursos', 'prueba']) await kv.del(BASE_KEY(name)).catch(() => {});
     await saveMeta();
     dlg().close();
     render('busy');
@@ -531,7 +552,7 @@
     meta = keepEmail && meta ? { correo: meta.correo, sesion: '', docs: {} } : null;
     behind = false;
     for (const name of Object.keys(bases)) delete bases[name];
-    for (const name of ['libro', 'biblioteca', 'recursos', 'prueba']) await kv.del(BASE_KEY(name)).catch(() => {});
+    for (const name of ['libro', 'biblioteca', 'agenda', 'recursos', 'prueba']) await kv.del(BASE_KEY(name)).catch(() => {});
     await saveMeta();
     render();
     renderBanner();
@@ -558,6 +579,7 @@
   app.on('results', changed);
   app.on('resultsCleared', changed);
   if (Pro.library) Pro.library.onChange(changed);
+  if (Pro.agenda) Pro.agenda.onChange(changed);
   const saveBook = Pro.saveBook;
   Pro.saveBook = (...args) => {
     changed();

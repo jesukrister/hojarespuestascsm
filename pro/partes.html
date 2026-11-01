@@ -13,6 +13,7 @@
 
 <!-- @@ tabs -->
 <button role="tab" data-tab="cursos" aria-selected="false"><span class="tab-ic" aria-hidden="true">👥</span><span class="tab-t">Cursos</span></button>
+<button role="tab" data-tab="agenda" aria-selected="false" class="tab-plus"><span class="tab-ic" aria-hidden="true">📅</span><span class="tab-t">Agenda</span></button>
 
 <!-- @@ header-status -->
 <button type="button" class="cloud-chip" id="proCloudChip" hidden></button>
@@ -28,6 +29,15 @@
 </div>
 
 <!-- @@ inicio -->
+<div class="card home-today plus-only" id="agHome" hidden>
+  <div class="card-head"><h2>📅 <span id="agHomeTitle">Hoy</span></h2><span class="plus-badge" title="Vista previa de CorrigeYa Plus">PLUS</span></div>
+  <div id="agHomeNow" class="ag-now"></div>
+  <div id="agHomeList"></div>
+  <div class="actions">
+    <button type="button" class="btn primary small" data-ag-open>📅 Abrir la agenda</button>
+    <button type="button" class="btn ghost small" data-ag-add>＋ Agregar</button>
+  </div>
+</div>
 <div class="card home-courses" id="proHomeCourses">
   <div class="card-head"><h2>👥 Mis cursos</h2><button type="button" class="btn ghost small" data-pro-new-course>＋ Nuevo</button></div>
   <ul class="home-course-list" id="proHomeCourseList"></ul>
@@ -269,6 +279,34 @@
 </div>
 
 <!-- @@ panels -->
+<!-- 7. AGENDA (CorrigeYa Plus) ---------------------------------------->
+<section id="tab-agenda" class="tab-panel" role="tabpanel" hidden>
+  <div class="card ag-head">
+    <div class="card-head">
+      <h2>📅 Agenda <span class="plus-badge" title="Vista previa de CorrigeYa Plus">PLUS · vista previa</span></h2>
+      <div class="actions">
+        <button type="button" class="btn primary" data-ag-add>＋ Agregar</button>
+        <button type="button" class="btn secondary" id="agIcs" title="Descarga un archivo para abrir en Google Calendar o en el calendario del teléfono, con sus avisos">📲 A mi calendario</button>
+      </div>
+    </div>
+    <p class="muted small">Pruebas, clases, reuniones y entregas. Las evaluaciones del libro de notas aparecen solas.</p>
+    <div id="agReminders" class="ag-reminders"></div>
+  </div>
+  <div class="ag-cols">
+    <div class="card">
+      <div class="card-head"><h2>Próximos días</h2><label class="check small"><input type="checkbox" id="agShowDone"> Ver lo ya hecho</label></div>
+      <div id="agDays" class="ag-days"></div>
+      <button type="button" class="btn ghost small" id="agMore">Ver más días</button>
+      <details class="ag-past"><summary>Últimos 30 días</summary><div id="agPast" class="ag-days"></div></details>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>🕘 Horario semanal</h2><button type="button" class="btn secondary small" id="agAddBlock">＋ Bloque</button></div>
+      <p class="muted small">Tus clases de la semana. En Inicio verás qué curso tienes ahora y cuál sigue.</p>
+      <div id="agWeek" class="ag-week"></div>
+    </div>
+  </div>
+</section>
+
 <!-- 6. CURSOS (versión Pro) ------------------------------------------->
 <section id="tab-cursos" class="tab-panel" role="tabpanel" hidden>
   <p class="man-help"><button type="button" class="link-btn" data-manual="cursos">📘 ¿Cómo se usa esta pestaña?</button></p>
@@ -703,6 +741,62 @@
 </article>
 
 <!-- @@ dialogs -->
+<dialog id="agEventDialog" class="el-dialog pro-dialog ag-dialog" aria-labelledby="agEventTitle">
+  <div class="el-head">
+    <h2 id="agEventTitle">Agregar a la agenda</h2>
+    <button type="button" class="btn ghost small" data-pro-close aria-label="Cerrar">✕</button>
+  </div>
+  <div class="pro-dialog-body ag-form">
+    <span class="seg ag-kinds" id="agKind" role="radiogroup" aria-label="Tipo"></span>
+    <label>¿Qué es?<input id="agTitle" type="text" maxlength="120" autocomplete="off" placeholder="Ej.: Prueba Unidad 3"></label>
+    <div class="ag-row">
+      <label>Fecha<input id="agDate" type="date"></label>
+      <label>Hora <small class="muted">(opcional)</small><input id="agTime" type="time"></label>
+    </div>
+    <label>Curso <small class="muted">(opcional)</small><select id="agCourse"></select></label>
+    <label>Aviso
+      <select id="agRemind">
+        <option value="">Sin aviso</option>
+        <option value="0">A la hora</option>
+        <option value="60">1 hora antes</option>
+        <option value="1440">1 día antes</option>
+        <option value="10080">1 semana antes</option>
+      </select>
+      <small class="muted">El aviso suena en el teléfono al agregarlo a tu calendario (📲).</small>
+    </label>
+    <label>Notas <small class="muted">(opcional)</small><textarea id="agNotes" rows="3" maxlength="1000" placeholder="Ej.: llevar las hojas de respuesta impresas"></textarea></label>
+    <label class="check" id="agDoneWrap"><input type="checkbox" id="agDone"> Hecho</label>
+  </div>
+  <div class="el-foot">
+    <button type="button" class="btn ghost danger" id="agDelete">🗑 Eliminar</button>
+    <button type="button" class="btn ghost" id="agOneIcs">📲 A mi calendario</button>
+    <span class="spacer"></span>
+    <button type="button" class="btn ghost" data-pro-close>Cancelar</button>
+    <button type="button" class="btn primary" id="agSave">Guardar</button>
+  </div>
+</dialog>
+<dialog id="agBlockDialog" class="el-dialog pro-dialog ag-dialog" aria-labelledby="agBlockTitle">
+  <div class="el-head">
+    <h2 id="agBlockTitle">Bloque del horario</h2>
+    <button type="button" class="btn ghost small" data-pro-close aria-label="Cerrar">✕</button>
+  </div>
+  <div class="pro-dialog-body ag-form">
+    <fieldset class="ag-days-pick"><legend>Día(s)</legend><div id="agBlockDays"></div></fieldset>
+    <div class="ag-row">
+      <label>Desde<input id="agBlockStart" type="time" value="08:00"></label>
+      <label>Hasta<input id="agBlockEnd" type="time" value="09:30"></label>
+    </div>
+    <label>Curso<select id="agBlockCourse"></select></label>
+    <label>Asignatura o detalle <small class="muted">(opcional si eliges un curso)</small><input id="agBlockLabel" type="text" maxlength="80" autocomplete="off" placeholder="Ej.: Historia · Taller"></label>
+    <label>Sala <small class="muted">(opcional)</small><input id="agBlockRoom" type="text" maxlength="40" autocomplete="off" placeholder="Ej.: Sala 12"></label>
+  </div>
+  <div class="el-foot">
+    <button type="button" class="btn ghost danger" id="agBlockDelete">🗑 Eliminar</button>
+    <span class="spacer"></span>
+    <button type="button" class="btn ghost" data-pro-close>Cancelar</button>
+    <button type="button" class="btn primary" id="agBlockSave">Guardar</button>
+  </div>
+</dialog>
 <dialog id="proLibDialog" class="el-dialog pro-dialog pro-lib-dialog" aria-labelledby="proLibTitle">
   <div class="el-head">
     <h2 id="proLibTitle">📚 Mis evaluaciones</h2>
@@ -1010,6 +1104,9 @@
 <script src="js/pro/comun.js"></script>
 <script src="js/pro/libro.js"></script>
 <script src="js/pro/modo.js"></script>
+<script src="js/pro/agenda-core.js"></script>
+<script src="js/pro/plus.js"></script>
+<script src="js/pro/agenda.js"></script>
 <script src="js/pro/respaldo.js"></script>
 <script src="js/pro/copias.js"></script>
 <script src="js/pro/biblioteca-core.js"></script>

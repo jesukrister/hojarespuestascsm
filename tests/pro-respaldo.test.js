@@ -14,10 +14,12 @@ test('respaldo: se crea y se vuelve a leer igual', async () => {
     images: [{ id: 'r1', sheet, photo, scale: 0.5, overlay: { questions: [] } }, { id: 'r/2', sheet, photo: null, scale: 1, overlay: null }],
     assets: { el1: 'data:image/png;base64,AAAA' },
     book,
+    agenda: { version: 1, events: [{ id: 'a1', kind: 'prueba', title: 'Prueba', date: '2026-10-02' }], blocks: [] },
     settings: { lastBackupAt: 5 },
     date: new Date('2026-09-30T12:00:00Z'),
   });
   const out = await R.parseBackup(zip);
+  assert.equal(out.agenda.events[0].title, 'Prueba');
   assert.equal(out.created, '2026-09-30T12:00:00.000Z');
   assert.deepEqual(out.state, state);
   assert.deepEqual(out.book, book);
