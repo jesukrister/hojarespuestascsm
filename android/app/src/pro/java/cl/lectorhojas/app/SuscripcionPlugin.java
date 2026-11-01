@@ -25,7 +25,8 @@ import java.util.List;
  * CorrigeYa Plus: suscripción mensual con Google Play (sólo en la app Pro).
  * Usa Play Billing Library 9 (Google Play rechaza las versiones anteriores a la 8).
  * La página la usa desde js/pro/plus.js:
- *   estado()    ¿hay una suscripción activa? y su precio en Google Play;
+ *   estado()    ¿hay una suscripción activa? su precio y el comprobante (token) de la compra,
+ *               que la página manda al servidor de la nube para unir Plus a la cuenta;
  *   comprar()   abre el pago de Google Play;
  *   gestionar() abre la página de Google Play para cambiar o cancelar.
  * La suscripción se crea en Play Console con el id de js/lanzamiento.js.
@@ -99,18 +100,22 @@ public class SuscripcionPlugin extends Plugin implements PurchasesUpdatedListene
             QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.SUBS).build(),
             (r, compras) -> {
                 boolean activa = false;
+                String token = null;
                 if (compras != null) {
                     for (Purchase p : compras) {
                         if (p.getProducts().contains(producto) && p.getPurchaseState() == Purchase.PurchaseState.PURCHASED) {
                             activa = true;
+                            token = p.getPurchaseToken();
                             reconocer(p);
                         }
                     }
                 }
                 final boolean esActiva = activa;
+                final String comprobante = token;
                 detalles(producto, (d, precio) -> {
                     JSObject out = new JSObject();
                     out.put("activa", esActiva);
+                    if (comprobante != null) out.put("token", comprobante);
                     out.put("precio", precio);
                     out.put("disponible", d != null);
                     call.resolve(out);
@@ -138,7 +143,7 @@ public class SuscripcionPlugin extends Plugin implements PurchasesUpdatedListene
             getActivity().runOnUiThread(() -> {
                 BillingResult r = client.launchBillingFlow(getActivity(), params);
                 if (r.getResponseCode() != BillingClient.BillingResponseCode.OK) {
-                    terminarCompra(false, "No se pudo abrir el pago de Google Play (" + r.getResponseCode() + ").");
+                    terminarCompra(false, "No se pudo abrir el pago de Google Play (" + r.getResponseCode() + ").", null);
                 }
             });
         }));
@@ -159,28 +164,31 @@ public class SuscripcionPlugin extends Plugin implements PurchasesUpdatedListene
         int code = r.getResponseCode();
         if (code == BillingClient.BillingResponseCode.OK && compras != null) {
             boolean activa = false;
+            String token = null;
             for (Purchase p : compras) {
                 if (p.getPurchaseState() == Purchase.PurchaseState.PURCHASED) {
                     activa = true;
+                    token = p.getPurchaseToken();
                     reconocer(p);
                 }
             }
-            terminarCompra(activa, activa ? null : "El pago quedó pendiente: Plus se activará cuando Google Play lo confirme.");
+            terminarCompra(activa, activa ? null : "El pago quedó pendiente: Plus se activará cuando Google Play lo confirme.", token);
         } else if (code == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
-            terminarCompra(true, null);
+            terminarCompra(true, null, null);
         } else if (code == BillingClient.BillingResponseCode.USER_CANCELED) {
-            terminarCompra(false, null);
+            terminarCompra(false, null, null);
         } else {
-            terminarCompra(false, "No se pudo completar el pago (" + code + ").");
+            terminarCompra(false, "No se pudo completar el pago (" + code + ").", null);
         }
     }
 
-    private void terminarCompra(boolean activa, String error) {
+    private void terminarCompra(boolean activa, String error, String token) {
         PluginCall call = compraPendiente;
         compraPendiente = null;
         if (call == null) return;
         JSObject out = new JSObject();
         out.put("activa", activa);
+        if (token != null) out.put("token", token);
         if (error != null) out.put("error", error);
         call.resolve(out);
     }

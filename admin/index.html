@@ -143,7 +143,8 @@
       <!-- Códigos Plus -->
       <section data-panel="codigos" hidden>
         <header class="bar">
-          <div><h1>Códigos de CorrigeYa Plus</h1><p class="bar__help">Crea códigos para regalar o vender Plus en la página web (por ejemplo, a un colegio o para probar). Cada código sirve en los navegadores que elijas. En la app de Android, Plus se paga con Google Play.</p></div>
+          <div><h1>Códigos de CorrigeYa Plus</h1><p class="bar__help">Crea códigos para regalar o vender Plus (por ejemplo, a un colegio). Se canjean en la página web; si la persona tiene cuenta en la nube, Plus queda en su cuenta y le funciona en todos sus equipos, también en la app. En la app, Plus se compra con Google Play.</p></div>
+          <div class="bar__actions"><button type="button" class="btn btn--ghost btn--sm" id="codProbar" title="Crea un código de 1 día y abre CorrigeYa con él">🧪 Probar Plus en este navegador</button></div>
         </header>
         <form class="panel form" id="codForm">
           <h2>Crear códigos</h2>
@@ -161,7 +162,7 @@
                 <option value="0">Sin término</option>
               </select>
             </label>
-            <label>Navegadores por código
+            <label>Usos por código (cuentas o navegadores)
               <input type="number" id="codUsos" min="1" max="50" value="1" required>
             </label>
             <label>Canjear antes de
@@ -220,6 +221,11 @@
               </label>
               <p class="form__nota">Se muestra como <b id="cfgPrecioVista">$1.990 al mes</b> en la página y en la presentación. En la app de Android, el precio es el que pongas en Play Console (<i>Monetizar → Suscripciones → corrigeya_plus</i>).</p>
             </div>
+          </div>
+          <div class="panel">
+            <h2>Nube y Plus</h2>
+            <label class="check"><input type="checkbox" id="cfgNubePlus"> <span>Guardar en la nube pide CorrigeYa Plus</span></label>
+            <p class="form__nota">Enciéndelo al lanzar CorrigeYa. Lo revisa el servidor, así que nadie se lo puede saltar. Quien no tenga Plus no pierde nada: sus datos quedan en la nube y en su equipo, y vuelven a guardarse al activar Plus. Antes, configura la verificación de Google Play (<code>nube/GUIA.md</code>, paso 10); si no, quienes paguen en la app no podrán guardar en la nube.</p>
           </div>
           <div class="panel">
             <h2>Códigos y estadísticas</h2>

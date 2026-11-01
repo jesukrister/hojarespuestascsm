@@ -301,7 +301,7 @@ test('nube servidor: panel /admin, configuración y códigos de CorrigeYa Plus',
     // Otro equipo: ya se usó.
     r = await s.call('POST', '/plus/canjear', { body: { codigo, equipo: 'b'.repeat(32) } });
     assert.equal(r.status, 403);
-    assert.match(r.json.error, /otro equipo/);
+    assert.match(r.json.error, /ya lo usó/);
     assert.equal((await s.call('POST', '/plus/canjear', { body: { codigo: 'CY-2222-2222-2222', equipo } })).status, 404);
 
     assert.deepEqual((await s.call('POST', '/plus/verificar', { body: { token: plus } })).json.activa, true);
@@ -380,6 +380,133 @@ test('nube servidor: estadísticas de uso de la página web', opts, async () => 
     r = await s.call('POST', '/uso', { body: { pagina: 'pro', visitante: v1, eventos: ['visita'] } });
     assert.equal(r.json.guardado, false);
   } finally {
+    s.restore();
+  }
+});
+
+/** Crea una cuenta en el servidor de prueba y devuelve su sesión. */
+async function nuevaCuenta(s, correo) {
+  const clave = await NC.passwordHash(correo, 'clave segura 123');
+  s.newIp();
+  let r = await s.call('POST', '/codigo', { body: { correo, motivo: 'crear' } });
+  assert.equal(r.status, 200, r.text);
+  const codigo = s.mails[s.mails.length - 1].codigo;
+  r = await s.call('POST', '/clave', { body: { correo, motivo: 'crear', codigo, clave } });
+  assert.equal(r.status, 200, r.text);
+  return r.json.sesion;
+}
+
+test('nube servidor: Plus en la cuenta (códigos) y la nube que pide Plus', opts, async () => {
+  const s = await setup();
+  try {
+    s.env.ADMIN_CLAVE = 'clave-del-panel-larga';
+    const admin = (await s.call('POST', '/admin/entrar', { body: { clave: 'clave-del-panel-larga' } })).json.token;
+    const sesion = await nuevaCuenta(s, 'profe@gmail.com');
+
+    // Sin Plus y con la nube libre (antes del lanzamiento): se guarda igual.
+    assert.equal((await s.call('GET', '/datos', { token: sesion })).status, 200);
+    let r = await s.call('GET', '/plus', { token: sesion });
+    assert.deepEqual(r.json, { activa: false, hasta: null, origen: null });
+
+    // Encender «la nube pide Plus»: sin Plus responde 402 y no guarda.
+    await s.call('POST', '/admin/config', { token: admin, body: { nubePlus: true } });
+    r = await s.call('GET', '/datos', { token: sesion });
+    assert.equal(r.status, 402);
+    assert.match(r.json.error, /Plus/);
+    assert.equal((await s.call('PUT', '/datos/libro?base=0', { token: sesion, raw: '{"a":1}' })).status, 402);
+
+    // Canjear un código con la sesión: queda en la cuenta.
+    const [c1, c2] = (await s.call('POST', '/admin/codigos', { token: admin, body: { cantidad: 2, dias: 30, usosMax: 1 } })).json.codigos;
+    r = await s.call('POST', '/plus/canjear', { token: sesion, body: { codigo: c1 } });
+    assert.equal(r.status, 200, r.text);
+    assert.equal(r.json.activa, true);
+    assert.equal(r.json.origen, 'codigo');
+    assert.equal(r.json.token, undefined, 'con cuenta no hace falta la firma del navegador');
+    assert.equal((await s.call('GET', '/datos', { token: sesion })).status, 200);
+    assert.equal((await s.call('GET', '/plus', { token: sesion })).json.activa, true);
+    // Otra cuenta no puede usar el mismo código.
+    const otra = await nuevaCuenta(s, 'otra@gmail.com');
+    assert.equal((await s.call('POST', '/plus/canjear', { token: otra, body: { codigo: c1 } })).status, 403);
+
+    // Código canjeado antes en un navegador: al entrar pasa a la cuenta.
+    r = await s.call('POST', '/plus/canjear', { body: { codigo: c2, equipo: 'e'.repeat(32) } });
+    const firma = r.json.token;
+    assert.equal((await s.call('GET', '/datos', { token: otra })).status, 402);
+    r = await s.call('POST', '/plus/vincular', { token: otra, body: { token: firma } });
+    assert.equal(r.status, 200, r.text);
+    assert.equal(r.json.activa, true);
+    assert.equal((await s.call('GET', '/datos', { token: otra })).status, 200);
+    // El navegador ya no lo tiene por separado (no se usa dos veces).
+    assert.equal((await s.call('POST', '/plus/verificar', { body: { token: firma } })).json.activa, false);
+
+    // Anular el código: la cuenta pierde Plus y la nube vuelve a pedirlo.
+    await s.call('POST', '/admin/codigos/anular', { token: admin, body: { codigo: c1 } });
+    assert.equal((await s.call('GET', '/datos', { token: sesion })).status, 402);
+    r = await s.call('GET', '/admin/resumen', { token: admin });
+    assert.equal(r.json.plus.cuentasCodigo, 1);
+    assert.equal(r.json.config.nubePlus, true);
+    assert.equal((await s.call('GET', '/plus')).status, 401);
+  } finally {
+    s.restore();
+  }
+});
+
+test('nube servidor: suscripción de Google Play confirmada con Google y unida a la cuenta', opts, async () => {
+  const s = await setup();
+  const { generateKeyPairSync } = require('node:crypto');
+  const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  s.env.GOOGLE_CUENTA_SERVICIO = JSON.stringify({ client_email: 'pub@p.iam.gserviceaccount.com', private_key: privateKey.export({ type: 'pkcs8', format: 'pem' }) });
+  s.env.GOOGLE_TOKEN_URL = 'https://google.example/token';
+  s.env.PLAY_API_ROOT = 'https://play.example';
+  const compras = {
+    'tok-activa-1234567890': { subscriptionState: 'SUBSCRIPTION_STATE_ACTIVE', lineItems: [{ productId: 'corrigeya_plus', expiryTime: new Date(Date.now() + 20 * 864e5).toISOString() }] },
+    'tok-vencida-1234567890': { subscriptionState: 'SUBSCRIPTION_STATE_EXPIRED', lineItems: [{ productId: 'corrigeya_plus', expiryTime: new Date(Date.now() - 864e5).toISOString() }] },
+  };
+  const llamadas = [];
+  const anterior = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    llamadas.push(String(url));
+    if (url === s.env.GOOGLE_TOKEN_URL) {
+      assert.match(String(init.body), /assertion=[\w-]+\.[\w-]+\.[\w-]+$/);
+      return new Response(JSON.stringify({ access_token: 'acceso', expires_in: 3600 }), { status: 200 });
+    }
+    const m = /\/applications\/cl\.lectorhojas\.app\.pro\/purchases\/subscriptionsv2\/tokens\/(.+)$/.exec(String(url));
+    if (m) {
+      assert.equal(init.headers.Authorization, 'Bearer acceso');
+      const c = compras[decodeURIComponent(m[1])];
+      return new Response(JSON.stringify(c || { error: { message: 'not found' } }), { status: c ? 200 : 404 });
+    }
+    return anterior(url, init);
+  };
+  try {
+    const sesion = await nuevaCuenta(s, 'profe@gmail.com');
+    let r = await s.call('POST', '/plus/play', { token: sesion, body: { token: 'tok-activa-1234567890', producto: 'corrigeya_plus' } });
+    assert.equal(r.status, 200, r.text);
+    assert.equal(r.json.activa, true);
+    assert.equal(r.json.origen, 'play');
+    assert.ok(r.json.hasta > Date.now() + 19 * 864e5);
+    assert.equal((await s.call('GET', '/plus', { token: sesion })).json.activa, true);
+
+    // Vencida o inexistente: no da Plus.
+    const otra = await nuevaCuenta(s, 'otra@gmail.com');
+    r = await s.call('POST', '/plus/play', { token: otra, body: { token: 'tok-vencida-1234567890' } });
+    assert.equal(r.json.activa, false);
+    assert.equal((await s.call('POST', '/plus/play', { token: otra, body: { token: 'tok-falsa-1234567890' } })).status, 404);
+
+    // La misma compra en otra cuenta: pasa a la última (no queda en dos).
+    r = await s.call('POST', '/plus/play', { token: otra, body: { token: 'tok-activa-1234567890' } });
+    assert.equal(r.json.activa, true);
+    assert.equal((await s.call('GET', '/plus', { token: sesion })).json.activa, false);
+    // El acceso a Google se pide una vez y se reutiliza.
+    assert.equal(llamadas.filter((u) => u === s.env.GOOGLE_TOKEN_URL).length, 1);
+
+    // Sin la llave de Google, el servidor lo dice claro.
+    delete s.env.GOOGLE_CUENTA_SERVICIO;
+    r = await s.call('POST', '/plus/play', { token: sesion, body: { token: 'tok-activa-1234567890' } });
+    assert.equal(r.status, 503);
+    assert.match(r.json.error, /GOOGLE_CUENTA_SERVICIO/);
+  } finally {
+    globalThis.fetch = anterior;
     s.restore();
   }
 });

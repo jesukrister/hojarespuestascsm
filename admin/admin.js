@@ -351,7 +351,11 @@
     $('#resPlus').innerHTML = `
       <dt>Códigos creados</dt><dd>${miles(res.plus.codigos)}</dd>
       <dt>Códigos en uso</dt><dd>${miles(res.plus.enUso)}</dd>
-      <dt>Navegadores con Plus activo</dt><dd>${miles(res.plus.equiposActivos)}</dd>
+      <dt>Códigos activos (cuentas o navegadores)</dt><dd>${miles(res.plus.equiposActivos)}</dd>
+      <dt>Cuentas con Plus por código</dt><dd>${miles(res.plus.cuentasCodigo)}</dd>
+      <dt>Cuentas con Plus de Google Play</dt><dd>${miles(res.plus.cuentasPlay)}</dd>
+      <dt>Verificación de Google Play</dt><dd>${res.plus.googleConfigurado ? '✔ Configurada' : '✖ Falta GOOGLE_CUENTA_SERVICIO (nube/GUIA.md, paso 10)'}</dd>
+      <dt>La nube pide Plus</dt><dd>${res.config.nubePlus ? 'Sí' : 'No (todavía gratis)'}</dd>
       <dt>Canje de códigos</dt><dd>${res.config.canje ? 'Permitido' : 'Apagado'}</dd>
       <dt>Suscripciones en Google Play</dt><dd><a href="https://play.google.com/console" target="_blank" rel="noopener">Ver en Play Console ↗</a></dd>`;
   }
@@ -435,7 +439,7 @@
   let codigos = [];
   let ahoraServidor = Date.now();
   const enlaceCodigo = (c) => new URL('../pro.html?codigo=' + encodeURIComponent(c), location.href).href;
-  const duracion = (dias) => (dias === 0 ? 'Sin término' : dias % 365 === 0 ? `${dias / 365} año${dias > 365 ? 's' : ''}` : dias % 30 === 0 && dias >= 60 ? `${dias / 30} meses` : `${dias} días`);
+  const duracion = (dias) => (dias === 0 ? 'Sin término' : dias === 1 ? '1 día' : dias % 365 === 0 ? `${dias / 365} año${dias > 365 ? 's' : ''}` : dias % 30 === 0 && dias >= 60 ? `${dias / 30} meses` : `${dias} días`);
 
   function estadoCodigo(c) {
     if (c.revocado) return { k: 'anulado', t: 'Anulado' };
@@ -475,7 +479,7 @@
           <button type="button" class="btn btn--danger btn--sm" data-cod="borrar" aria-label="Borrar ${esc(c.codigo)}">Borrar</button>
         </td></tr>`;
     });
-    $('#codTabla').innerHTML = `<thead><tr><th>Código</th><th>Nota</th><th>Plus por</th><th class="num">Navegadores</th><th>Estado</th><th>Creado</th><th></th></tr></thead><tbody>${
+    $('#codTabla').innerHTML = `<thead><tr><th>Código</th><th>Nota</th><th>Plus por</th><th class="num">Usos</th><th>Estado</th><th>Creado</th><th></th></tr></thead><tbody>${
       filas.join('') || `<tr><td colspan="7" class="vacio">${codigos.length ? 'Ningún código coincide con el filtro.' : 'Todavía no has creado códigos.'}</td></tr>`
     }</tbody>`;
   }
@@ -538,6 +542,19 @@
     }
   });
   $('#codCopiarCodigos').addEventListener('click', () => copiar(nuevos.join('\n')));
+  // Con CorrigeYa lanzado ya no hay vista previa (?plus=1): para verlo como suscriptor, un código de 1 día.
+  $('#codProbar').addEventListener('click', async () => {
+    const ventana = window.open('about:blank', '_blank');
+    try {
+      const r = await api('/admin/codigos', { cantidad: 1, dias: 1, usosMax: 1, caducaDias: 1, nota: 'Prueba del panel' });
+      if (ventana) ventana.location = enlaceCodigo(r.codigos[0]);
+      else copiar(enlaceCodigo(r.codigos[0]));
+      if (vista === 'codigos') await cargarCodigos();
+    } catch (err) {
+      if (ventana) ventana.close();
+      mostrarError(err);
+    }
+  });
   $('#codCopiarMensaje').addEventListener('click', () => copiar($('#codNuevosTexto').value));
 
   /* ---------- Configuración ---------- */
@@ -562,6 +579,7 @@
     $('#cfgPrecio').value = c.precio;
     $('#cfgCanje').checked = !!c.canje;
     $('#cfgEstadisticas').checked = !!c.estadisticas;
+    $('#cfgNubePlus').checked = !!c.nubePlus;
     $('#cfgAvisoActivo').checked = !!c.aviso.activo;
     $('#cfgAvisoTexto').value = c.aviso.texto || '';
     $('#cfgAvisoEnlace').value = c.aviso.enlace || '';
@@ -591,6 +609,7 @@
         precio: Number($('#cfgPrecio').value),
         canje: $('#cfgCanje').checked,
         estadisticas: $('#cfgEstadisticas').checked,
+        nubePlus: $('#cfgNubePlus').checked,
         aviso: { activo: $('#cfgAvisoActivo').checked, texto: $('#cfgAvisoTexto').value, enlace },
       });
       $('#mainError').hidden = true;

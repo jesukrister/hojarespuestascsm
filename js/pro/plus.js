@@ -12,7 +12,13 @@
  *
  * En la web también se activa con un código de CorrigeYa Plus (CY-XXXX-XXXX-XXXX)
  * creado en el panel /admin, y el precio que se muestra es el del panel
- * (js/web.js). La app de Android no usa códigos: sigue con Google Play.
+ * (js/web.js). La app de Android no canjea códigos: se paga con Google Play.
+ *
+ * Plus en la cuenta: con la sesión de la nube abierta, el código o la compra de
+ * Google Play quedan en la cuenta (el servidor confirma la compra con Google), y
+ * Plus se activa en todos los equipos donde se entre con esa cuenta. Guardar en
+ * la nube lo revisa el servidor (si en /admin se encendió «La nube pide Plus»).
+ * La vista previa (?plus=1) sólo funciona antes del lanzamiento.
  */
 (function () {
   'use strict';
@@ -23,6 +29,7 @@
   const KEY = 'lectorHojasPro.plus';
   const PLAY_KEY = 'lectorHojasPro.plusPlay';
   const CODE_KEY = 'lectorHojasPro.plusCodigo';
+  const ACCOUNT_KEY = 'lectorHojasPro.plusCuenta';
   const web = window.LectorWeb && !window.LectorWeb.enApp && window.LectorWeb.activo ? window.LectorWeb : null;
   const cap = window.Capacitor;
   const native = !!(cap && cap.isNativePlatform && cap.isNativePlatform() && cap.isPluginAvailable && cap.isPluginAvailable('Suscripcion'));
@@ -41,7 +48,9 @@
     /* sin almacenamiento: sin vista previa */
   }
 
+  // Con CorrigeYa lanzado ya no hay vista previa (para probar: un código desde /admin).
   function preview() {
+    if (CFG.corrigeya) return false;
     try {
       return localStorage.getItem(KEY) === 'vista-previa';
     } catch (e) {
@@ -81,8 +90,33 @@
   }
   const codeActive = () => !native && !!(code && code.token) && (code.hasta === 0 || code.hasta > Date.now());
 
+  // Plus de la cuenta de la nube (último dato del servidor): { correo, activa, hasta, origen, at }.
+  let account = null;
+  try {
+    account = JSON.parse(localStorage.getItem(ACCOUNT_KEY) || 'null');
+  } catch (e) {
+    account = null;
+  }
+  function saveAccount() {
+    try {
+      if (account) localStorage.setItem(ACCOUNT_KEY, JSON.stringify(account));
+      else localStorage.removeItem(ACCOUNT_KEY);
+    } catch (e) {
+      /* sin almacenamiento */
+    }
+  }
+  /** Sesión de la nube: { token, correo, url }, null sin sesión, undefined si aún no se sabe. */
+  const session = () => (Pro.cloud && Pro.cloud.session ? Pro.cloud.session() : undefined);
+  function accountActive() {
+    if (!account || !account.activa) return false;
+    const s = session();
+    if (s === null || (s && s.correo !== account.correo)) return false;
+    // Sin internet se confía en lo último que dijo el servidor (hasta 30 días).
+    return (account.hasta === 0 || account.hasta > Date.now()) && Date.now() - (account.at || 0) < 30 * 864e5;
+  }
+
   const launched = () => !!CFG.corrigeya;
-  const active = () => preview() || !!play.activa || codeActive();
+  const active = () => preview() || !!play.activa || codeActive() || accountActive();
   /** ¿Se puede usar esa función? Antes del lanzamiento, todo menos la agenda es gratis. */
   const allows = (feature) => active() || (!launched() && feature !== 'agenda');
   const webConfig = () => (web && web.config()) || null;
@@ -91,7 +125,7 @@
   const WHY = {
     excel: 'Descargar el Excel y las evidencias es parte de CorrigeYa Plus.',
     informes: 'Los informes por estudiante y para UTP son parte de CorrigeYa Plus.',
-    nube: 'Guardar en la nube (y usar la app en el celular y el computador) es parte de CorrigeYa Plus.',
+    nube: 'Guardar en la nube (y usar CorrigeYa en el celular y el computador) es parte de CorrigeYa Plus. Si ya tienes Plus en tu cuenta, se activa solo al entrar.',
     simple: 'El modo simple es parte de CorrigeYa Plus.',
     agenda: 'La agenda y el horario son parte de CorrigeYa Plus.',
   };
@@ -163,10 +197,100 @@
     if (!box || !info) return;
     const cfg = webConfig();
     box.hidden = !web || active() || (cfg && cfg.canje === false);
-    info.hidden = !codeActive();
-    if (codeActive()) {
-      info.textContent = `Plus activo en este navegador con el código ${code.codigo || ''}${code.hasta ? `, hasta el ${fecha(code.hasta)}` : ''}.`;
+    info.hidden = !codeActive() && !accountActive();
+    if (accountActive()) {
+      const how = account.origen === 'play' ? ' (Google Play)' : account.origen === 'codigo' ? ' (código)' : '';
+      info.textContent = `Plus activo en tu cuenta ${account.correo}${how}${account.hasta ? `, hasta el ${fecha(account.hasta)}` : ''}. Funciona en todos los equipos donde entres a la nube.`;
+    } else if (codeActive()) {
+      info.textContent = `Plus activo en este navegador con el código ${code.codigo || ''}${code.hasta ? `, hasta el ${fecha(code.hasta)}` : ''}. Entra a la nube para tenerlo también en tus otros equipos.`;
     }
+  }
+
+  /* ---------- Plus de la cuenta ---------- */
+
+  async function accountCall(s, method, path, data) {
+    const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    const t = ctl ? setTimeout(() => ctl.abort(), 12000) : 0;
+    try {
+      const headers = { Authorization: 'Bearer ' + s.token };
+      if (data !== undefined) headers['Content-Type'] = 'application/json';
+      const r = await fetch(s.url.replace(/\/+$/, '') + path, { method, headers, body: data === undefined ? undefined : JSON.stringify(data), cache: 'no-store', signal: ctl ? ctl.signal : undefined });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        const e = new Error(j.error || `El servidor respondió con un error (${r.status}).`);
+        e.status = r.status;
+        throw e;
+      }
+      return j;
+    } catch (e) {
+      if (e && e.name === 'AbortError') throw new Error('El servidor no respondió. Revisa tu internet.');
+      if (e instanceof TypeError) throw new Error('No hay conexión con el servidor. Revisa tu internet.');
+      throw e;
+    } finally {
+      clearTimeout(t);
+    }
+  }
+  function setAccount(s, r) {
+    const was = active();
+    account = { correo: s.correo, activa: !!r.activa, hasta: r.hasta === undefined ? null : r.hasta, origen: r.origen || null, at: Date.now() };
+    saveAccount();
+    if (was !== active()) changed();
+    else renderChip();
+  }
+
+  /**
+   * Pregunta al servidor si la cuenta de la nube tiene Plus. Antes, une a la
+   * cuenta el código canjeado en este navegador o la compra de Google Play.
+   * La llama nube.js al abrir, al entrar y al salir de la nube.
+   */
+  let accountSync = null;
+  function syncAccount() {
+    const s = session();
+    if (s === undefined) return Promise.resolve();
+    if (!s) {
+      if (account) {
+        const was = active();
+        account = null;
+        saveAccount();
+        if (was !== active()) changed();
+      }
+      return Promise.resolve();
+    }
+    if (accountSync) return accountSync;
+    accountSync = (async () => {
+      try {
+        let r = null;
+        if (web && code && code.token) {
+          try {
+            r = await accountCall(s, 'POST', '/plus/vincular', { token: code.token });
+            code = null;
+            saveCode();
+          } catch (e) {
+            if (e.status === 400) {
+              code = null;
+              saveCode();
+            }
+          }
+        }
+        const unida = play.token ? play.token + '|' + s.correo : '';
+        if (native && play.activa && play.token && play.unida !== unida) {
+          try {
+            r = await accountCall(s, 'POST', '/plus/play', { token: play.token, producto: CFG.plusProducto || 'corrigeya_plus' });
+            play.unida = unida;
+            savePlay();
+          } catch (e) {
+            console.warn(e);
+          }
+        }
+        if (!r) r = await accountCall(s, 'GET', '/plus');
+        setAccount(s, r);
+      } catch (e) {
+        /* sin internet o sesión vencida: queda lo último que se supo */
+      } finally {
+        accountSync = null;
+      }
+    })();
+    return accountSync;
   }
 
   async function redeem() {
@@ -181,9 +305,17 @@
     btn.disabled = true;
     $('#plusMsg').textContent = 'Revisando el código…';
     try {
-      const r = await web.pedir('/plus/canjear', { codigo: value, equipo: web.equipo() });
-      code = { token: r.token, codigo: r.codigo, hasta: r.hasta, at: Date.now() };
-      saveCode();
+      const s = session();
+      let r;
+      if (s) {
+        // Con la nube abierta, el código queda en la cuenta (Plus en todos sus equipos).
+        r = await accountCall(s, 'POST', '/plus/canjear', { codigo: value });
+        setAccount(s, r);
+      } else {
+        r = await web.pedir('/plus/canjear', { codigo: value, equipo: web.equipo() });
+        code = { token: r.token, codigo: r.codigo, hasta: r.hasta, at: Date.now() };
+        saveCode();
+      }
       web.contar('canje');
       input.value = '';
       changed();
@@ -231,10 +363,11 @@
     try {
       const r = await call('estado');
       const was = !!play.activa;
-      play = { activa: !!r.activa, precio: r.precio || play.precio || '', at: Date.now() };
+      play = { activa: !!r.activa, precio: r.precio || play.precio || '', token: r.token || '', unida: r.token && play.token === r.token ? play.unida : '', at: Date.now() };
       savePlay();
       if (was !== play.activa) changed();
       else renderChip();
+      if (play.activa && play.token) syncAccount();
     } catch (e) {
       console.error(e);
     }
@@ -250,9 +383,10 @@
     try {
       const r = await call('comprar');
       if (r.activa) {
-        play = Object.assign({}, play, { activa: true, at: Date.now() });
+        play = Object.assign({}, play, { activa: true, token: r.token || play.token || '', at: Date.now() });
         savePlay();
         changed();
+        syncAccount();
         $('#plusDialog').close();
         app.toast('¡Listo! CorrigeYa Plus está activo. Gracias 💚');
       } else {
@@ -281,7 +415,8 @@
   const GATES = [
     ['#btnExportZip, #btnExportFolder, #btnExportCsv, #proExcel', 'excel'],
     ['#proReportTest, #proReportCourse, .pro-fb [data-fb-pdf]', 'informes'],
-    ['[data-cloud="crear"], [data-cloud="entrar"]', 'nube'],
+    // La nube no se bloquea aquí: se puede entrar a la cuenta (para traer el Plus
+    // que ya tenga) y el servidor decide si guarda.
   ];
   document.addEventListener(
     'click',
@@ -329,6 +464,7 @@
     if (document.visibilityState === 'visible') {
       refresh();
       checkCode();
+      if (!account || Date.now() - (account.at || 0) > 3600000) syncAccount();
     }
   });
 
@@ -338,6 +474,8 @@
     allows,
     upsell,
     refresh,
+    syncAccount,
+    account: () => (accountActive() ? account : null),
     onChange: (fn) => listeners.push(fn),
   };
 

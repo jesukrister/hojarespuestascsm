@@ -18,8 +18,10 @@ listo en el código, apagado con un interruptor: `js/lanzamiento.js`.
 
 Abre la app con `?lanzamiento=1` al final de la dirección (por ejemplo,
 `…/pro.html?lanzamiento=1`): se ve como quedará CorrigeYa, sólo en ese
-navegador. `?lanzamiento=0` lo quita. Agrega `?plus=1` para verla como
-suscriptor.
+navegador. `?lanzamiento=0` lo quita. Para verla como suscriptor, en el panel
+`/admin` → **Códigos Plus → 🧪 Probar Plus en este navegador** (crea un código de
+un día). `?plus=1` sólo sirve antes del lanzamiento: con CorrigeYa lanzado ya no
+activa nada.
 
 ## 2. Crear la suscripción en Play Console
 
@@ -42,6 +44,8 @@ Google se queda con el 15 % de cada suscripción.
 
 ## 3. Encender el lanzamiento
 
+Antes, deja lista la verificación de Google Play en el servidor (`nube/GUIA.md`, paso 10).
+
 1. En `js/lanzamiento.js` cambia `corrigeya: false` por `corrigeya: true` y
    sube el cambio (o pídeselo a Claude).
 2. La compilación automática hace el resto: la app Pro pasa a llamarse
@@ -49,7 +53,14 @@ Google se queda con el 15 % de cada suscripción.
 3. En Play Console, cambia la **ficha** de la app Pro: nombre «CorrigeYa:
    corrige pruebas», descripción y capturas (la página `corrigeya/` tiene los
    textos).
-4. Cuando la nueva versión esté aprobada, pasa la app de la prueba cerrada a
+4. En el panel `/admin` → **Configuración**, marca **«Guardar en la nube pide CorrigeYa Plus»**
+   y guarda. Desde ahí el servidor sólo guarda en la nube a cuentas con Plus (código o Google
+   Play). Nadie pierde datos: quedan en la nube y en su equipo.
+5. En Play Console → *Contenido de la app → Seguridad de los datos*, agrega **Información
+   financiera → Historial de compras** (recopilado, ligado a la cuenta de la nube, para el
+   funcionamiento de la app): la app manda el comprobante de la compra de Plus al servidor cuando
+   la persona entra a la nube.
+6. Cuando la nueva versión esté aprobada, pasa la app de la prueba cerrada a
    **producción** si quieres que cualquiera la encuentre.
 
 ## 4. La app normal y la página
@@ -69,8 +80,11 @@ Google se queda con el 15 % de cada suscripción.
 
 - **Pagar en la web con tarjeta** (Mercado Pago). Hoy, en la web, el cuadro de
   Plus explica que se contrata desde la app de Android.
-- **Plus en todos los equipos de la misma persona:** hoy la suscripción de
-  Google Play activa Plus en ese teléfono. Para que también se active en el
-  computador (con la misma cuenta de la nube), el servidor de la nube debe
-  verificar la compra con Google; se puede hacer con la misma cuenta de servicio
-  que ya publica la app.
+- **Plus en todos los equipos (listo):** con la sesión de la nube abierta, el
+  código o la compra de Google Play quedan en la cuenta y Plus se activa en cada
+  equipo donde la persona entre. La compra se confirma con Google en el servidor
+  (`nube/GUIA.md`, paso 10).
+- **Qué no se puede saltar:** guardar en la nube lo revisa el servidor. Excel,
+  informes, modo simple y agenda funcionan dentro del equipo (sin subir datos de
+  estudiantes), así que alguien que sepa programar podría habilitarlos en su
+  propio equipo; es lo normal en cualquier página o app que trabaja sin servidor.

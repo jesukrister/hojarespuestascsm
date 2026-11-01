@@ -54,8 +54,14 @@
   let reloading = false;
 
   const api = () => N.Api(serverUrl(), { token: meta && meta.sesion, device: device() });
-  // Con CorrigeYa lanzado, la nube es parte de Plus: sin Plus no se sincroniza (la sesión se guarda).
-  const signedIn = () => !!(meta && meta.sesion) && (!Pro.plus || Pro.plus.allows('nube'));
+  let metaLoaded = false;
+  let allowedBefore = null; // ¿se podía guardar en la nube? (para notar cuando se activa Plus)
+  // Con CorrigeYa lanzado, la nube es parte de Plus: sin Plus no se sincroniza (la sesión se
+  // guarda, y el Plus de la cuenta se trae al entrar). El servidor también lo revisa.
+  const hasSession = () => !!(meta && meta.sesion);
+  const needsPlus = () => hasSession() && !!Pro.plus && !Pro.plus.allows('nube');
+  const signedIn = () => hasSession() && !needsPlus();
+  const syncPlus = () => (Pro.plus && Pro.plus.syncAccount ? Pro.plus.syncAccount() : Promise.resolve());
 
   async function saveMeta() {
     try {
@@ -275,6 +281,8 @@
       } catch (e) {
         if (!(e instanceof N.CloudError)) console.error(e);
         offline = !!(e.data && e.data.offline);
+        // El servidor pide Plus (se anuló o terminó): se vuelve a preguntar por el Plus de la cuenta.
+        if (e.status === 402) syncPlus();
         if (e.data && e.data.salir) {
           meta = { correo: meta.correo, sesion: '', docs: {}, expired: true };
           await saveMeta();
@@ -363,7 +371,7 @@
     renderChip(mode);
     const out = $('#proCloudOut');
     if (!out) return;
-    const on = signedIn();
+    const on = hasSession();
     out.hidden = on;
     $('#proCloudIn').hidden = !on;
     $('#proCloudExpired').hidden = !(meta && meta.expired && !on);
@@ -372,7 +380,10 @@
     const st = $('#proCloudStatus');
     let text;
     let cls = 'pro-cloud-status';
-    if (mode === 'busy' || syncing) text = '🔄 Guardando en la nube…';
+    if (needsPlus()) {
+      text = '⭐ Guardar en la nube es parte de CorrigeYa Plus. Tus datos quedan en este equipo; al activar Plus en esta cuenta se guardan solos.';
+      cls += ' warn';
+    } else if (mode === 'busy' || syncing) text = '🔄 Guardando en la nube…';
     else if (offline) {
       text = '⚠️ Sin conexión a internet: los cambios se guardan en este equipo y se subirán a la nube cuando vuelva la conexión.';
       cls += ' warn';
@@ -493,6 +504,14 @@
     await saveMeta();
     dlg().close();
     render('busy');
+    // Trae el Plus de la cuenta (o une el de este equipo) antes de guardar.
+    await syncPlus();
+    allowedBefore = signedIn();
+    if (needsPlus()) {
+      render();
+      Pro.plus.upsell('nube');
+      return;
+    }
     app.toast(res.nueva ? 'Cuenta creada. Tus datos se están guardando en la nube.' : 'Listo: entraste a la nube.');
     await sync({ pruebaPushOnly: false, quiet: true });
   }
@@ -557,6 +576,7 @@
     await saveMeta();
     render();
     renderBanner();
+    syncPlus();
   }
 
   async function signOut() {
@@ -600,6 +620,7 @@
     if (b) {
       const what = b.dataset.cloud;
       if (what === 'crear' || what === 'entrar') openDialog(what);
+      else if (what === 'sync' && needsPlus()) Pro.plus.upsell('nube');
       else if (what === 'sync') sync({ quiet: false });
       else if (what === 'update') updateNow();
       else if (what === 'salir') signOut();
@@ -647,6 +668,12 @@
     } catch (e) {
       meta = null;
     }
+    metaLoaded = true;
+    render();
+    // Plus de la cuenta: al abrir se pregunta al servidor (sin internet, queda lo último).
+    if (hasSession()) await syncPlus();
+    else syncPlus();
+    allowedBefore = signedIn();
     render();
     if (!signedIn()) {
       firstDone = true;
@@ -668,5 +695,23 @@
     await sync({ pruebaPushOnly: applied, quiet: true });
   });
 
-  Pro.cloud = { sync, signedIn, status: () => ({ meta, behind, offline }) };
+  // Al activarse Plus (código, Google Play o el Plus de la cuenta) se empieza a guardar.
+  if (Pro.plus) {
+    Pro.plus.onChange(() => {
+      const now = signedIn();
+      const was = allowedBefore;
+      allowedBefore = now;
+      if (!metaLoaded) return;
+      render();
+      if (now && was === false && !syncing) sync({ pruebaPushOnly: false, quiet: true });
+    });
+  }
+
+  Pro.cloud = {
+    sync,
+    signedIn,
+    status: () => ({ meta, behind, offline }),
+    /** Sesión para el Plus de la cuenta: { token, correo, url }, null sin sesión, undefined al cargar. */
+    session: () => (!metaLoaded ? undefined : hasSession() ? { token: meta.sesion, correo: meta.correo, url: serverUrl() } : null),
+  };
 })();

@@ -17,6 +17,8 @@
      CORREO_URL    dirección /exec del script de Google
      CORREO_CLAVE  la misma CLAVE escrita en el script de Google
      ADMIN_CLAVE   contraseña del panel /admin (al menos 12 letras; sin ella el panel no abre)
+     GOOGLE_CUENTA_SERVICIO  (opcional) llave JSON de la cuenta de servicio de Google Play, para
+                   confirmar con Google las suscripciones a CorrigeYa Plus compradas en la app
    ========================================================== */
 
 const DURACION_SESION = 365 * 864e5;
@@ -60,6 +62,7 @@ async function prepararTablas(db) {
     db.prepare("CREATE TABLE IF NOT EXISTS plus_canjes (codigo TEXT NOT NULL, equipo TEXT NOT NULL, t INTEGER NOT NULL, hasta INTEGER NOT NULL, PRIMARY KEY (codigo, equipo))"),
     db.prepare("CREATE TABLE IF NOT EXISTS uso (dia TEXT NOT NULL, pagina TEXT NOT NULL, evento TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (dia, pagina, evento))"),
     db.prepare("CREATE TABLE IF NOT EXISTS uso_visitantes (dia TEXT NOT NULL, h TEXT NOT NULL, pagina TEXT NOT NULL, PRIMARY KEY (dia, h, pagina))"),
+    db.prepare("CREATE TABLE IF NOT EXISTS plus_play (token TEXT PRIMARY KEY, cuenta TEXT NOT NULL, producto TEXT NOT NULL, hasta INTEGER NOT NULL, estado TEXT NOT NULL, revisado INTEGER NOT NULL)"),
   ]);
   tablasListas = true;
 }
@@ -239,6 +242,8 @@ async function borrarTodo(db, id) {
     db.prepare("DELETE FROM partes WHERE cuenta = ?").bind(id),
     db.prepare("DELETE FROM docs WHERE cuenta = ?").bind(id),
     db.prepare("DELETE FROM cuentas WHERE id = ?").bind(id),
+    db.prepare("DELETE FROM plus_canjes WHERE equipo = ?").bind("c:" + id),
+    db.prepare("DELETE FROM plus_play WHERE cuenta = ?").bind(id),
   ]);
 }
 
@@ -346,7 +351,8 @@ try{await api("borrar-cuenta",{correo:$("#correo").value,codigo:$("#codigo").val
 
 /* ---------- CorrigeYa: configuración de la página ---------- */
 // Lo cambia el panel /admin. Sólo lo usa la página web: la app de Android no lo lee.
-const CONFIG_BASE = { precio: 1990, canje: true, estadisticas: true, aviso: { activo: false, texto: "", enlace: "" } };
+// nubePlus: guardar en la nube pide CorrigeYa Plus (se enciende al lanzar CorrigeYa).
+const CONFIG_BASE = { precio: 1990, canje: true, estadisticas: true, nubePlus: false, aviso: { activo: false, texto: "", enlace: "" } };
 const miles = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
 function limpiarConfig(c) {
@@ -359,6 +365,7 @@ function limpiarConfig(c) {
     precio: c.precio !== undefined && Number.isFinite(precio) && precio >= 0 && precio <= 100000 ? precio : CONFIG_BASE.precio,
     canje: c.canje !== false,
     estadisticas: c.estadisticas !== false,
+    nubePlus: c.nubePlus === true,
     aviso: { activo: !!aviso.activo && !!textoAviso, texto: textoAviso, enlace: /^https:\/\/[^\s"'<>]+$/i.test(enlace) ? enlace : "" },
   };
 }
@@ -425,9 +432,13 @@ async function resumenAdmin(db, env) {
     uno("SELECT COUNT(*) AS n FROM plus_canjes j JOIN plus_codigos c ON c.codigo = j.codigo WHERE c.revocado IS NULL AND (j.hasta = 0 OR j.hasta > ?)", ahora),
   ]);
   const correo = await db.prepare("SELECT v FROM estado WHERE k = 'correo'").first();
+  const [cuentasCodigo, play] = await Promise.all([
+    uno("SELECT COUNT(DISTINCT j.equipo) AS n FROM plus_canjes j JOIN plus_codigos c ON c.codigo = j.codigo WHERE j.equipo LIKE 'c:%' AND c.revocado IS NULL AND (j.hasta = 0 OR j.hasta > ?)", ahora),
+    uno("SELECT COUNT(DISTINCT cuenta) AS n FROM plus_play WHERE hasta > ?", ahora),
+  ]);
   return {
     nube: { cuentas: cuentas.n, nuevas30: nuevas.n, activas7: activas7.n, activas30: activas30.n, espacio: espacio.n },
-    plus: { codigos: codigos.n, enUso: enUso.n, equiposActivos: plusActivos.n },
+    plus: { codigos: codigos.n, enUso: enUso.n, equiposActivos: plusActivos.n, cuentasCodigo: cuentasCodigo.n, cuentasPlay: play.n, googleConfigurado: !!env.GOOGLE_CUENTA_SERVICIO },
     config: configPublica(await leerConfig(db)),
     servidor: { correoConfigurado: !!(env.CORREO_URL && env.CORREO_CLAVE), ultimoCorreo: correo ? JSON.parse(correo.v) : null, hoy: hoy() },
   };
@@ -495,13 +506,15 @@ async function firmarPlus(env, codigo, equipo) {
   const datos = b64url(texto(JSON.stringify({ c: codigo, q: equipo })));
   return datos + "." + b64url(await crypto.subtle.sign("HMAC", await llavePlus(env), texto(datos)));
 }
-async function canjear(db, env, ip, d) {
+// Con sesión de la nube, el código queda en la cuenta (Plus en todos sus equipos);
+// sin sesión, en ese navegador.
+async function canjear(db, env, ip, d, cuenta) {
   d = d || {};
   if (!(await leerConfig(db)).canje) throw new Problema("Por ahora no se pueden canjear códigos.", 403);
   const porIp = "canje-ip:" + ip;
   await revisarEspera(db, [porIp]);
-  const equipo = String(d.equipo || "");
-  if (!EQUIPO.test(equipo)) throw new Problema("Solicitud incompleta.", 400);
+  const equipo = cuenta ? "c:" + cuenta.id : String(d.equipo || "");
+  if (!cuenta && !EQUIPO.test(equipo)) throw new Problema("Solicitud incompleta.", 400);
   const codigo = normalizarCodigo(d.codigo);
   const fila = codigo ? await db.prepare("SELECT * FROM plus_codigos WHERE codigo = ?").bind(codigo).first() : null;
   if (!fila) {
@@ -516,7 +529,7 @@ async function canjear(db, env, ip, d) {
     hasta = previo.hasta; // el mismo navegador otra vez: no gasta otro uso
   } else {
     if (fila.caduca && fila.caduca < ahora) throw new Problema("Ese código ya venció: había que canjearlo antes.", 403);
-    const usado = () => new Problema(fila.usos_max === 1 ? "Ese código ya se usó en otro equipo." : `Ese código ya se usó en ${fila.usos_max} equipos.`, 403);
+    const usado = () => new Problema(fila.usos_max === 1 ? "Ese código ya lo usó otra persona o equipo." : `Ese código ya se usó ${fila.usos_max} veces.`, 403);
     if (fila.usos >= fila.usos_max) throw usado();
     const r = await db.prepare("UPDATE plus_codigos SET usos = usos + 1 WHERE codigo = ? AND usos < usos_max").bind(codigo).run();
     if (!r.meta.changes) throw usado();
@@ -524,14 +537,114 @@ async function canjear(db, env, ip, d) {
     await db.prepare("INSERT INTO plus_canjes (codigo, equipo, t, hasta) VALUES (?, ?, ?, ?)").bind(codigo, equipo, ahora, hasta).run();
   }
   if (hasta && hasta < ahora) throw new Problema("El Plus de este código ya terminó.", 403);
+  if (cuenta) return { ok: true, ...(await plusDeCuenta(db, env, cuenta)), codigo };
   return { ok: true, activa: true, hasta, codigo, token: await firmarPlus(env, codigo, equipo) };
 }
+
+// Código canjeado antes en un navegador: al entrar a la nube pasa a la cuenta.
+async function vincularCodigo(db, env, cuenta, d) {
+  const t = await leerFirmaPlus(env, d && d.token);
+  if (!t) throw new Problema("El código guardado en este equipo no es válido.", 400);
+  const fila = await db.prepare("SELECT hasta FROM plus_canjes WHERE codigo = ? AND equipo = ?").bind(t.c, t.q).first();
+  if (fila) {
+    const yaEsta = await db.prepare("SELECT 1 AS x FROM plus_canjes WHERE codigo = ? AND equipo = ?").bind(t.c, "c:" + cuenta.id).first();
+    await db.prepare(yaEsta ? "DELETE FROM plus_canjes WHERE codigo = ? AND equipo = ?" : "UPDATE plus_canjes SET equipo = ?3 WHERE codigo = ?1 AND equipo = ?2")
+      .bind(t.c, t.q, ...(yaEsta ? [] : ["c:" + cuenta.id])).run();
+  }
+  return { ok: true, ...(await plusDeCuenta(db, env, cuenta)) };
+}
+
+/* ---------- Plus de la cuenta (códigos y Google Play) ---------- */
+const PRODUCTO = /^[a-z0-9_.]{1,100}$/;
+async function plusDeCuenta(db, env, cuenta, revisarGoogle = true) {
+  const ahora = Date.now();
+  const cod = await db.prepare(
+    "SELECT j.hasta FROM plus_canjes j JOIN plus_codigos c ON c.codigo = j.codigo WHERE j.equipo = ? AND c.revocado IS NULL AND (j.hasta = 0 OR j.hasta > ?) ORDER BY (j.hasta = 0) DESC, j.hasta DESC LIMIT 1"
+  ).bind("c:" + cuenta.id, ahora).first();
+  if (cod && cod.hasta === 0) return { activa: true, hasta: 0, origen: "codigo" };
+  let play = await db.prepare("SELECT MAX(hasta) AS hasta FROM plus_play WHERE cuenta = ? AND hasta > ?").bind(cuenta.id, ahora).first();
+  // Una suscripción que venció según lo guardado puede haberse renovado: se pregunta a Google (cada 6 horas como máximo).
+  if (!(play && play.hasta) && revisarGoogle && env.GOOGLE_CUENTA_SERVICIO) {
+    const { results } = await db.prepare("SELECT token, producto FROM plus_play WHERE cuenta = ? AND revisado < ? ORDER BY hasta DESC LIMIT 2").bind(cuenta.id, ahora - 6 * 3600000).all();
+    for (const r of results) {
+      try { await revisarPlay(db, env, cuenta, r.token, r.producto); } catch (e) { /* se intenta después */ }
+    }
+    if (results.length) play = await db.prepare("SELECT MAX(hasta) AS hasta FROM plus_play WHERE cuenta = ? AND hasta > ?").bind(cuenta.id, ahora).first();
+  }
+  const opciones = [cod && { hasta: cod.hasta, origen: "codigo" }, play && play.hasta && { hasta: play.hasta, origen: "play" }].filter(Boolean);
+  if (!opciones.length) return { activa: false, hasta: null, origen: null };
+  opciones.sort((a, b) => b.hasta - a.hasta);
+  return { activa: true, hasta: opciones[0].hasta, origen: opciones[0].origen };
+}
+
+// Google Play: se confirma la compra con la API de Google (cuenta de servicio en GOOGLE_CUENTA_SERVICIO).
+let tokenGoogle = null;
+async function accesoGoogle(env) {
+  if (tokenGoogle && tokenGoogle.vence > Date.now() + 60000 && tokenGoogle.de === env.GOOGLE_CUENTA_SERVICIO) return tokenGoogle.token;
+  let sa;
+  try { sa = JSON.parse(env.GOOGLE_CUENTA_SERVICIO); } catch (e) { throw new Problema("La llave GOOGLE_CUENTA_SERVICIO del servidor no es un JSON válido.", 503); }
+  if (!sa.client_email || !sa.private_key) throw new Problema("A la llave GOOGLE_CUENTA_SERVICIO le falta client_email o private_key.", 503);
+  const ahora = Math.floor(Date.now() / 1000);
+  const url = env.GOOGLE_TOKEN_URL || sa.token_uri || "https://oauth2.googleapis.com/token";
+  const parte = (o) => b64url(texto(JSON.stringify(o)));
+  const sinFirma = parte({ alg: "RS256", typ: "JWT" }) + "." + parte({ iss: sa.client_email, scope: "https://www.googleapis.com/auth/androidpublisher", aud: url, iat: ahora, exp: ahora + 3600 });
+  const der = Uint8Array.from(atob(String(sa.private_key).replace(/-----[^-]+-----/g, "").replace(/\s+/g, "")), (c) => c.charCodeAt(0));
+  const llave = await crypto.subtle.importKey("pkcs8", der, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
+  const jwt = sinFirma + "." + b64url(await crypto.subtle.sign("RSASSA-PKCS1-v1_5", llave, texto(sinFirma)));
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: "grant_type=" + encodeURIComponent("urn:ietf:params:oauth:grant-type:jwt-bearer") + "&assertion=" + jwt });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.access_token) throw new Problema("Google no aceptó la cuenta de servicio (" + (j.error_description || j.error || r.status) + ").", 503);
+  tokenGoogle = { token: j.access_token, vence: Date.now() + (Number(j.expires_in) || 3600) * 1000, de: env.GOOGLE_CUENTA_SERVICIO };
+  return tokenGoogle.token;
+}
+const ESTADOS_ACTIVOS = ["SUBSCRIPTION_STATE_ACTIVE", "SUBSCRIPTION_STATE_IN_GRACE_PERIOD", "SUBSCRIPTION_STATE_CANCELED"];
+async function revisarPlay(db, env, cuenta, token, producto) {
+  const paquete = env.PLAY_PAQUETE || "cl.lectorhojas.app.pro";
+  const raiz = (env.PLAY_API_ROOT || "https://androidpublisher.googleapis.com").replace(/\/+$/, "");
+  const r = await fetch(`${raiz}/androidpublisher/v3/applications/${encodeURIComponent(paquete)}/purchases/subscriptionsv2/tokens/${encodeURIComponent(token)}`, {
+    headers: { Authorization: "Bearer " + (await accesoGoogle(env)) },
+  });
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 404 || r.status === 400 || r.status === 410) throw new Problema("Google Play no reconoce esa compra.", 404);
+  if (!r.ok) throw new Problema("No se pudo confirmar la compra con Google Play (" + ((j.error && j.error.message) || r.status) + ").", 502);
+  const items = (j.lineItems || []).filter((x) => x.productId === producto);
+  const hasta = Math.max(0, ...items.map((x) => Date.parse(x.expiryTime) || 0));
+  const estado = String(j.subscriptionState || "");
+  const vigente = items.length && ESTADOS_ACTIVOS.includes(estado) && hasta > Date.now() ? hasta : 0;
+  // Una compra queda unida a una sola cuenta: la última que la presentó.
+  await db.prepare("INSERT INTO plus_play (token, cuenta, producto, hasta, estado, revisado) VALUES (?1, ?2, ?3, ?4, ?5, ?6) ON CONFLICT(token) DO UPDATE SET cuenta = ?2, producto = ?3, hasta = ?4, estado = ?5, revisado = ?6")
+    .bind(token, cuenta.id, producto, vigente, estado, Date.now()).run();
+  return vigente;
+}
+async function unirPlay(db, env, cuenta, d) {
+  d = d || {};
+  const token = String(d.token || "");
+  const producto = String(d.producto || "corrigeya_plus");
+  if (!/^[A-Za-z0-9._-]{10,1000}$/.test(token) || !PRODUCTO.test(producto)) throw new Problema("Solicitud incompleta.", 400);
+  if (!env.GOOGLE_CUENTA_SERVICIO) throw new Problema("El servidor todavía no puede confirmar compras de Google Play (falta GOOGLE_CUENTA_SERVICIO).", 503);
+  await revisarPlay(db, env, cuenta, token, producto);
+  return { ok: true, ...(await plusDeCuenta(db, env, cuenta, false)) };
+}
+// La nube pide Plus (si se encendió en /admin): se revisa en el servidor, no en la página.
+async function exigirPlusNube(db, env, cuenta) {
+  if (!(await leerConfig(db)).nubePlus) return;
+  if ((await plusDeCuenta(db, env, cuenta)).activa) return;
+  throw new Problema("Guardar en la nube es parte de CorrigeYa Plus. Tus datos siguen a salvo en la nube y en este equipo: vuelven a sincronizarse al activar Plus.", 402, { plus: false });
+}
+async function leerFirmaPlus(env, token) {
+  const m = /^([A-Za-z0-9_-]{10,300})\.([A-Za-z0-9_-]{20,})$/.exec(String(token || ""));
+  if (!m || !(await crypto.subtle.verify("HMAC", await llavePlus(env), deB64url(m[2]), texto(m[1])))) return null;
+  try {
+    const t = JSON.parse(new TextDecoder().decode(deB64url(m[1])));
+    return t && typeof t.c === "string" && typeof t.q === "string" ? t : null;
+  } catch (e) {
+    return null;
+  }
+}
 async function verificarPlus(db, env, d) {
-  const m = /^([A-Za-z0-9_-]{10,300})\.([A-Za-z0-9_-]{20,})$/.exec(String((d && d.token) || ""));
   const no = (motivo) => ({ activa: false, motivo });
-  if (!m || !(await crypto.subtle.verify("HMAC", await llavePlus(env), deB64url(m[2]), texto(m[1])))) return no("El código guardado en este equipo no es válido.");
-  let t;
-  try { t = JSON.parse(new TextDecoder().decode(deB64url(m[1]))); } catch (e) { return no("El código guardado en este equipo no es válido."); }
+  const t = await leerFirmaPlus(env, d && d.token);
+  if (!t) return no("El código guardado en este equipo no es válido.");
   const fila = await db.prepare("SELECT c.revocado, j.hasta FROM plus_codigos c JOIN plus_canjes j ON j.codigo = c.codigo WHERE c.codigo = ? AND j.equipo = ?").bind(t.c, t.q).first();
   if (!fila) return no("Ese código ya no existe.");
   if (fila.revocado) return no("Ese código fue anulado.");
@@ -632,7 +745,13 @@ export default {
       // CorrigeYa: lo que usa la página web
       if (ruta === "/config" && req.method === "GET") return respuesta(configPublica(await leerConfig(db)));
       if (req.method === "POST" && ruta === "/uso") return respuesta(await anotarUso(db, await cuerpo(req)));
-      if (req.method === "POST" && ruta === "/plus/canjear") return respuesta(await canjear(db, env, ip, await cuerpo(req)));
+      if (req.method === "POST" && ruta === "/plus/canjear") {
+        const cuenta = req.headers.get("Authorization") ? await cuentaDeSesion(db, env, req) : null;
+        return respuesta(await canjear(db, env, ip, await cuerpo(req), cuenta));
+      }
+      if (ruta === "/plus" && req.method === "GET") return respuesta(await plusDeCuenta(db, env, await cuentaDeSesion(db, env, req)));
+      if (req.method === "POST" && ruta === "/plus/vincular") return respuesta(await vincularCodigo(db, env, await cuentaDeSesion(db, env, req), await cuerpo(req)));
+      if (req.method === "POST" && ruta === "/plus/play") return respuesta(await unirPlay(db, env, await cuentaDeSesion(db, env, req), await cuerpo(req)));
       if (req.method === "POST" && ruta === "/plus/verificar") return respuesta(await verificarPlus(db, env, await cuerpo(req)));
 
       // Panel /admin
@@ -649,12 +768,17 @@ export default {
         if (req.method === "POST" && ruta === "/admin/codigos/borrar") return respuesta(await borrarCodigo(db, await cuerpo(req)));
       }
 
-      if (ruta === "/datos" && req.method === "GET") return respuesta(await listar(db, await cuentaDeSesion(db, env, req)));
+      if (ruta === "/datos" && req.method === "GET") {
+        const c = await cuentaDeSesion(db, env, req);
+        await exigirPlusNube(db, env, c);
+        return respuesta(await listar(db, c));
+      }
       const m = /^\/datos\/([^/]+)$/.exec(ruta);
       if (m) {
         const clave = decodeURIComponent(m[1]);
         if (!CLAVE_DOC.test(clave)) throw new Problema("Documento no válido.", 400);
         const c = await cuentaDeSesion(db, env, req);
+        await exigirPlusNube(db, env, c);
         if (req.method === "GET") {
           const doc = await leerDoc(db, c, clave);
           return new Response(doc.datos, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", ...CORS, "X-Version": String(doc.version), "X-Actualizado": String(doc.actualizado) } });

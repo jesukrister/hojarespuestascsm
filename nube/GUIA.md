@@ -92,6 +92,31 @@ página web) usa este mismo servidor. Para activarlo:
 - Si la olvidas, crea otra con el mismo nombre: las sesiones abiertas del panel se cierran.
 - Tras 5 contraseñas equivocadas desde una misma conexión hay que esperar 15 minutos (y cada vez más).
 
+## 10. Confirmar con Google las suscripciones de la app (CorrigeYa Plus)
+Cuando alguien paga Plus en la app y entra a la nube, la app manda al servidor el comprobante de
+la compra. El servidor lo confirma con Google y deja Plus en su cuenta: así le funciona en todos
+sus equipos y puede guardar en la nube. Para eso el servidor necesita una llave de la cuenta de
+servicio que ya publica la app en Google Play.
+1. Entra a <https://console.cloud.google.com> con tu cuenta de Google, proyecto
+   **hoja-d-respuesta-cl** → **IAM y administración → Cuentas de servicio**.
+2. Abre la cuenta de servicio que usa Google Play (la que termina en
+   `@hoja-d-respuesta-cl.iam.gserviceaccount.com`) → pestaña **Claves → Agregar clave → Crear
+   clave nueva → JSON → Crear**. Se descarga un archivo `.json`.
+   - Si Google dice que la creación de claves está bloqueada por una política de la
+     organización, avísale a Claude: se usa otra forma.
+3. En Cloudflare: **lector-nube → Configuración → Variables y secretos → Agregar**, tipo
+   **Secreto**, nombre `GOOGLE_CUENTA_SERVICIO`. En el valor pega **todo** el contenido del archivo
+   `.json` (ábrelo con el Bloc de notas). **Implementar.**
+4. **Borra el archivo `.json`** de tu computador (y de la papelera). No lo subas a GitHub ni lo
+   pegues en el chat: con él se puede manejar tu app en Google Play.
+5. En Play Console → **Usuarios y permisos** → esa cuenta de servicio → permisos de la app
+   **Lector Hojas Pro**: marca **«Ver información financiera, pedidos y respuestas a encuestas de
+   cancelación»** y **«Gestionar pedidos y suscripciones»**. Guarda.
+6. En el panel `/admin` → **Resumen**, «Verificación de Google Play» debe decir ✔ Configurada.
+
+Sin este paso, todo lo demás funciona, pero quien pague Plus en la app no podrá guardar en la nube
+cuando enciendas «La nube pide Plus».
+
 ## Límites del plan gratis
 - **Cloudflare Workers:** 100.000 solicitudes al día. Cada docente usa unas pocas decenas al día.
 - **D1:** 5 GB en total. Cada cuenta puede usar hasta 40 MB (un curso con su libro de notas ocupa
