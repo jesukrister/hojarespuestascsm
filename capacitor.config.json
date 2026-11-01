@@ -1,9 +1,0 @@
-{
-  "appId": "cl.lectorhojas.app",
-  "appName": "Lector de Hojas",
-  "webDir": "www",
-  "android": {
-    "allowMixedContent": false,
-    "backgroundColor": "#1f4e79"
-  }
-}

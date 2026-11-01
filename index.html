@@ -3,472 +3,220 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CorrigeYa · Corrector de pruebas para profesores</title>
-  <meta name="description" content="Corrige pruebas de alternativas con una foto del celular. Imprime la hoja de respuestas, sácale una foto y la nota sale al tiro, con la escala de 1,0 a 7,0.">
-  <meta name="theme-color" content="#1f4e79">
-  <meta property="og:title" content="CorrigeYa · Corrector de pruebas">
-  <meta property="og:description" content="Corrige ya tus pruebas con una foto. Y tu finde, libre.">
-  <meta property="og:image" content="https://corrigeya.cl/corrigeya/logo.svg">
-  <meta property="og:url" content="https://corrigeya.cl/">
-  <link rel="canonical" href="https://corrigeya.cl/">
-  <link rel="icon" href="corrigeya/logo.svg" type="image/svg+xml">
+  <meta name="robots" content="noindex">
+  <meta name="referrer" content="no-referrer">
+  <title>CorrigeYa se mudó a corrigeya.cl</title>
   <!--
-    Portada de corrigeya.cl: la presentación de CorrigeYa.
-    CorrigeYa gratis = la app que hoy es la versión Pro (app/, la misma página que pro.html).
-    El Lector normal sigue en lector.html (es también la app normal de Android).
-    CorrigeYa Plus (de pago, $1.990 al mes) aún no existe: se muestra como «Próximamente».
+    Mudanza de datos: jesukrister.github.io → corrigeya.cl
+
+    Esta página se publica en la dirección antigua, https://jesukrister.github.io/hojarespuestascsm/
+    (el repositorio jesukrister/hojarespuestascsm, que después de pasar el proyecto a corrigeya/app
+    sólo tiene esta página, como index.html y como 404.html para cualquier ruta antigua).
+    Como está en el mismo sitio, puede leer lo que el Lector de Hojas guardó en este navegador,
+    y se lo entrega SÓLO a corrigeya.cl, cuando corrigeya.cl/traer.html la abre y la persona
+    acepta. Quien llega con un enlace antiguo y no tiene datos pasa directo a corrigeya.cl.
+    No envía nada a ningún servidor. Ver docs/mudanza.md.
   -->
   <style>
-    :root {
-      --bg: #f3f5f8;
-      --surface: #fff;
-      --text: #1c2430;
-      --muted: #5d6877;
-      --border: #dde3ea;
-      --primary: #1f4e79;
-      --primary-soft: #e6eef6;
-      --ok: #17733a;
-      --ok-soft: #e7f5ec;
-      --warn: #9a5b00;
-      --radius: 16px;
-    }
+    :root { --bg: #f3f5f8; --surface: #fff; --text: #1c2430; --muted: #5a6575; --primary: #1f4e79; --ok: #1e7a3c; --border: #dde3ea; color-scheme: light; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #10151c; --surface: #161c24; --text: #e7ecf2; --muted: #9aa6b5; --primary: #9cc8f0; --ok: #6fd28d; --border: #2a3340; color-scheme: dark; } }
     * { box-sizing: border-box; }
-    [hidden] { display: none !important; }
-    html { scroll-behavior: smooth; }
-    body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-    a { color: var(--primary); }
-    .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
-    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 22px; border-radius: 14px; font-weight: 800; font-size: 1.05rem; text-decoration: none; border: 2px solid transparent; }
-    .btn.primary { background: var(--primary); color: #fff; }
-    .btn.primary:hover { background: #173c5e; }
-    .btn.soft { background: var(--primary-soft); color: var(--primary); }
-    .btn.line { border-color: var(--border); background: var(--surface); color: var(--text); }
-    h2 { font-size: 2rem; line-height: 1.15; margin: 0 0 10px; }
-    .kicker { color: var(--ok); font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.85rem; margin: 0 0 6px; }
-    .sub { color: var(--muted); font-size: 1.1rem; margin: 0 0 28px; max-width: 60ch; }
-    section { padding: 56px 0; }
-
-    /* Encabezado */
-    header { position: sticky; top: 0; z-index: 10; background: rgba(243, 245, 248, 0.94); backdrop-filter: blur(6px); border-bottom: 1px solid var(--border); }
-    .head { display: flex; align-items: center; gap: 14px; padding: 12px 20px; }
-    .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; }
-    .brand img { width: 42px; height: 42px; }
-    .brand b { display: block; font-size: 1.25rem; line-height: 1.1; }
-    .brand small { color: var(--muted); font-weight: 600; font-size: 0.82rem; }
-    nav { margin-left: auto; display: flex; align-items: center; gap: 18px; }
-    nav a { text-decoration: none; color: var(--text); font-weight: 600; font-size: 0.98rem; }
-    nav .btn { padding: 10px 16px; font-size: 0.98rem; color: #fff; }
-
-    /* Portada */
-    .hero { padding: 48px 0 40px; }
-    .hero .wrap { display: grid; grid-template-columns: 1.15fr 1fr; gap: 40px; align-items: center; }
-    .hero h1 { font-size: 3rem; line-height: 1.08; margin: 0 0 16px; letter-spacing: -0.01em; }
-    .hero h1 em { font-style: normal; color: var(--ok); }
-    .lead { font-size: 1.22rem; color: #3d4756; margin: 0 0 26px; max-width: 34em; }
-    .cta { display: flex; flex-wrap: wrap; gap: 12px; }
-    .trust { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 22px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: 0.95rem; font-weight: 600; }
-
-    /* Ilustración: hoja + celular con la nota */
-    .art { position: relative; height: 430px; }
-    .sheet { position: absolute; left: 0; top: 18px; width: 64%; height: 380px; background: #fff; border-radius: 10px; box-shadow: 0 18px 40px rgba(16, 24, 40, 0.14); padding: 22px 20px; transform: rotate(-4deg); }
-    .sheet::before, .sheet::after { content: ''; position: absolute; width: 18px; height: 18px; background: #111; top: 12px; }
-    .sheet::before { left: 12px; }
-    .sheet::after { right: 12px; }
-    .sheet h4 { margin: 14px 0 12px; font-size: 0.95rem; }
-    .row { display: flex; align-items: center; gap: 7px; margin: 7px 0; font-size: 0.8rem; font-weight: 700; color: var(--muted); }
-    .row b { width: 18px; text-align: right; }
-    .row i { width: 18px; height: 18px; border-radius: 50%; border: 1.6px solid #9aa5b1; display: inline-block; }
-    .row i.f { background: #222; border-color: #222; }
-    .phone { position: absolute; right: 0; top: 0; width: 46%; height: 420px; background: #111; border-radius: 34px; padding: 12px; box-shadow: 0 24px 50px rgba(16, 24, 40, 0.3); }
-    .screen { height: 100%; border-radius: 24px; overflow: hidden; display: flex; flex-direction: column; background: #fff; }
-    .notice { flex: 1; background: var(--ok); color: #fff; display: grid; align-content: center; justify-items: center; text-align: center; gap: 4px; padding: 14px; }
-    .notice .chk { font-size: 2.6rem; line-height: 1; }
-    .notice b { font-size: 1.3rem; }
-    .notice span { font-size: 0.85rem; }
-    .notice strong { font-size: 2rem; font-weight: 800; line-height: 1.1; margin-top: 4px; }
-    .notice small { margin-top: 8px; font-size: 0.78rem; background: rgba(255, 255, 255, 0.16); border-radius: 8px; padding: 6px 8px; }
-    .screen .next { margin: 10px; border-radius: 12px; background: var(--primary); color: #fff; font-weight: 800; text-align: center; padding: 12px; font-size: 0.95rem; }
-
-    /* Pasos */
-    .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; counter-reset: paso; }
-    .step { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 20px; }
-    .step .ic { font-size: 2.2rem; }
-    .step h3 { margin: 10px 0 6px; font-size: 1.15rem; }
-    .step h3::before { counter-increment: paso; content: counter(paso) '. '; color: var(--primary); }
-    .step p { margin: 0; color: var(--muted); font-size: 0.98rem; }
-    .step.ok { background: var(--ok-soft); border-color: var(--ok); }
-    .step.ok h3::before { color: var(--ok); }
-
-    /* Lo que hace */
-    .white { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-    .feats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-    .feat { padding: 20px; border-radius: var(--radius); background: var(--bg); }
-    .feat .ic { font-size: 1.8rem; }
-    .feat h3 { margin: 8px 0 6px; font-size: 1.1rem; }
-    .feat p { margin: 0; color: var(--muted); font-size: 0.98rem; }
-
-    /* Para todos los profes */
-    .easy { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: center; }
-    .easy ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 14px; }
-    .easy li { display: flex; gap: 14px; align-items: flex-start; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
-    .easy li span { font-size: 1.6rem; line-height: 1; }
-    .easy li b { display: block; }
-    .easy li small { color: var(--muted); font-size: 0.95rem; }
-    .quote { background: var(--primary); color: #fff; border-radius: 22px; padding: 30px; font-size: 1.35rem; font-weight: 700; line-height: 1.35; }
-    .quote small { display: block; margin-top: 12px; font-size: 0.95rem; font-weight: 500; opacity: 0.85; }
-
-    /* Versiones */
-    .plans { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-    .plan { background: var(--surface); border: 2px solid var(--border); border-radius: 20px; padding: 26px; display: flex; flex-direction: column; }
-    .plan.pro { border-color: var(--primary); }
-    .plan h3 { margin: 0; font-size: 1.5rem; }
-    .plan .tag { display: inline-block; margin: 6px 0 14px; font-weight: 700; color: var(--muted); }
-    .plan ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 9px; align-content: start; }
-    .plan > ul { flex: 1; margin-bottom: 22px; }
-    .plan li { position: relative; padding-left: 1.6em; line-height: 1.4; }
-    .plan li::before { content: '✔'; position: absolute; left: 0; top: 0; color: var(--ok); font-weight: 800; }
-    .plan.pro { background: linear-gradient(180deg, var(--primary-soft, #eaf2fa), var(--surface) 55%); }
-    .plan-groups { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 18px 22px; align-content: start; margin-bottom: 22px; }
-    .plan-groups h4 { margin: 0 0 8px; font-size: 0.82rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--primary); }
-    .plan-groups ul { gap: 7px; font-size: 0.95rem; }
-    @media (max-width: 560px) { .plan-groups { grid-template-columns: 1fr; } }
-    .plan.pro .tag { color: var(--primary); }
-    .plan-note { margin: -4px 0 10px; color: var(--muted); }
-    .plan-small { display: block; margin-top: 8px; color: var(--muted); font-size: 0.9rem; text-align: center; }
-    .btn.soon { background: var(--primary-soft); color: var(--primary); cursor: default; }
-    .badge { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 6px; background: linear-gradient(135deg, #d69e2e, #b7791f); color: #fff; font-size: 0.75rem; font-weight: 800; vertical-align: middle; }
-
-    /* Preguntas */
-    .faq { display: grid; gap: 10px; max-width: 820px; }
-    details { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 4px 18px; }
-    summary { cursor: pointer; font-weight: 700; padding: 12px 0; font-size: 1.05rem; }
-    details p { margin: 0 0 14px; color: #3d4756; }
-
-    /* Cierre y pie */
-    .final { text-align: center; }
-    .final h2 { font-size: 2.2rem; }
-    .final .cta { justify-content: center; }
-    .donate-box { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px 30px; background: var(--ok-soft); border: 1px solid #b9dfc6; border-radius: 22px; padding: 28px; }
-    .donate-box .sub { margin-bottom: 0; }
-    .donate-box > div:first-child { flex: 1 1 380px; }
-    .dn { flex: 1 1 320px; }
-    .dn-data { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0 0 14px; padding: 16px 18px; border-radius: 14px; background: #fff; border: 1px solid #b9dfc6; }
-    .dn-data dt { color: var(--muted); }
-    .dn-data dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
-    button.btn { cursor: pointer; font: inherit; font-weight: 800; }
-    .dn-msg { margin: 10px 0 0; color: var(--ok); font-weight: 700; min-height: 1.4em; }
-    footer { padding: 28px 0 40px; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--border); }
-    footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; }
-
-    @media (max-width: 960px) {
-      .hero .wrap, .easy { grid-template-columns: 1fr; }
-      .art { height: 400px; max-width: 460px; width: 100%; margin: 0 auto; }
-      .steps { grid-template-columns: 1fr 1fr; }
-      .feats { grid-template-columns: 1fr 1fr; }
-    }
-    @media (max-width: 640px) {
-      body { font-size: 16px; }
-      nav a:not(.btn) { display: none; }
-      .brand small { display: none; }
-      .hero { padding-top: 30px; }
-      .hero h1 { font-size: 2.15rem; }
-      h2 { font-size: 1.6rem; }
-      .cta .btn { flex: 1 1 100%; }
-      .steps, .feats, .plans { grid-template-columns: 1fr; }
-      section { padding: 40px 0; }
-      .art { height: 360px; }
-      .sheet { height: 320px; }
-      .phone { height: 350px; width: 50%; }
-    }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: var(--bg); color: var(--text); font: 17px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { width: min(520px, 100%); background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; box-shadow: 0 10px 30px rgba(0, 0, 0, .08); }
+    h1 { margin: 0 0 8px; font-size: 1.35rem; color: var(--primary); }
+    p { margin: 8px 0; }
+    ul { margin: 8px 0; padding-left: 1.2rem; }
+    .muted { color: var(--muted); font-size: .92rem; }
+    .ok { color: var(--ok); font-weight: 700; }
+    a { color: var(--primary); font-weight: 600; }
+    a.btn { display: inline-block; background: #1f4e79; color: #fff; text-decoration: none; padding: 12px 20px; border-radius: 999px; font-weight: 700; }
   </style>
 </head>
 <body>
-  <header>
-    <div class="head">
-      <a class="brand" href="#">
-        <img src="corrigeya/logo.svg" alt="">
-        <span><b>CorrigeYa</b><small>Corrige ya. Tu finde, libre.</small></span>
-      </a>
-      <nav aria-label="Secciones">
-        <a href="#como">Cómo funciona</a>
-        <a href="#planes">Planes</a>
-        <a href="#preguntas">Preguntas</a>
-        <a class="btn primary" href="app/">Abrir la app</a>
-      </nav>
-    </div>
-  </header>
-
   <main>
-    <section class="hero">
-      <div class="wrap">
-        <div>
-          <h1>Corrige ya tus pruebas con una foto.<br><em>Y tu finde, libre.</em></h1>
-          <p class="lead">Imprime la hoja de respuestas, sácale una foto con el celular y la nota sale al tiro. Las notas quedan solas en el libro de cada curso: nada que corregir el domingo.</p>
-          <div class="cta">
-            <a class="btn primary" href="app/">📷 Empezar a corregir, gratis</a>
-            <a class="btn soft" href="#como">▶ Cómo funciona</a>
-          </div>
-          <ul class="trust">
-            <li>✔ Escala de 1,0 a 7,0</li>
-            <li>✔ Gratis, sin anuncios</li>
-            <li>✔ Las fotos no salen de tu equipo</li>
-          </ul>
-        </div>
-        <div class="art" aria-hidden="true">
-          <div class="sheet">
-            <h4>Prueba de Historia · Unidad 2</h4>
-            <div class="row"><b>1</b><i></i><i class="f"></i><i></i><i></i></div>
-            <div class="row"><b>2</b><i class="f"></i><i></i><i></i><i></i></div>
-            <div class="row"><b>3</b><i></i><i></i><i></i><i class="f"></i></div>
-            <div class="row"><b>4</b><i></i><i></i><i class="f"></i><i></i></div>
-            <div class="row"><b>5</b><i></i><i class="f"></i><i></i><i></i></div>
-            <div class="row"><b>6</b><i class="f"></i><i></i><i></i><i></i></div>
-            <div class="row"><b>7</b><i></i><i></i><i class="f"></i><i></i></div>
-            <div class="row"><b>8</b><i></i><i></i><i></i><i class="f"></i></div>
-            <div class="row"><b>9</b><i></i><i class="f"></i><i></i><i></i></div>
-          </div>
-          <div class="phone">
-            <div class="screen">
-              <div class="notice">
-                <span class="chk">✔</span>
-                <b>Ana Aravena</b>
-                <span>18 de 20 correctas</span>
-                <strong>Nota 6,3</strong>
-                <small>Llevas 24 de 32 · Faltan 8</small>
-              </div>
-              <div class="next">📷 Siguiente hoja</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="como">
-      <div class="wrap">
-        <p class="kicker">Cómo funciona</p>
-        <h2>Cuatro pasos y listo</h2>
-        <p class="sub">Sirve con la prueba que ya tienes: en Word, impresa o escrita a mano. La app solo necesita saber cuántas preguntas tiene y cuál es la respuesta correcta.</p>
-        <div class="steps">
-          <div class="step"><div class="ic">📝</div><h3>Crea la hoja</h3><p>Un asistente te pregunta, paso a paso, cuántas preguntas tiene la prueba y la respuesta correcta de cada una.</p></div>
-          <div class="step"><div class="ic">🖨️</div><h3>Imprímela</h3><p>Una hoja por estudiante, o 2 o 4 por página para ahorrar papel. También se puede fotocopiar.</p></div>
-          <div class="step"><div class="ic">📷</div><h3>Foto a cada hoja</h3><p>Con el celular. En segundos aparece el nombre del estudiante y su nota, en grande.</p></div>
-          <div class="step ok"><div class="ic">🌤️</div><h3>Tu finde, libre</h3><p>Las notas ya están en el libro de cada curso, con sus promedios. Nada que corregir el domingo.</p></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="white">
-      <div class="wrap">
-        <p class="kicker">Hecho para la sala de clases</p>
-        <h2>Todo lo que necesitas para corregir pruebas de alternativas</h2>
-        <p class="sub">Pensado para profes chilenos: notas de 1,0 a 7,0, exigencia, N° de lista y filas A, B, C y D.</p>
-        <div class="feats">
-          <div class="feat"><div class="ic">🔢</div><h3>Notas al tiro</h3><p>Puntaje, porcentaje de logro y nota con tu exigencia (60 % o la que uses), incluso con descuento por respuesta incorrecta.</p></div>
-          <div class="feat"><div class="ic">👥</div><h3>Sabe quién es quién</h3><p>El estudiante pinta su N° de lista y la app pone su nombre. Ves cuántos llevas y quién falta.</p></div>
-          <div class="feat"><div class="ic">🔀</div><h3>Filas A, B, C y D</h3><p>Cada hoja trae su fila impresa y se corrige con su propia clave, para que nadie copie al de al lado.</p></div>
-          <div class="feat"><div class="ic">📊</div><h3>Excel y evidencias <span class="badge">PLUS</span></h3><p>Planilla con todas las notas y la hoja corregida de cada estudiante, por si un apoderado pregunta.</p></div>
-          <div class="feat"><div class="ic">🎯</div><h3>Análisis de la prueba</h3><p>Qué pregunta costó más y el logro por objetivo de aprendizaje (OA), para saber qué reforzar.</p></div>
-          <div class="feat"><div class="ic">✍️</div><h3>¿Hoja rayada o rota?</h3><p>La transcribes a mano en la app y queda corregida igual que las demás.</p></div>
-        </div>
-      </div>
-    </section>
-
-    <section>
-      <div class="wrap easy">
-        <div>
-          <p class="kicker">Para todos los profes</p>
-          <h2>Fácil de verdad, aunque no seas «de la tecnología»</h2>
-          <p class="sub">Botones grandes, una pregunta por pantalla y nada de palabras raras.</p>
-          <ul>
-            <li><span>🧭</span><div><b>Asistente paso a paso</b><small>Para crear la prueba sin perderse.</small></div></li>
-            <li><span>👓</span><div><b>Letra más grande</b><small>Con el botón Aa agrandas la letra y los botones.</small></div></li>
-            <li><span>🔊</span><div><b>Te dice la nota en voz alta</b><small>Si quieres, al corregir cada hoja dice el nombre y la nota.</small></div></li>
-            <li><span>📘</span><div><b>Manual y tutorial</b><small>Con burbujas que te muestran cada paso.</small></div></li>
-          </ul>
-        </div>
-        <div class="quote">«Una prueba de 40 estudiantes se corrige mientras tomas once.»<small>Sin ingresar respuestas a mano ni pasar notas a una planilla.</small></div>
-      </div>
-    </section>
-
-    <section id="planes" class="white">
-      <div class="wrap">
-        <p class="kicker">Planes</p>
-        <h2>Corregir es gratis. Siempre.</h2>
-        <p class="sub">Corregir y llevar las notas es gratis. Con CorrigeYa Plus te llevas además las notas a Excel, los informes, la nube y tu trabajo docente ordenado en un solo lugar.</p>
-        <div class="plans">
-          <div class="plan">
-            <h3>CorrigeYa</h3>
-            <span class="tag">Gratis, sin anuncios</span>
-            <p class="plan-note">Todo lo que necesitas para corregir:</p>
-            <ul>
-              <li>Hoja de respuestas de 1 a 120 preguntas</li>
-              <li>Corregir con foto, escaneo continuo o PDF de la fotocopiadora</li>
-              <li>Nota al tiro con la escala de 1,0 a 7,0</li>
-              <li>Cursos y libro de notas con promedios</li>
-              <li>Una prueba para varios cursos</li>
-              <li>Estudiantes PIE con su propia exigencia</li>
-              <li>Análisis por pregunta y por OA</li>
-              <li>Las fotos no salen de tu equipo</li>
-            </ul>
-            <a class="btn primary" href="app/">📷 Empezar a corregir</a>
-          </div>
-          <div class="plan pro">
-            <h3>CorrigeYa <span class="badge">PLUS</span></h3>
-            <span class="tag"><span data-precio>$1.990</span> al mes · Vista previa</span>
-            <p class="plan-note">Todo lo gratis, y además:</p>
-            <div class="plan-groups">
-              <div>
-                <h4>Notas e informes</h4>
-                <ul>
-                  <li>Notas y evidencias en Excel</li>
-                  <li>Informes por estudiante, para UTP y para apoderados</li>
-                  <li>Cierre de semestre en un toque</li>
-                  <li>Estudiantes en riesgo y comparar cursos</li>
-                </ul>
-              </div>
-              <div>
-                <h4>Tu semana ordenada</h4>
-                <ul>
-                  <li>Agenda de pruebas, clases y reuniones</li>
-                  <li>Horario: «¿qué curso tengo ahora?»</li>
-                  <li>Recordatorios de notas pendientes</li>
-                  <li>Mensajes a apoderados por WhatsApp</li>
-                </ul>
-              </div>
-              <div>
-                <h4>Pruebas más rápidas</h4>
-                <ul>
-                  <li>Banco de preguntas por unidad y OA</li>
-                  <li>Pruebas listas del currículum</li>
-                  <li>Retroalimentación con un toque</li>
-                  <li>Hojas con el logo del colegio</li>
-                </ul>
-              </div>
-              <div>
-                <h4>Siempre contigo</h4>
-                <ul>
-                  <li>Guardado en la nube: celular y computador</li>
-                  <li>Modo simple, con menos botones</li>
-                  <li>Soporte por WhatsApp</li>
-                </ul>
-              </div>
-            </div>
-            <a class="btn primary" href="app/?plus=1">👀 Probar la vista previa</a>
-            <small class="plan-small">Gratis mientras está en vista previa. Ya puedes probar la agenda, los recordatorios y el horario.</small>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="preguntas">
-      <div class="wrap">
-        <p class="kicker">Preguntas frecuentes</p>
-        <h2>Lo que suelen preguntar los profes</h2>
-        <div class="faq">
-          <details><summary>¿Tiene costo?</summary><p>Corregir pruebas, los cursos y el libro de notas son gratis, sin anuncios. CorrigeYa Plus, opcional, cuesta <span data-precio>$1.990</span> al mes y suma el Excel, los informes, la nube, el modo simple, la agenda y otras herramientas para el trabajo docente.</p></details>
-          <details><summary>¿Sirve con mi prueba de siempre?</summary><p>Sí. La prueba la haces como siempre (Word, impresa o a mano); los estudiantes marcan sus respuestas en la hoja de respuestas que imprime CorrigeYa. Si quieres, también puedes escribir las preguntas en la app y ella arma la prueba.</p></details>
-          <details><summary>¿Las fotos de mis estudiantes se suben a internet?</summary><p>No. La lectura de las hojas se hace en tu propio celular o computador: las fotos y las notas se quedan en tu equipo.</p></details>
-          <details><summary>¿Necesito internet?</summary><p>Solo para abrir la página. La corrección se hace en el equipo.</p></details>
-          <details><summary>¿Cuántas alternativas puede tener cada pregunta?</summary><p>De 2 a 6 (A a F), con hasta 120 preguntas por prueba.</p></details>
-          <details><summary>¿Cómo paso las notas al libro de clases?</summary><p>Las notas quedan guardadas en el libro de notas de cada curso, con sus promedios. Con CorrigeYa Plus, además, las descargas en Excel.</p></details>
-          <details><summary>¿Qué pasa si una hoja viene doblada o rayada?</summary><p>Si no se puede leer, la app te dice por qué y te deja transcribirla a mano en unos segundos.</p></details>
-          <details><summary>¿Hay app para el celular?</summary><p>Funciona en el navegador del celular. La app para Android viene pronto en Google Play.</p></details>
-        </div>
-      </div>
-    </section>
-
-    <section id="apoyar" class="donate" hidden>
-      <div class="wrap donate-box">
-        <div>
-          <p class="kicker">Apoya el proyecto</p>
-          <h2>¿Te devolvimos un finde? 💚</h2>
-          <p class="sub">Corregir con CorrigeYa es gratis y lo seguirá siendo. Es un proyecto independiente, hecho en Chile. Si te sirve, puedes apoyar con una donación del monto que quieras: ayuda a mantenerla y a seguir mejorándola.</p>
-        </div>
-        <div class="dn">
-          <dl id="dnData" class="dn-data" hidden></dl>
-          <div class="cta">
-            <button type="button" class="btn primary" id="dnCopy" hidden>📋 Copiar datos para transferir</button>
-            <a class="btn line" id="donateBtn" target="_blank" rel="noopener" hidden>💳 Donar con tarjeta</a>
-          </div>
-          <p class="dn-msg" id="dnMsg" role="status"></p>
-        </div>
-      </div>
-    </section>
-
-    <section class="final white">
-      <div class="wrap">
-        <h2>Corrige ya. Este finde, libre.</h2>
-        <p class="sub" style="margin-left:auto;margin-right:auto">Abre CorrigeYa, crea la hoja y prueba con una foto. En cinco minutos ves cómo funciona.</p>
-        <div class="cta">
-          <a class="btn primary" href="app/">📷 Empezar a corregir, gratis</a>
-        </div>
-      </div>
-    </section>
+    <h1>📦 Traer tus datos a CorrigeYa</h1>
+    <div id="estado"><p>Buscando lo que guardaste en este navegador…</p></div>
+    <p class="muted">Tus datos pasan directo de esta página a <b>corrigeya.cl</b>, en este mismo navegador. No se suben a ningún servidor.</p>
   </main>
-
-  <footer>
-    <div class="wrap">
-      <span>© 2026 Francesco Vivero · CorrigeYa, corrector de pruebas · Hecho en Chile</span>
-      <span class="donate-foot" hidden><a id="donateFoot" target="_blank" rel="noopener">❤ Donar</a> ·</span>
-      <span>¿Dudas? Escríbenos a @historiaycosos o @framsesk0 en Instagram · <a href="privacidad.html">Política de privacidad</a></span>
-    </div>
-  </footer>
-  <script>window.PAGINA_USO = 'corrigeya';</script>
-  <script src="js/lanzamiento.js"></script>
-  <script src="js/web.js"></script>
   <script>
-    // Precio de CorrigeYa Plus: el que se cambia en el panel /admin.
-    if (window.LectorWeb) {
-      window.LectorWeb.onConfig(function (c) {
-        if (!c || !c.precioCorto) return;
-        document.querySelectorAll('[data-precio]').forEach(function (el) { el.textContent = c.precioCorto; });
-      });
-    }
-  </script>
-  <script src="js/donaciones.js"></script>
-  <script>
-    // Donaciones: los mismos datos que la app (js/donaciones.js): transferencia
-    // directa y/o enlace de pago con tarjeta. Si no hay ninguno, no se muestra nada.
     (function () {
-      var d = window.DONACIONES || {};
-      var url = String(d.url || '').trim();
-      if (!/^https:\/\/\S+$/i.test(url)) url = '';
-      var t = d.transferencia || {};
-      var v = function (k) { return String(t[k] || '').trim(); };
-      var rows = [['Nombre', v('nombre')], ['RUT', v('rut')], ['Banco', v('banco')], ['Tipo de cuenta', v('tipo') || 'Cuenta corriente'], ['N° de cuenta', v('numero')], ['Correo', v('correo')]];
-      var transfer = v('nombre') && v('rut') && v('banco') && v('numero');
-      if (!url && !transfer) return;
-      document.getElementById('apoyar').hidden = false;
-      document.querySelector('.donate-foot').hidden = false;
-      document.getElementById('donateFoot').href = '#apoyar';
-      document.getElementById('donateFoot').removeAttribute('target');
-      if (url) {
-        var btn = document.getElementById('donateBtn');
-        btn.href = url;
-        btn.hidden = false;
+      'use strict';
+      // Únicas direcciones a las que se entregan los datos.
+      var DESTINOS = ['https://corrigeya.cl', 'https://www.corrigeya.cl'];
+      // Para probar en el computador de desarrollo (sólo si esta página corre en localhost).
+      if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) DESTINOS.push('http://localhost:8090', 'http://127.0.0.1:8090');
+      var PREFIJO = 'lectorHojas';
+      var SITIO = 'https://corrigeya.cl';
+      var ENVIADO = 'lectorHojas.mudanzaEnviada';
+      // La página equivalente en corrigeya.cl para quien llega con un enlace o favorito antiguo.
+      function equivalente() {
+        var ruta = location.pathname.replace(/^\/hojarespuestascsm/, '') || '/';
+        var destino = '/';
+        if (/^\/pro\.html/.test(ruta)) destino = '/app/';
+        else if (/^\/(privacidad\.html|admin\/|traer\.html|lector\.html|app\/)/.test(ruta)) destino = ruta;
+        return SITIO + destino + location.search + location.hash;
       }
-      if (!transfer) return;
-      var dl = document.getElementById('dnData');
-      var text = [];
-      rows.forEach(function (r) {
-        if (!r[1]) return;
-        var dt = document.createElement('dt');
-        var dd = document.createElement('dd');
-        dt.textContent = r[0];
-        dd.textContent = r[1];
-        dl.appendChild(dt);
-        dl.appendChild(dd);
-        text.push(r[0] + ': ' + r[1]);
+      function irANuevo() { location.replace(equivalente()); }
+      var BASES = ['lectorHojas', 'lectorHojasPro', 'lectorHojasPro.datos'];
+      var estado = document.getElementById('estado');
+      // La copia de esta página que queda en corrigeya.cl no sirve: tiene que correr en el sitio antiguo.
+      if (/(^|\.)corrigeya\.cl$/.test(location.hostname)) {
+        estado.innerHTML = '<p>Esta página funciona en la dirección antigua. Para traer tus datos, abre <a href="/traer.html">corrigeya.cl/traer.html</a>.</p>';
+        return;
+      }
+      var opener = window.opener;
+      var destino = null; // origen de corrigeya.cl que abrió esta página
+      var datos = null;
+      var resumen = null;
+
+      function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+      }
+      function pedido(r) {
+        return new Promise(function (ok, mal) { r.onsuccess = function () { ok(r.result); }; r.onerror = function () { mal(r.error); }; });
+      }
+      // Abre una base de datos sólo si ya existe (no crea bases vacías).
+      function abrirSiExiste(nombre) {
+        return new Promise(function (ok) {
+          var nueva = false;
+          var r;
+          try { r = indexedDB.open(nombre); } catch (e) { return ok(null); }
+          r.onupgradeneeded = function (e) { if (e.oldVersion === 0) { nueva = true; r.transaction.abort(); } };
+          r.onsuccess = function () { if (nueva) { r.result.close(); ok(null); } else ok(r.result); };
+          r.onerror = function () { ok(null); };
+          r.onblocked = function () { ok(null); };
+        });
+      }
+      function volcar(db) {
+        var out = { name: db.name, version: db.version, stores: [] };
+        var nombres = Array.prototype.slice.call(db.objectStoreNames);
+        return nombres.reduce(function (p, sn) {
+          return p.then(function () {
+            var st = db.transaction(sn, 'readonly').objectStore(sn);
+            return Promise.all([pedido(st.getAllKeys()), pedido(st.getAll())]).then(function (r) {
+              out.stores.push({
+                name: sn,
+                keyPath: st.keyPath,
+                autoIncrement: st.autoIncrement,
+                indexes: Array.prototype.map.call(st.indexNames, function (n) { var i = st.index(n); return { name: n, keyPath: i.keyPath, unique: i.unique, multiEntry: i.multiEntry }; }),
+                keys: r[0],
+                values: r[1],
+              });
+            });
+          });
+        }, Promise.resolve()).then(function () { db.close(); return out; });
+      }
+      function nombresDeBases() {
+        if (!window.indexedDB) return Promise.resolve([]);
+        if (indexedDB.databases) {
+          return indexedDB.databases().then(function (l) {
+            var n = l.map(function (d) { return d.name; }).filter(function (x) { return x && x.indexOf(PREFIJO) === 0; });
+            return n.length ? n : BASES;
+          }, function () { return BASES; });
+        }
+        return Promise.resolve(BASES);
+      }
+
+      function leerTodo() {
+        var local = {};
+        try {
+          for (var i = 0; i < localStorage.length; i++) {
+            var k = localStorage.key(i);
+            if (k && k.indexOf(PREFIJO) === 0) local[k] = localStorage.getItem(k);
+          }
+        } catch (e) { /* sin almacenamiento */ }
+        return nombresDeBases().then(function (nombres) {
+          return Promise.all(nombres.map(function (n) { return abrirSiExiste(n).then(function (db) { return db ? volcar(db).catch(function () { return null; }) : null; }); }));
+        }).then(function (bases) {
+          return { v: 1, local: local, bases: bases.filter(Boolean), desde: location.origin, at: Date.now() };
+        });
+      }
+
+      function resumir(d) {
+        var lineas = [];
+        function prueba(clave, nombre) {
+          try {
+            var s = JSON.parse(d.local[clave] || 'null');
+            if (s && s.exam) {
+              var n = Array.isArray(s.results) ? s.results.length : 0;
+              lineas.push(nombre + ': la prueba «' + (s.exam.title || 'sin título') + '»' + (n ? ' con ' + n + (n === 1 ? ' hoja corregida' : ' hojas corregidas') : ''));
+            }
+          } catch (e) { /* nada */ }
+        }
+        prueba('lectorHojas.v1', 'Lector de Hojas');
+        prueba('lectorHojasPro.v1', 'Versión Pro');
+        var kv = null;
+        d.bases.forEach(function (b) {
+          if (b.name !== 'lectorHojasPro.datos') return;
+          b.stores.forEach(function (s) {
+            if (s.name !== 'kv') return;
+            kv = {};
+            s.keys.forEach(function (k, i) { kv[k] = s.values[i]; });
+          });
+        });
+        if (kv && kv.libro && Array.isArray(kv.libro.courses) && kv.libro.courses.length) {
+          var c = kv.libro.courses.length;
+          lineas.push(c + (c === 1 ? ' curso' : ' cursos') + ' con su libro de notas');
+        }
+        if (kv && kv.biblioteca && Array.isArray(kv.biblioteca.items) && kv.biblioteca.items.length) {
+          var p = kv.biblioteca.items.length;
+          lineas.push(p + (p === 1 ? ' prueba guardada' : ' pruebas guardadas') + ' en «Mis evaluaciones»');
+        }
+        var fotos = 0;
+        d.bases.forEach(function (b) { b.stores.forEach(function (s) { if (s.name === 'images') fotos += s.values.length; }); });
+        if (fotos) lineas.push(fotos + (fotos === 1 ? ' foto de hoja' : ' fotos de hojas'));
+        var vacio = !lineas.length && !Object.keys(d.local).some(function (k) { return /\.v1$/.test(k); });
+        return { lineas: lineas, vacio: vacio };
+      }
+
+      function mostrarResumen(extra) {
+        if (resumen.vacio) {
+          estado.innerHTML = '<p>No encontramos datos del Lector de Hojas guardados en <b>este navegador</b>.</p><p>Si lo usabas en otro equipo o en otro navegador (por ejemplo, Chrome en vez de Safari), abre <b>corrigeya.cl</b> ahí y vuelve a presionar «Traer mis datos».</p>';
+          return;
+        }
+        estado.innerHTML = '<p>En este navegador encontramos:</p><ul>' + resumen.lineas.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>' + (extra || '');
+      }
+
+      function enviar(msg) {
+        if (!opener) return;
+        // Sólo llega si quien abrió esta página es corrigeya.cl (el navegador lo revisa).
+        (destino ? [destino] : DESTINOS).forEach(function (o) { try { opener.postMessage(msg, o); } catch (e) { /* otro origen */ } });
+      }
+
+      window.addEventListener('message', function (e) {
+        if (DESTINOS.indexOf(e.origin) < 0 || e.source !== opener || !e.data || typeof e.data.tipo !== 'string') return;
+        destino = e.origin;
+        if (e.data.tipo === 'lector-mudanza:hola' && resumen) enviar({ tipo: 'lector-mudanza:lista', resumen: resumen });
+        else if (e.data.tipo === 'lector-mudanza:pedir' && datos) {
+          estado.innerHTML = '<p>Enviando tus datos a corrigeya.cl…</p>';
+          enviar({ tipo: 'lector-mudanza:datos', datos: datos });
+        } else if (e.data.tipo === 'lector-mudanza:recibido') {
+          try { localStorage.setItem(ENVIADO, String(Date.now())); } catch (err) { /* nada */ }
+          estado.innerHTML = '<p class="ok">✔ Listo: tus datos ya están en corrigeya.cl.</p><p>Puedes cerrar esta pestaña.</p>';
+          setTimeout(function () { window.close(); }, 1500);
+        }
       });
-      dl.hidden = false;
-      var copy = document.getElementById('dnCopy');
-      copy.hidden = false;
-      copy.addEventListener('click', function () {
-        var msg = document.getElementById('dnMsg');
-        var done = function () { msg.textContent = '✔ Datos copiados: pégalos en la app de tu banco. ¡Gracias! 💚'; };
-        if (navigator.clipboard && window.isSecureContext) {
-          navigator.clipboard.writeText(text.join('\n')).then(done, function () { msg.textContent = 'No se pudo copiar: anota los datos de arriba.'; });
-        } else msg.textContent = 'Anota los datos de arriba para transferir.';
+
+      leerTodo().then(function (d) {
+        datos = d;
+        resumen = resumir(d);
+        if (!opener) {
+          // Llegó con un enlace antiguo: sin datos (o ya los llevó), directo a corrigeya.cl.
+          var yaEnviado = false;
+          try { yaEnviado = !!localStorage.getItem(ENVIADO); } catch (e) { /* nada */ }
+          if (resumen.vacio || yaEnviado) { irANuevo(); return; }
+          document.querySelector('h1').textContent = '📦 CorrigeYa se mudó a corrigeya.cl';
+          mostrarResumen(
+            '<p>El Lector de Hojas ahora es <b>CorrigeYa</b> y está en <b>corrigeya.cl</b>. Lleva tus datos para seguir donde quedaste:</p>' +
+            '<p><a class="btn" href="' + SITIO + '/traer.html">📦 Llevar mis datos a corrigeya.cl</a></p>' +
+            '<p class="muted"><a href="' + equivalente() + '">Ir a corrigeya.cl sin mis datos</a></p>'
+          );
+          return;
+        }
+        mostrarResumen(resumen.vacio ? '' : '<p>Vuelve a la pestaña de <b>corrigeya.cl</b> para confirmar.</p>');
+        enviar({ tipo: 'lector-mudanza:lista', resumen: resumen });
+      }, function () {
+        estado.innerHTML = '<p>Este navegador no dejó leer los datos guardados (puede pasar en una ventana de incógnito). Ábrela en una ventana normal del navegador que usabas.</p>';
       });
     })();
   </script>

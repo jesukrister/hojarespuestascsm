@@ -1,7 +1,0 @@
-• Modo Simple: sólo la hoja de respuestas y el escáner.
-• Asistente paso a paso para crear la prueba y botón Aa para ver más grande.
-• Aviso grande con el nombre y la nota de cada hoja (y en voz alta, si quieres).
-• Una prueba para varios cursos: las hojas y las notas se dividen por curso.
-• Nube opcional: tus cursos y notas se guardan solos.
-• Filas B, C y D sin escribir las preguntas; sin hoja en blanco al imprimir.
-• ¿Algo no funciona? Escríbeme a @historiaycosos o @framsesk0 en Instagram.
