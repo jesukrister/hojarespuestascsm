@@ -126,6 +126,7 @@
     .plan li::before { content: '✔ '; color: var(--ok); font-weight: 800; }
     .plan.pro .tag { color: var(--primary); }
     .plan-note { margin: -4px 0 10px; color: var(--muted); }
+    .plan-small { display: block; margin-top: 8px; color: var(--muted); font-size: 0.9rem; text-align: center; }
     .btn.soon { background: var(--primary-soft); color: var(--primary); cursor: default; }
     .badge { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 6px; background: linear-gradient(135deg, #d69e2e, #b7791f); color: #fff; font-size: 0.75rem; font-weight: 800; vertical-align: middle; }
 
@@ -303,7 +304,7 @@
           </div>
           <div class="plan pro">
             <h3>CorrigeYa <span class="badge">PLUS</span></h3>
-            <span class="tag">$1.990 al mes · Próximamente</span>
+            <span class="tag">$1.990 al mes · Vista previa</span>
             <p class="plan-note">Todo lo gratis, y además tu trabajo docente ordenado:</p>
             <ul>
               <li>📅 Agenda: pruebas, clases, reuniones y entregas en un calendario</li>
@@ -313,7 +314,8 @@
               <li>📨 Informes de notas para apoderados, listos para enviar</li>
               <li>🔔 Recordatorios: notas pendientes y cierre de semestre</li>
             </ul>
-            <span class="btn soon">Muy pronto</span>
+            <a class="btn primary" href="../pro.html?plus=1">👀 Probar la vista previa</a>
+            <small class="plan-small">Gratis mientras está en vista previa. Por ahora: agenda, recordatorios y horario.</small>
           </div>
         </div>
       </div>
