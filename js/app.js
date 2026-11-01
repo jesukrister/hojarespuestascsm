@@ -5615,8 +5615,38 @@
     };
   }
 
+  /** Versión normal, con CorrigeYa lanzado (js/lanzamiento.js): invita a pasarse a CorrigeYa. */
+  function moveNotice() {
+    const cfg = window.LANZAMIENTO || {};
+    if (PRO || !cfg.corrigeya) return;
+    const KEY = 'lectorHojas.avisoCorrigeYa';
+    try {
+      if (Date.now() - Number(localStorage.getItem(KEY) || 0) < 3 * 86400000) return;
+    } catch (e) {
+      /* sin almacenamiento: se muestra */
+    }
+    const inApp = !!window.NativeApp || document.documentElement.classList.contains('native-app');
+    $('#moveGo').href = inApp ? cfg.appPlay : 'pro.html';
+    $('#moveGo').textContent = inApp ? 'Instalar CorrigeYa (Google Play)' : 'Abrir CorrigeYa';
+    $('#moveData').textContent = inApp
+      ? 'Para llevar tu prueba: en Prueba → ⋯ → «Exportar configuración», y en CorrigeYa → ⋯ → «Importar configuración».'
+      : 'Tu prueba y tus hojas corregidas se pueden traer a CorrigeYa: al abrirla, te lo ofrece.';
+    $('#moveLater').onclick = () => {
+      try {
+        localStorage.setItem(KEY, String(Date.now()));
+      } catch (e) {
+        /* sin almacenamiento */
+      }
+      $('#moveDialog').close();
+    };
+    setTimeout(() => {
+      if (!document.querySelector('dialog[open]')) $('#moveDialog').showModal();
+    }, 800);
+  }
+
   bind();
   applyView();
+  moveNotice();
   renderDonation();
   fillExamForm();
   renderKey();

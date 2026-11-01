@@ -54,7 +54,8 @@
   let reloading = false;
 
   const api = () => N.Api(serverUrl(), { token: meta && meta.sesion, device: device() });
-  const signedIn = () => !!(meta && meta.sesion);
+  // Con CorrigeYa lanzado, la nube es parte de Plus: sin Plus no se sincroniza (la sesión se guarda).
+  const signedIn = () => !!(meta && meta.sesion) && (!Pro.plus || Pro.plus.allows('nube'));
 
   async function saveMeta() {
     try {

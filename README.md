@@ -153,6 +153,14 @@ pestañas, manual…) es el mismo código, así que las mejoras llegan a las dos
   simple deja sólo la hoja de respuestas y el escáner (sin Preguntas, Cursos,
   OA, desarrollo, PIE, análisis, informes, Mis evaluaciones ni nube); sólo
   esconde partes de la pantalla, los datos son los mismos.
+- **Lanzamiento de CorrigeYa** (apagado, `js/lanzamiento.js`): una sola app
+  (la Pro) con la suscripción **CorrigeYa Plus** adentro. Encendido, la Pro se
+  llama CorrigeYa (también en el teléfono), Excel, informes, nube, modo simple
+  y agenda piden Plus (cuadro «⭐ CorrigeYa Plus»), en Android se paga con
+  Google Play (`SuscripcionPlugin.java`, Play Billing 7) y la versión normal
+  invita a pasarse. Se prueba en un equipo con `?lanzamiento=1`. Pasos en
+  [`docs/lanzamiento-corrigeya.md`](docs/lanzamiento-corrigeya.md); para dejar
+  el repositorio privado, [`docs/repositorio-privado.md`](docs/repositorio-privado.md).
 - **CorrigeYa Plus (vista previa oculta)**: funciones de pago en preparación
   ($1.990 al mes). Por ahora sólo se ven en el equipo donde se abre la app con
   `?plus=1` al final de la dirección (`?plus=0` las quita):
@@ -639,7 +647,9 @@ entregar una corrección equivocada sin avisar.
 | `js/pro/biblioteca-core.js`, `js/pro/biblioteca.js` | Mis evaluaciones: pruebas guardadas en carpetas |
 | `js/pro/nube-core.js`, `js/pro/nube.js` | Nube: cuenta, sincronización y combinación de cambios de dos equipos |
 | `js/pro/modo.js` | Modo simple / avanzado |
-| `js/pro/plus.js` | CorrigeYa Plus: vista previa (más adelante, la suscripción) |
+| `js/lanzamiento.js` | Interruptor del lanzamiento de CorrigeYa (nombre y reparto gratis/Plus) |
+| `js/pro/plus.js` | CorrigeYa Plus: quién lo tiene, funciones que lo piden, cuadro para suscribirse, marca CorrigeYa |
+| `android/app/src/pro/java/…/SuscripcionPlugin.java` | Suscripción Plus con Google Play (sólo app Pro) |
 | `js/pro/agenda-core.js`, `js/pro/agenda.js` | Plus: agenda, recordatorios, horario semanal y calendario .ics |
 | `nube/lector-nube.mjs`, `nube/correo.gs`, `nube/GUIA.md` | Servidor de la nube (Cloudflare Worker + D1), correos con código (Apps Script) y guía para activarlo |
 | `vendor/pdf/` | pdf.js (lectura de PDF en la versión Pro; en Android sólo va en la app Pro) |

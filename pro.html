@@ -93,6 +93,7 @@
               <button type="button" role="radio" data-modo-set="avanzado">🔷 Avanzado</button>
             </span>
             <small id="proModeInfo" class="muted"></small>
+            <button type="button" class="plus-chip" id="plusChip" hidden>⭐ Hazte Plus</button>
           </div>
         </div>
         <div class="home-tiles">
@@ -1570,7 +1571,7 @@ Núcleo = Contiene el material genético</pre>
             <details><summary>¿Puedo usar fotocopias?</summary>
               <p>Sí, siempre que los cuadrados negros se vean negros y nítidos.</p></details>
             <details><summary>¿Hay una app para el celular?</summary>
-              <p>Sí, para Android. Desde el teléfono, entra a la página de descargas del proyecto (<a href="https://github.com/jesukrister/hojarespuestascsm/releases/tag/app-android" target="_blank" rel="noopener">Releases → App Android</a>), descarga <b>LectorHojas.apk</b> y ábrelo. Android pedirá permiso para instalar apps de esa fuente: acéptalo solo para esta instalación. En la app, los archivos (Excel, ZIP, PDF) se guardan en <b>Descargas/LectorHojas</b> y se pueden compartir; para imprimir se usa el servicio de impresión del teléfono, que también permite <b>Guardar como PDF</b>. Para actualizar, instala el APK nuevo encima del anterior: tus pruebas y resultados se conservan.</p></details>
+              <p>Sí, para Android, en <b>Google Play</b>. Mientras está en prueba, pide acceso por Instagram a <b>@historiaycosos</b> o <b>@framsesk0</b> y te enviamos el enlace para instalarla. En la app, los archivos (Excel, ZIP, PDF) se guardan en <b>Descargas/LectorHojas</b> y se pueden compartir; para imprimir se usa el servicio de impresión del teléfono, que también permite <b>Guardar como PDF</b>. Las actualizaciones llegan solas desde Google Play y tus pruebas y resultados se conservan.</p></details>
             <details><summary>¿Necesito internet?</summary>
               <p>Solo para abrir la página. La lectura de las fotos se hace en tu equipo: las imágenes no se envían a ningún servidor.</p></details>
           </div>
@@ -1607,6 +1608,16 @@ Núcleo = Contiene el material genético</pre>
       <button type="button" class="btn ghost" id="dnClose">Cerrar</button>
     </div>
     <p class="muted small">Copia los datos y pégalos en la app de tu banco para agregar el destinatario.</p>
+  </dialog>
+
+  <dialog id="moveDialog" class="el-dialog move-dialog" aria-labelledby="moveTitle">
+    <h2 id="moveTitle">✨ Lector de Hojas ahora es CorrigeYa</h2>
+    <p>La app sigue siendo <b>gratis para corregir</b>, ahora con cursos y libro de notas, escaneo continuo y más. Esta versión ya no recibirá novedades.</p>
+    <p id="moveData" class="muted small"></p>
+    <div class="actions">
+      <a class="btn primary big" id="moveGo">Abrir CorrigeYa</a>
+      <button type="button" class="btn ghost" id="moveLater">Seguir aquí por ahora</button>
+    </div>
   </dialog>
 
   <dialog id="wizDialog" class="el-dialog wiz" aria-labelledby="wizQ">
@@ -1810,6 +1821,33 @@ Núcleo = Contiene el material genético</pre>
   <div id="printArea" class="print-area" aria-hidden="true"></div>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
+  <dialog id="plusDialog" class="el-dialog pro-dialog plus-dialog" aria-labelledby="plusTitle">
+    <div class="el-head">
+      <h2 id="plusTitle">⭐ CorrigeYa Plus</h2>
+      <button type="button" class="btn ghost small" data-pro-close aria-label="Cerrar">✕</button>
+    </div>
+    <div class="pro-dialog-body">
+      <p id="plusWhy" class="plus-why"></p>
+      <p class="plus-price"><b id="plusPrice">$1.990 al mes</b> · cancelas cuando quieras</p>
+      <ul class="plus-list">
+        <li>📊 Excel y evidencias (ZIP con cada hoja corregida)</li>
+        <li>📄 Informes por estudiante y para UTP</li>
+        <li>☁️ Guardado en la nube: el celular y el computador al día</li>
+        <li>🟢 Modo simple: sólo la hoja y el escáner</li>
+        <li>📅 Agenda, recordatorios y horario semanal</li>
+      </ul>
+      <p class="muted small">Corregir pruebas, los cursos y el libro de notas siguen siendo gratis.</p>
+      <p id="plusWebNote" class="alert" hidden>En la web todavía no se puede pagar. Contrata Plus desde la app <b>CorrigeYa</b> de Android (<a id="plusPlayLink" target="_blank" rel="noopener">Google Play</a>); muy pronto también con tarjeta aquí.</p>
+      <p id="plusMsg" class="plus-msg" role="status"></p>
+    </div>
+    <div class="el-foot">
+      <button type="button" class="btn ghost" id="plusRestore">Ya pagué: revisar</button>
+      <button type="button" class="btn ghost" id="plusManage" hidden>Administrar o cancelar</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn ghost" data-pro-close>Ahora no</button>
+      <button type="button" class="btn primary" id="plusBuy">⭐ Suscribirme</button>
+    </div>
+  </dialog>
   <dialog id="agEventDialog" class="el-dialog pro-dialog ag-dialog" aria-labelledby="agEventTitle">
     <div class="el-head">
       <h2 id="agEventTitle">Agregar a la agenda</h2>
@@ -2166,6 +2204,7 @@ Núcleo = Contiene el material genético</pre>
     </div>
   </dialog>
 
+  <script src="js/lanzamiento.js"></script>
   <script src="js/native.js"></script>
   <script src="js/layout.js"></script>
   <script src="js/omr.js"></script>
@@ -2183,9 +2222,9 @@ Núcleo = Contiene el material genético</pre>
   <script src="js/pro/copias-core.js"></script>
   <script src="js/pro/comun.js"></script>
   <script src="js/pro/libro.js"></script>
+  <script src="js/pro/plus.js"></script>
   <script src="js/pro/modo.js"></script>
   <script src="js/pro/agenda-core.js"></script>
-  <script src="js/pro/plus.js"></script>
   <script src="js/pro/agenda.js"></script>
   <script src="js/pro/respaldo.js"></script>
   <script src="js/pro/copias.js"></script>

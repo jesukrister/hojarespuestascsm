@@ -1143,3 +1143,8 @@ html[data-tema="oscuro"] .tour-close { background: var(--surface-2); color: var(
 html[data-tema="oscuro"] .tour-or { color: var(--muted); }
 html[data-tema="oscuro"] .tour-bubble[data-arrow="up"]::before { border-bottom-color: var(--surface); }
 html[data-tema="oscuro"] .tour-bubble[data-arrow="down"]::before { border-top-color: var(--surface); }
+
+/* ---------- Aviso «ahora es CorrigeYa» (versión normal) ---------- */
+.el-dialog.move-dialog { width: min(480px, calc(100vw - 24px)); padding: 24px; }
+.move-dialog h2 { margin-top: 0; }
+.move-dialog .actions { display: grid; gap: 8px; }

@@ -46,7 +46,15 @@
     render();
   }
 
+  /** Con CorrigeYa lanzado, el modo simple es parte de Plus. */
+  const simpleAllowed = () => !Pro.plus || Pro.plus.allows('simple');
+
   function set(mode, quiet) {
+    if (mode === 'simple' && !simpleAllowed()) {
+      render();
+      Pro.plus.upsell('simple');
+      return;
+    }
     try {
       localStorage.setItem(KEY, mode);
     } catch (e) {
@@ -79,7 +87,12 @@
   });
 
   // La primera vez se pregunta cómo usar la app (quien ya tiene cursos o notas ve marcada la avanzada).
-  apply(stored() || current());
+  const start = stored() || current();
+  apply(start === 'simple' && !simpleAllowed() ? 'avanzado' : start);
+  // Si se activa Plus y había elegido el modo simple, vuelve a él.
+  if (Pro.plus) Pro.plus.onChange(() => {
+    if (stored() === 'simple' && simpleAllowed() && current() !== 'simple') apply('simple');
+  });
   Pro.ready.then(() => {
     if (stored()) return;
     const busy = Pro.book.courses.length > 0 || app.state.results.length > 0;

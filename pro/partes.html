@@ -26,6 +26,7 @@
     <button type="button" role="radio" data-modo-set="avanzado">🔷 Avanzado</button>
   </span>
   <small id="proModeInfo" class="muted"></small>
+  <button type="button" class="plus-chip" id="plusChip" hidden>⭐ Hazte Plus</button>
 </div>
 
 <!-- @@ inicio -->
@@ -741,6 +742,33 @@
 </article>
 
 <!-- @@ dialogs -->
+<dialog id="plusDialog" class="el-dialog pro-dialog plus-dialog" aria-labelledby="plusTitle">
+  <div class="el-head">
+    <h2 id="plusTitle">⭐ CorrigeYa Plus</h2>
+    <button type="button" class="btn ghost small" data-pro-close aria-label="Cerrar">✕</button>
+  </div>
+  <div class="pro-dialog-body">
+    <p id="plusWhy" class="plus-why"></p>
+    <p class="plus-price"><b id="plusPrice">$1.990 al mes</b> · cancelas cuando quieras</p>
+    <ul class="plus-list">
+      <li>📊 Excel y evidencias (ZIP con cada hoja corregida)</li>
+      <li>📄 Informes por estudiante y para UTP</li>
+      <li>☁️ Guardado en la nube: el celular y el computador al día</li>
+      <li>🟢 Modo simple: sólo la hoja y el escáner</li>
+      <li>📅 Agenda, recordatorios y horario semanal</li>
+    </ul>
+    <p class="muted small">Corregir pruebas, los cursos y el libro de notas siguen siendo gratis.</p>
+    <p id="plusWebNote" class="alert" hidden>En la web todavía no se puede pagar. Contrata Plus desde la app <b>CorrigeYa</b> de Android (<a id="plusPlayLink" target="_blank" rel="noopener">Google Play</a>); muy pronto también con tarjeta aquí.</p>
+    <p id="plusMsg" class="plus-msg" role="status"></p>
+  </div>
+  <div class="el-foot">
+    <button type="button" class="btn ghost" id="plusRestore">Ya pagué: revisar</button>
+    <button type="button" class="btn ghost" id="plusManage" hidden>Administrar o cancelar</button>
+    <span class="spacer"></span>
+    <button type="button" class="btn ghost" data-pro-close>Ahora no</button>
+    <button type="button" class="btn primary" id="plusBuy">⭐ Suscribirme</button>
+  </div>
+</dialog>
 <dialog id="agEventDialog" class="el-dialog pro-dialog ag-dialog" aria-labelledby="agEventTitle">
   <div class="el-head">
     <h2 id="agEventTitle">Agregar a la agenda</h2>
@@ -1103,9 +1131,9 @@
 <script src="js/pro/copias-core.js"></script>
 <script src="js/pro/comun.js"></script>
 <script src="js/pro/libro.js"></script>
+<script src="js/pro/plus.js"></script>
 <script src="js/pro/modo.js"></script>
 <script src="js/pro/agenda-core.js"></script>
-<script src="js/pro/plus.js"></script>
 <script src="js/pro/agenda.js"></script>
 <script src="js/pro/respaldo.js"></script>
 <script src="js/pro/copias.js"></script>

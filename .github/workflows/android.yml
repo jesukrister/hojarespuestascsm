@@ -65,6 +65,10 @@ jobs:
           node scripts/build-pro.js
           node scripts/build-www.mjs
           npx cap sync android
+          # Lanzamiento de CorrigeYa (js/lanzamiento.js): la app Pro pasa a llamarse CorrigeYa.
+          if grep -qE "^\s*corrigeya: true," js/lanzamiento.js; then
+            sed -i 's/Lector Hojas Pro/CorrigeYa/g' android/app/src/pro/res/values/strings.xml
+          fi
 
       # Llave privada de firma: se guarda en los secretos del repositorio
       # (Settings → Secrets and variables → Actions): KEYSTORE_BASE64 y

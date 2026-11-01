@@ -619,3 +619,16 @@ html:not([data-plus]) .tab-plus, html[data-modo="simple"] .tab-plus { display: n
 @media (max-width: 900px) { .ag-cols { grid-template-columns: 1fr; } }
 html[data-tema="oscuro"] .ag-now-card { border-color: #2c6b3f; }
 @media (max-width: 1320px) { html[data-plus]:not([data-modo="simple"]) .brand-long { display: none; } }
+
+/* ---------- CorrigeYa Plus: cuadro, botón y funciones marcadas ---------- */
+.logo-cy { width: 36px; height: 36px; flex: none; }
+.plus-chip { grid-column: 1 / -1; justify-self: end; border: 0; border-radius: 999px; padding: 6px 14px; font: inherit; font-weight: 800; font-size: 0.9rem; background: linear-gradient(135deg, #2f8f5b, #17733a); color: #fff; cursor: pointer; }
+.plus-chip.on { background: var(--ok-soft); color: var(--ok); }
+.plus-dialog { width: min(520px, calc(100vw - 24px)); }
+.plus-why { font-size: 1.05rem; font-weight: 600; margin: 0 0 8px; }
+.plus-price { margin: 0 0 10px; }
+.plus-price b { font-size: 1.3rem; color: var(--ok); }
+.plus-list { margin: 0 0 10px; padding: 0; list-style: none; display: grid; gap: 6px; }
+.plus-msg { min-height: 1.2em; margin: 8px 0 0; font-weight: 600; color: var(--primary); }
+html[data-plus-gate] :is(#btnExportZip, #btnExportFolder, #btnExportCsv, #proExcel, #proReportTest, #proReportCourse, .pro-fb [data-fb-pdf])::after { content: ' ⭐ Plus'; font-size: 0.8em; font-weight: 800; color: var(--ok); }
+@media (max-width: 560px) { .plus-chip { justify-self: start; } }
