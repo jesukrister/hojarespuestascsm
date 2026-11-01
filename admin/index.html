@@ -228,6 +228,23 @@
             <p class="form__nota">Enciéndelo al lanzar CorrigeYa. Lo revisa el servidor, así que nadie se lo puede saltar. Quien no tenga Plus no pierde nada: sus datos quedan en la nube y en su equipo, y vuelven a guardarse al activar Plus. Antes, configura la verificación de Google Play (<code>nube/GUIA.md</code>, paso 10); si no, quienes paguen en la app no podrán guardar en la nube.</p>
           </div>
           <div class="panel">
+            <h2>Prueba gratis y referidos</h2>
+            <label class="check"><input type="checkbox" id="cfgPrueba"> <span>Ofrecer la prueba gratis de Plus (una vez por correo, con cuenta de la nube)</span></label>
+            <label class="check"><input type="checkbox" id="cfgReferidos"> <span>Premiar a quien invita colegas (por cada cuenta nueva creada con su enlace)</span></label>
+            <div class="form__grid">
+              <label>Días de prueba gratis
+                <input type="number" id="cfgDiasPrueba" min="1" max="90" required>
+              </label>
+              <label>Días por cada colega invitado
+                <input type="number" id="cfgDiasReferido" min="1" max="365" required>
+              </label>
+              <label>Máximo de premios por persona al año
+                <input type="number" id="cfgMaxReferidos" min="0" max="365" required>
+              </label>
+            </div>
+            <p class="form__nota">Se ven en la app al lanzar CorrigeYa (antes todo es gratis). Los días regalados se suman a los que la persona ya tenga. Un mismo correo sólo puede usar una vez la prueba y sólo cuenta una vez como invitado, aunque borre su cuenta y cree otra.</p>
+          </div>
+          <div class="panel">
             <h2>Códigos y estadísticas</h2>
             <label class="check"><input type="checkbox" id="cfgCanje"> <span>Permitir canjear códigos de Plus en la página</span></label>
             <label class="check"><input type="checkbox" id="cfgEstadisticas"> <span>Contar visitas y hojas (anónimo)</span></label>

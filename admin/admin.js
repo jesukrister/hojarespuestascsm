@@ -356,6 +356,9 @@
       <dt>Cuentas con Plus de Google Play</dt><dd>${miles(res.plus.cuentasPlay)}</dd>
       <dt>Verificación de Google Play</dt><dd>${res.plus.googleConfigurado ? '✔ Configurada' : '✖ Falta GOOGLE_CUENTA_SERVICIO (nube/GUIA.md, paso 10)'}</dd>
       <dt>La nube pide Plus</dt><dd>${res.config.nubePlus ? 'Sí' : 'No (todavía gratis)'}</dd>
+      <dt>En prueba gratis ahora</dt><dd>${miles(res.plus.enPrueba)}</dd>
+      <dt>Colegas invitados (30 días)</dt><dd>${miles(res.plus.referidos30)}</dd>
+      <dt>Días regalados por invitar (30 días)</dt><dd>${miles(res.plus.diasRegalados30)}</dd>
       <dt>Canje de códigos</dt><dd>${res.config.canje ? 'Permitido' : 'Apagado'}</dd>
       <dt>Suscripciones en Google Play</dt><dd><a href="https://play.google.com/console" target="_blank" rel="noopener">Ver en Play Console ↗</a></dd>`;
   }
@@ -580,6 +583,11 @@
     $('#cfgCanje').checked = !!c.canje;
     $('#cfgEstadisticas').checked = !!c.estadisticas;
     $('#cfgNubePlus').checked = !!c.nubePlus;
+    $('#cfgPrueba').checked = !!c.prueba;
+    $('#cfgReferidos').checked = !!c.referidos;
+    $('#cfgDiasPrueba').value = c.diasPrueba;
+    $('#cfgDiasReferido').value = c.diasReferido;
+    $('#cfgMaxReferidos').value = c.maxReferidos;
     $('#cfgAvisoActivo').checked = !!c.aviso.activo;
     $('#cfgAvisoTexto').value = c.aviso.texto || '';
     $('#cfgAvisoEnlace').value = c.aviso.enlace || '';
@@ -610,6 +618,11 @@
         canje: $('#cfgCanje').checked,
         estadisticas: $('#cfgEstadisticas').checked,
         nubePlus: $('#cfgNubePlus').checked,
+        prueba: $('#cfgPrueba').checked,
+        referidos: $('#cfgReferidos').checked,
+        diasPrueba: Number($('#cfgDiasPrueba').value),
+        diasReferido: Number($('#cfgDiasReferido').value),
+        maxReferidos: Number($('#cfgMaxReferidos').value),
         aviso: { activo: $('#cfgAvisoActivo').checked, texto: $('#cfgAvisoTexto').value, enlace },
       });
       $('#mainError').hidden = true;

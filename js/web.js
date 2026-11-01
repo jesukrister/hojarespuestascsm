@@ -45,6 +45,25 @@
 
   const pagina = window.PAGINA_USO || (document.documentElement.dataset.edition === 'pro' ? 'pro' : 'normal');
 
+  /* ---------- Enlace de invitación (?ref=CÓDIGO) ---------- */
+
+  // Quien llega con el enlace de un colega: se guarda el código hasta que cree su cuenta de
+  // la nube (entonces js/pro/plus.js se lo pasa al servidor y el colega gana días de Plus).
+  if (!enApp) {
+    try {
+      const u = new URL(location.href);
+      const ref = u.searchParams.get('ref');
+      if (ref !== null) {
+        const codigo = ref.toUpperCase().replace(/[^0-9A-Z]/g, '');
+        if (/^[2-9A-HJ-NP-Z]{8}$/.test(codigo)) store.set('lectorHojas.ref', JSON.stringify({ codigo, at: Date.now() }));
+        u.searchParams.delete('ref');
+        history.replaceState(null, '', u.pathname + u.search + u.hash);
+      }
+    } catch (e) {
+      /* sin enlace */
+    }
+  }
+
   /* ---------- Traer los datos de la dirección antigua (traer.html) ---------- */
 
   // En corrigeya.cl, quien llega sin datos ve un aviso para traer lo que guardó en

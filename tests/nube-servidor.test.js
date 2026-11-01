@@ -388,6 +388,11 @@ test('nube servidor: estadísticas de uso de la página web', opts, async () => 
 async function nuevaCuenta(s, correo) {
   const clave = await NC.passwordHash(correo, 'clave segura 123');
   s.newIp();
+  try {
+    s.env.DB.raw.exec('UPDATE envios SET t = t - 120000'); // el límite de un código por minuto
+  } catch (e) {
+    /* aún no hay tablas */
+  }
   let r = await s.call('POST', '/codigo', { body: { correo, motivo: 'crear' } });
   assert.equal(r.status, 200, r.text);
   const codigo = s.mails[s.mails.length - 1].codigo;
@@ -406,7 +411,7 @@ test('nube servidor: Plus en la cuenta (códigos) y la nube que pide Plus', opts
     // Sin Plus y con la nube libre (antes del lanzamiento): se guarda igual.
     assert.equal((await s.call('GET', '/datos', { token: sesion })).status, 200);
     let r = await s.call('GET', '/plus', { token: sesion });
-    assert.deepEqual(r.json, { activa: false, hasta: null, origen: null });
+    assert.deepEqual([r.json.activa, r.json.hasta, r.json.origen], [false, null, null]);
 
     // Encender «la nube pide Plus»: sin Plus responde 402 y no guarda.
     await s.call('POST', '/admin/config', { token: admin, body: { nubePlus: true } });
@@ -507,6 +512,106 @@ test('nube servidor: suscripción de Google Play confirmada con Google y unida a
     assert.match(r.json.error, /GOOGLE_CUENTA_SERVICIO/);
   } finally {
     globalThis.fetch = anterior;
+    s.restore();
+  }
+});
+
+test('nube servidor: prueba gratis de 7 días, una vez por correo', opts, async () => {
+  const s = await setup();
+  try {
+    s.env.ADMIN_CLAVE = 'clave-del-panel-larga';
+    const admin = (await s.call('POST', '/admin/entrar', { body: { clave: 'clave-del-panel-larga' } })).json.token;
+    await s.call('POST', '/admin/config', { token: admin, body: { nubePlus: true } });
+    let sesion = await nuevaCuenta(s, 'profe@gmail.com');
+    let r = await s.call('GET', '/plus', { token: sesion });
+    assert.equal(r.json.activa, false);
+    assert.deepEqual(r.json.prueba, { disponible: true, dias: 7 });
+    assert.deepEqual(r.json.referidos, { activos: true, dias: 15 });
+
+    r = await s.call('POST', '/plus/prueba', { token: sesion });
+    assert.equal(r.status, 200, r.text);
+    assert.equal(r.json.activa, true);
+    assert.equal(r.json.origen, 'prueba');
+    assert.ok(Math.abs(r.json.hasta - (Date.now() + 7 * 864e5)) < 60000);
+    assert.equal(r.json.prueba.disponible, false);
+    assert.equal((await s.call('GET', '/datos', { token: sesion })).status, 200, 'con la prueba guarda en la nube');
+    assert.equal((await s.call('POST', '/plus/prueba', { token: sesion })).status, 409);
+    assert.equal((await s.call('GET', '/admin/resumen', { token: admin })).json.plus.enPrueba, 1);
+
+    // Borrar la cuenta y crearla otra vez con el mismo correo: no hay otra prueba.
+    const clave = await NC.passwordHash('profe@gmail.com', 'clave segura 123');
+    assert.equal((await s.call('POST', '/borrar-cuenta', { token: sesion, body: { clave } })).status, 200);
+    sesion = await nuevaCuenta(s, 'profe@gmail.com');
+    r = await s.call('GET', '/plus', { token: sesion });
+    assert.equal(r.json.activa, false);
+    assert.equal(r.json.prueba.disponible, false);
+    assert.equal((await s.call('POST', '/plus/prueba', { token: sesion })).status, 409);
+
+    // Apagada desde el panel, o con otros días.
+    await s.call('POST', '/admin/config', { token: admin, body: { diasPrueba: 14 } });
+    const otra = await nuevaCuenta(s, 'otra@gmail.com');
+    assert.equal((await s.call('GET', '/plus', { token: otra })).json.prueba.dias, 14);
+    await s.call('POST', '/admin/config', { token: admin, body: { prueba: false } });
+    assert.equal((await s.call('POST', '/plus/prueba', { token: otra })).status, 403);
+  } finally {
+    s.restore();
+  }
+});
+
+test('nube servidor: referidos (15 días por colega que crea su cuenta)', opts, async () => {
+  const s = await setup();
+  try {
+    s.env.ADMIN_CLAVE = 'clave-del-panel-larga';
+    const admin = (await s.call('POST', '/admin/entrar', { body: { clave: 'clave-del-panel-larga' } })).json.token;
+    const ana = await nuevaCuenta(s, 'ana@gmail.com');
+    let r = await s.call('GET', '/referidos', { token: ana });
+    assert.equal(r.status, 200, r.text);
+    const codigo = r.json.codigo;
+    assert.match(codigo, /^[2-9A-HJ-NP-Z]{8}$/);
+    assert.equal((await s.call('GET', '/referidos', { token: ana })).json.codigo, codigo, 'siempre el mismo código');
+    assert.equal(r.json.invitados, 0);
+
+    // A sí misma: no.
+    assert.equal((await s.call('POST', '/referidos/usar', { token: ana, body: { codigo } })).json.ok, false);
+
+    // Una colega nueva con el enlace: Ana gana 15 días (y se suman con su prueba).
+    await s.call('POST', '/plus/prueba', { token: ana });
+    const finPrueba = (await s.call('GET', '/plus', { token: ana })).json.hasta;
+    const bea = await nuevaCuenta(s, 'bea@gmail.com');
+    r = await s.call('POST', '/referidos/usar', { token: bea, body: { codigo: codigo.toLowerCase() } });
+    assert.equal(r.status, 200, r.text);
+    assert.deepEqual(r.json, { ok: true, premiado: true });
+    r = await s.call('GET', '/plus', { token: ana });
+    assert.ok(Math.abs(r.json.hasta - (finPrueba + 15 * 864e5)) < 60000, 'los días se suman al final de la prueba');
+    // Bea no puede usarlo otra vez ni con otro código.
+    assert.equal((await s.call('POST', '/referidos/usar', { token: bea, body: { codigo } })).json.ok, false);
+    r = await s.call('GET', '/referidos', { token: ana });
+    assert.equal(r.json.invitados, 1);
+    assert.equal(r.json.premiados, 1);
+    assert.equal(r.json.diasGanados, 15);
+
+    // Cuenta antigua (más de 3 días): no cuenta como invitada.
+    const caro = await nuevaCuenta(s, 'caro@gmail.com');
+    s.env.DB.raw.prepare("UPDATE cuentas SET creado = creado - 5 * 86400000 WHERE correo = 'caro@gmail.com'").run();
+    assert.equal((await s.call('POST', '/referidos/usar', { token: caro, body: { codigo } })).json.ok, false);
+
+    // Bea borra su cuenta y la crea de nuevo: no vuelve a contar.
+    const claveBea = await NC.passwordHash('bea@gmail.com', 'clave segura 123');
+    await s.call('POST', '/borrar-cuenta', { token: bea, body: { clave: claveBea } });
+    const bea2 = await nuevaCuenta(s, 'bea@gmail.com');
+    assert.equal((await s.call('POST', '/referidos/usar', { token: bea2, body: { codigo } })).json.ok, false);
+
+    // Tope por año: con máximo 1, el segundo invitado se anota pero no da días.
+    await s.call('POST', '/admin/config', { token: admin, body: { maxReferidos: 1 } });
+    const dani = await nuevaCuenta(s, 'dani@gmail.com');
+    assert.deepEqual((await s.call('POST', '/referidos/usar', { token: dani, body: { codigo } })).json, { ok: true, premiado: false });
+    r = await s.call('GET', '/referidos', { token: ana });
+    assert.equal(r.json.invitados, 2);
+    assert.equal(r.json.premiados, 1);
+    assert.equal(r.json.restantesAnio, 0);
+    assert.equal((await s.call('GET', '/admin/resumen', { token: admin })).json.plus.referidos30, 2);
+    assert.equal((await s.call('POST', '/referidos/usar', { token: dani, body: { codigo: 'nada' } })).status, 400);
+  } finally {
     s.restore();
   }
 });

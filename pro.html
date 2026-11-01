@@ -1838,6 +1838,10 @@ Núcleo = Contiene el material genético</pre>
         <li>📅 Agenda, recordatorios y horario semanal</li>
       </ul>
       <p class="muted small">Corregir pruebas, los cursos y el libro de notas siguen siendo gratis.</p>
+      <div class="plus-trial" id="plusTrial" hidden>
+        <button type="button" class="btn primary" id="plusTrialGo">🎁 Probar Plus gratis 7 días</button>
+        <p class="muted small" id="plusTrialNote">Sin tarjeta y sin compromiso.</p>
+      </div>
       <p id="plusWebNote" class="alert" hidden>En la web todavía no se puede pagar. Contrata Plus desde la app <b>CorrigeYa</b> de Android (<a id="plusPlayLink" target="_blank" rel="noopener">Google Play</a>); muy pronto también con tarjeta aquí.</p>
       <div class="plus-code" id="plusCodeBox" hidden>
         <label for="plusCode">¿Tienes un código de CorrigeYa Plus?</label>
@@ -1847,6 +1851,19 @@ Núcleo = Contiene el material genético</pre>
         </div>
       </div>
       <p id="plusCodeInfo" class="plus-code-info" hidden></p>
+      <div class="plus-ref" id="plusRef" hidden>
+        <h3>🤝 Invita a tus colegas y gana Plus</h3>
+        <p id="plusRefWhy">Por cada colega que cree su cuenta con tu enlace, ganas <b>15 días</b> de Plus gratis.</p>
+        <div class="plus-code-row" id="plusRefRow" hidden>
+          <input id="plusRefLink" type="text" readonly aria-label="Tu enlace de invitación">
+          <button type="button" class="btn" id="plusRefCopy">Copiar</button>
+        </div>
+        <p class="plus-ref-actions">
+          <a class="btn small" id="plusRefWa" target="_blank" rel="noopener" hidden>💬 Enviar por WhatsApp</a>
+          <button type="button" class="btn small" id="plusRefLogin" hidden>☁️ Crear mi cuenta para invitar</button>
+        </p>
+        <p class="muted small" id="plusRefStats"></p>
+      </div>
       <p id="plusMsg" class="plus-msg" role="status"></p>
     </div>
     <div class="el-foot">

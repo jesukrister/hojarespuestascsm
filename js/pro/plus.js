@@ -30,6 +30,8 @@
   const PLAY_KEY = 'lectorHojasPro.plusPlay';
   const CODE_KEY = 'lectorHojasPro.plusCodigo';
   const ACCOUNT_KEY = 'lectorHojasPro.plusCuenta';
+  const REF_KEY = 'lectorHojas.ref'; // código de quien invitó (lo guarda js/web.js)
+  const TRIAL_KEY = 'lectorHojasPro.quierePrueba'; // pidió la prueba gratis antes de tener cuenta
   const web = window.LectorWeb && !window.LectorWeb.enApp && window.LectorWeb.activo ? window.LectorWeb : null;
   const cap = window.Capacitor;
   const native = !!(cap && cap.isNativePlatform && cap.isNativePlatform() && cap.isPluginAvailable && cap.isPluginAvailable('Suscripcion'));
@@ -185,7 +187,95 @@
     $('#plusMsg').textContent = '';
     if ($('#plusCodeGo')) $('#plusCodeGo').classList.remove('primary');
     renderCode();
+    renderOffers();
     if (!dlg.open) dlg.showModal();
+  }
+
+  /* ---------- Prueba gratis y referidos ---------- */
+
+  const sitio = () => String(CFG.sitio || 'https://corrigeya.cl/').replace(/\/?$/, '/');
+  const storeGet = (k) => {
+    try {
+      return localStorage.getItem(k);
+    } catch (e) {
+      return null;
+    }
+  };
+  const storeSet = (k, v) => {
+    try {
+      if (v === null) localStorage.removeItem(k);
+      else localStorage.setItem(k, v);
+    } catch (e) {
+      /* sin almacenamiento */
+    }
+  };
+
+  function renderOffers() {
+    const trial = $('#plusTrial');
+    const ref = $('#plusRef');
+    if (!trial || !ref) return;
+    const s = session();
+    const info = account && s && account.correo === s.correo ? account : null;
+    const prueba = info && info.prueba;
+    // Antes del lanzamiento todo es gratis: no se ofrece nada de esto.
+    trial.hidden = !launched() || active() || (prueba && !prueba.disponible);
+    const dias = (prueba && prueba.dias) || 7;
+    $('#plusTrialGo').textContent = `🎁 Probar Plus gratis ${dias} días`;
+    $('#plusTrialNote').textContent = s ? 'Sin tarjeta y sin compromiso.' : 'Sin tarjeta. Sólo crea tu cuenta gratis de la nube, con tu correo.';
+    const refs = info && info.referidos;
+    ref.hidden = !launched() || (refs && refs.activos === false);
+    if (ref.hidden) return;
+    $('#plusRefWhy').innerHTML = `Por cada colega que cree su cuenta con tu enlace, ganas <b>${(refs && refs.dias) || 15} días</b> de Plus gratis.`;
+    $('#plusRefLogin').hidden = !!s;
+    $('#plusRefRow').hidden = true;
+    $('#plusRefWa').hidden = true;
+    $('#plusRefStats').textContent = '';
+    if (s) loadReferrals(s);
+  }
+
+  async function loadReferrals(s) {
+    try {
+      const r = await accountCall(s, 'GET', '/referidos');
+      const link = `${sitio()}?ref=${r.codigo}`;
+      $('#plusRefLink').value = link;
+      $('#plusRefRow').hidden = false;
+      const text = `Uso CorrigeYa para corregir las pruebas con una foto del celular: la nota sale al tiro y me ahorra el fin de semana. Pruébala gratis: ${link}`;
+      $('#plusRefWa').href = 'https://wa.me/?text=' + encodeURIComponent(text);
+      $('#plusRefWa').hidden = false;
+      const partes = [];
+      if (r.invitados) partes.push(`Has invitado a ${r.invitados} ${r.invitados === 1 ? 'colega' : 'colegas'}`);
+      if (r.diasGanados) partes.push(`ganaste ${r.diasGanados} días de Plus`);
+      if (r.invitados && !r.restantesAnio) partes.push('llegaste al máximo de premios de este año');
+      $('#plusRefStats').textContent = partes.length ? partes.join(' · ') + '.' : 'Todavía no has invitado a nadie.';
+    } catch (e) {
+      $('#plusRefStats').textContent = e.message;
+    }
+  }
+
+  async function startTrial() {
+    const s = session();
+    if (!s) {
+      // Primero la cuenta (para que la prueba sea una por correo); al entrar, empieza sola.
+      storeSet(TRIAL_KEY, String(Date.now()));
+      $('#plusDialog').close();
+      const b = document.querySelector('[data-cloud="crear"]');
+      if (b) b.click();
+      return;
+    }
+    const btn = $('#plusTrialGo');
+    btn.disabled = true;
+    $('#plusMsg').textContent = 'Activando tu prueba gratis…';
+    try {
+      const r = await accountCall(s, 'POST', '/plus/prueba');
+      storeSet(TRIAL_KEY, null);
+      setAccount(s, r);
+      $('#plusDialog').close();
+      app.toast(`🎁 ¡Listo! Tienes CorrigeYa Plus gratis hasta el ${fecha(r.hasta)}.`);
+    } catch (e) {
+      $('#plusMsg').textContent = e.message;
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   /* ---------- Códigos de CorrigeYa Plus (sólo en la web) ---------- */
@@ -199,7 +289,7 @@
     box.hidden = !web || active() || (cfg && cfg.canje === false);
     info.hidden = !codeActive() && !accountActive();
     if (accountActive()) {
-      const how = account.origen === 'play' ? ' (Google Play)' : account.origen === 'codigo' ? ' (código)' : '';
+      const how = { play: ' (Google Play)', codigo: ' (código)', prueba: ' (prueba gratis)', referido: ' (por invitar colegas)' }[account.origen] || '';
       info.textContent = `Plus activo en tu cuenta ${account.correo}${how}${account.hasta ? `, hasta el ${fecha(account.hasta)}` : ''}. Funciona en todos los equipos donde entres a la nube.`;
     } else if (codeActive()) {
       info.textContent = `Plus activo en este navegador con el código ${code.codigo || ''}${code.hasta ? `, hasta el ${fecha(code.hasta)}` : ''}. Entra a la nube para tenerlo también en tus otros equipos.`;
@@ -232,7 +322,16 @@
   }
   function setAccount(s, r) {
     const was = active();
-    account = { correo: s.correo, activa: !!r.activa, hasta: r.hasta === undefined ? null : r.hasta, origen: r.origen || null, at: Date.now() };
+    const prev = account && account.correo === s.correo ? account : {};
+    account = {
+      correo: s.correo,
+      activa: !!r.activa,
+      hasta: r.hasta === undefined ? null : r.hasta,
+      origen: r.origen || null,
+      prueba: r.prueba || prev.prueba || null,
+      referidos: r.referidos || prev.referidos || null,
+      at: Date.now(),
+    };
     saveAccount();
     if (was !== active()) changed();
     else renderChip();
@@ -282,7 +381,33 @@
             console.warn(e);
           }
         }
-        if (!r) r = await accountCall(s, 'GET', '/plus');
+        // Llegó con el enlace de un colega y ya tiene cuenta: el colega gana sus días.
+        let ref = null;
+        try {
+          ref = JSON.parse(storeGet(REF_KEY) || 'null');
+        } catch (e) {
+          ref = null;
+        }
+        if (ref && ref.codigo && Date.now() - (ref.at || 0) < 60 * 864e5) {
+          try {
+            await accountCall(s, 'POST', '/referidos/usar', { codigo: ref.codigo });
+            storeSet(REF_KEY, null);
+          } catch (e) {
+            if (e.status === 400) storeSet(REF_KEY, null);
+          }
+        } else if (ref) storeSet(REF_KEY, null);
+        // Pidió la prueba gratis antes de crear la cuenta: empieza ahora.
+        const wants = Number(storeGet(TRIAL_KEY)) || 0;
+        if (wants && Date.now() - wants < 864e5) {
+          try {
+            const t = await accountCall(s, 'POST', '/plus/prueba');
+            app.toast(`🎁 ¡Listo! Tienes CorrigeYa Plus gratis hasta el ${fecha(t.hasta)}.`);
+          } catch (e) {
+            if (e.status === 409 || e.status === 403) app.toast(e.message);
+          }
+          storeSet(TRIAL_KEY, null);
+        } else if (wants) storeSet(TRIAL_KEY, null);
+        r = await accountCall(s, 'GET', '/plus');
         setAccount(s, r);
       } catch (e) {
         /* sin internet o sesión vencida: queda lo último que se supo */
@@ -439,6 +564,22 @@
   $('#plusBuy').addEventListener('click', buy);
   $('#plusRestore').addEventListener('click', restore);
   $('#plusManage').addEventListener('click', () => call('gestionar').catch(() => {}));
+  $('#plusTrialGo').addEventListener('click', startTrial);
+  $('#plusRefLogin').addEventListener('click', () => {
+    $('#plusDialog').close();
+    const b = document.querySelector('[data-cloud="crear"]');
+    if (b) b.click();
+  });
+  $('#plusRefCopy').addEventListener('click', async () => {
+    const input = $('#plusRefLink');
+    try {
+      await navigator.clipboard.writeText(input.value);
+    } catch (e) {
+      input.select();
+      document.execCommand('copy');
+    }
+    app.toast('Enlace copiado. Pégalo en WhatsApp o en un correo para tus colegas.');
+  });
   if ($('#plusCodeGo')) {
     $('#plusCodeGo').addEventListener('click', redeem);
     $('#plusCode').addEventListener('keydown', (e) => {

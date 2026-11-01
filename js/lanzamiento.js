@@ -27,6 +27,8 @@ window.LANZAMIENTO = {
   servidor: 'https://lector-nube.colegiosmiqq.workers.dev',
   // Página que entrega los datos guardados en la dirección antigua (mudanza/, docs/mudanza.md).
   mudanza: 'https://jesukrister.github.io/mudanza/',
+  // Dirección para los enlaces de invitación (referidos).
+  sitio: 'https://corrigeya.cl/',
 };
 
 // Prueba del lanzamiento sólo en este equipo (?lanzamiento=1 / ?lanzamiento=0).

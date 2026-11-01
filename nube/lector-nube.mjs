@@ -63,6 +63,13 @@ async function prepararTablas(db) {
     db.prepare("CREATE TABLE IF NOT EXISTS uso (dia TEXT NOT NULL, pagina TEXT NOT NULL, evento TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (dia, pagina, evento))"),
     db.prepare("CREATE TABLE IF NOT EXISTS uso_visitantes (dia TEXT NOT NULL, h TEXT NOT NULL, pagina TEXT NOT NULL, PRIMARY KEY (dia, h, pagina))"),
     db.prepare("CREATE TABLE IF NOT EXISTS plus_play (token TEXT PRIMARY KEY, cuenta TEXT NOT NULL, producto TEXT NOT NULL, hasta INTEGER NOT NULL, estado TEXT NOT NULL, revisado INTEGER NOT NULL)"),
+    // Días de Plus regalados: prueba gratis y premios por referidos (se suman uno tras otro).
+    db.prepare("CREATE TABLE IF NOT EXISTS plus_regalos (id INTEGER PRIMARY KEY AUTOINCREMENT, cuenta TEXT NOT NULL, tipo TEXT NOT NULL, dias INTEGER NOT NULL, desde INTEGER NOT NULL, hasta INTEGER NOT NULL, ref TEXT, creado INTEGER NOT NULL)"),
+    // Huella del correo (no el correo): la prueba y el premio por referido se usan una vez por correo,
+    // aunque se borre la cuenta y se cree otra.
+    db.prepare("CREATE TABLE IF NOT EXISTS plus_usados (huella TEXT NOT NULL, tipo TEXT NOT NULL, t INTEGER NOT NULL, PRIMARY KEY (huella, tipo))"),
+    db.prepare("CREATE TABLE IF NOT EXISTS ref_codigos (codigo TEXT PRIMARY KEY, cuenta TEXT UNIQUE NOT NULL, creado INTEGER NOT NULL)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS referidos (invitado TEXT PRIMARY KEY, padrino TEXT NOT NULL, t INTEGER NOT NULL, premiado INTEGER)"),
   ]);
   tablasListas = true;
 }
@@ -244,6 +251,8 @@ async function borrarTodo(db, id) {
     db.prepare("DELETE FROM cuentas WHERE id = ?").bind(id),
     db.prepare("DELETE FROM plus_canjes WHERE equipo = ?").bind("c:" + id),
     db.prepare("DELETE FROM plus_play WHERE cuenta = ?").bind(id),
+    db.prepare("DELETE FROM plus_regalos WHERE cuenta = ?").bind(id),
+    db.prepare("DELETE FROM ref_codigos WHERE cuenta = ?").bind(id),
   ]);
 }
 
@@ -352,7 +361,12 @@ try{await api("borrar-cuenta",{correo:$("#correo").value,codigo:$("#codigo").val
 /* ---------- CorrigeYa: configuración de la página ---------- */
 // Lo cambia el panel /admin. Sólo lo usa la página web: la app de Android no lo lee.
 // nubePlus: guardar en la nube pide CorrigeYa Plus (se enciende al lanzar CorrigeYa).
-const CONFIG_BASE = { precio: 1990, canje: true, estadisticas: true, nubePlus: false, aviso: { activo: false, texto: "", enlace: "" } };
+// prueba / referidos: Plus gratis por unos días al probar y por cada colega invitado que crea su cuenta.
+const CONFIG_BASE = {
+  precio: 1990, canje: true, estadisticas: true, nubePlus: false,
+  prueba: true, diasPrueba: 7, referidos: true, diasReferido: 15, maxReferidos: 12,
+  aviso: { activo: false, texto: "", enlace: "" },
+};
 const miles = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
 function limpiarConfig(c) {
@@ -366,6 +380,11 @@ function limpiarConfig(c) {
     canje: c.canje !== false,
     estadisticas: c.estadisticas !== false,
     nubePlus: c.nubePlus === true,
+    prueba: c.prueba !== false,
+    diasPrueba: entero(c.diasPrueba, 1, 90, CONFIG_BASE.diasPrueba),
+    referidos: c.referidos !== false,
+    diasReferido: entero(c.diasReferido, 1, 365, CONFIG_BASE.diasReferido),
+    maxReferidos: entero(c.maxReferidos, 0, 365, CONFIG_BASE.maxReferidos),
     aviso: { activo: !!aviso.activo && !!textoAviso, texto: textoAviso, enlace: /^https:\/\/[^\s"'<>]+$/i.test(enlace) ? enlace : "" },
   };
 }
@@ -432,13 +451,16 @@ async function resumenAdmin(db, env) {
     uno("SELECT COUNT(*) AS n FROM plus_canjes j JOIN plus_codigos c ON c.codigo = j.codigo WHERE c.revocado IS NULL AND (j.hasta = 0 OR j.hasta > ?)", ahora),
   ]);
   const correo = await db.prepare("SELECT v FROM estado WHERE k = 'correo'").first();
-  const [cuentasCodigo, play] = await Promise.all([
+  const [cuentasCodigo, play, enPrueba, referidos30, regalados30] = await Promise.all([
     uno("SELECT COUNT(DISTINCT j.equipo) AS n FROM plus_canjes j JOIN plus_codigos c ON c.codigo = j.codigo WHERE j.equipo LIKE 'c:%' AND c.revocado IS NULL AND (j.hasta = 0 OR j.hasta > ?)", ahora),
     uno("SELECT COUNT(DISTINCT cuenta) AS n FROM plus_play WHERE hasta > ?", ahora),
+    uno("SELECT COUNT(DISTINCT cuenta) AS n FROM plus_regalos WHERE tipo = 'prueba' AND desde <= ? AND hasta > ?", ahora, ahora),
+    uno("SELECT COUNT(*) AS n FROM referidos WHERE t > ?", hace(30)),
+    uno("SELECT COALESCE(SUM(dias), 0) AS n FROM plus_regalos WHERE tipo = 'referido' AND creado > ?", hace(30)),
   ]);
   return {
     nube: { cuentas: cuentas.n, nuevas30: nuevas.n, activas7: activas7.n, activas30: activas30.n, espacio: espacio.n },
-    plus: { codigos: codigos.n, enUso: enUso.n, equiposActivos: plusActivos.n, cuentasCodigo: cuentasCodigo.n, cuentasPlay: play.n, googleConfigurado: !!env.GOOGLE_CUENTA_SERVICIO },
+    plus: { codigos: codigos.n, enUso: enUso.n, equiposActivos: plusActivos.n, cuentasCodigo: cuentasCodigo.n, cuentasPlay: play.n, googleConfigurado: !!env.GOOGLE_CUENTA_SERVICIO, enPrueba: enPrueba.n, referidos30: referidos30.n, diasRegalados30: regalados30.n },
     config: configPublica(await leerConfig(db)),
     servidor: { correoConfigurado: !!(env.CORREO_URL && env.CORREO_CLAVE), ultimoCorreo: correo ? JSON.parse(correo.v) : null, hoy: hoy() },
   };
@@ -571,10 +593,106 @@ async function plusDeCuenta(db, env, cuenta, revisarGoogle = true) {
     }
     if (results.length) play = await db.prepare("SELECT MAX(hasta) AS hasta FROM plus_play WHERE cuenta = ? AND hasta > ?").bind(cuenta.id, ahora).first();
   }
-  const opciones = [cod && { hasta: cod.hasta, origen: "codigo" }, play && play.hasta && { hasta: play.hasta, origen: "play" }].filter(Boolean);
+  const regalo = await db.prepare("SELECT tipo, hasta FROM plus_regalos WHERE cuenta = ? AND hasta > ? ORDER BY hasta DESC LIMIT 1").bind(cuenta.id, ahora).first();
+  const opciones = [
+    cod && { hasta: cod.hasta, origen: "codigo" },
+    play && play.hasta && { hasta: play.hasta, origen: "play" },
+    regalo && { hasta: regalo.hasta, origen: regalo.tipo },
+  ].filter(Boolean);
   if (!opciones.length) return { activa: false, hasta: null, origen: null };
   opciones.sort((a, b) => b.hasta - a.hasta);
   return { activa: true, hasta: opciones[0].hasta, origen: opciones[0].origen };
+}
+
+/* ---------- Prueba gratis y referidos ---------- */
+const llaveHuella = (env) => crypto.subtle.importKey("raw", texto("huella|" + env.CLAVE_SESION), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+const huellaCorreo = async (env, correo) => hexDe(await crypto.subtle.sign("HMAC", await llaveHuella(env), texto(limpiarCorreo(correo)))).slice(0, 40);
+
+// Suma días de Plus regalado a continuación de los que ya tenga (sin pisar los anteriores).
+async function regalar(db, cuentaId, tipo, dias, ref) {
+  const ahora = Date.now();
+  const ultimo = await db.prepare("SELECT MAX(hasta) AS hasta FROM plus_regalos WHERE cuenta = ?").bind(cuentaId).first();
+  const desde = Math.max(ahora, (ultimo && ultimo.hasta) || 0);
+  const hasta = desde + dias * 864e5;
+  await db.prepare("INSERT INTO plus_regalos (cuenta, tipo, dias, desde, hasta, ref, creado) VALUES (?, ?, ?, ?, ?, ?, ?)").bind(cuentaId, tipo, dias, desde, hasta, ref || null, ahora).run();
+  return hasta;
+}
+
+/** Plus de la cuenta y lo que puede pedir (prueba gratis, referidos), para la página. */
+async function estadoPlus(db, env, cuenta) {
+  const cfg = await leerConfig(db);
+  const plus = await plusDeCuenta(db, env, cuenta);
+  const usada = await db.prepare("SELECT 1 AS x FROM plus_usados WHERE huella = ? AND tipo = 'prueba'").bind(await huellaCorreo(env, cuenta.correo)).first();
+  return {
+    ...plus,
+    prueba: { disponible: cfg.prueba && !usada, dias: cfg.diasPrueba },
+    referidos: { activos: cfg.referidos, dias: cfg.diasReferido },
+  };
+}
+
+async function empezarPrueba(db, env, cuenta) {
+  const cfg = await leerConfig(db);
+  if (!cfg.prueba) throw new Problema("Por ahora no hay prueba gratis.", 403);
+  const huella = await huellaCorreo(env, cuenta.correo);
+  const r = await db.prepare("INSERT OR IGNORE INTO plus_usados (huella, tipo, t) VALUES (?, 'prueba', ?)").bind(huella, Date.now()).run();
+  if (!r.meta.changes) throw new Problema("Ya usaste tu prueba gratis de CorrigeYa Plus con este correo.", 409);
+  await regalar(db, cuenta.id, "prueba", cfg.diasPrueba);
+  return { ok: true, ...(await estadoPlus(db, env, cuenta)) };
+}
+
+// Código de invitación de la cuenta: 8 letras que no se confunden (sin 0, O, 1 ni I).
+async function codigoReferido(db, cuenta) {
+  const fila = await db.prepare("SELECT codigo FROM ref_codigos WHERE cuenta = ?").bind(cuenta.id).first();
+  if (fila) return fila.codigo;
+  for (let i = 0; i < 5; i++) {
+    const codigo = [...crypto.getRandomValues(new Uint8Array(8))].map((b) => ALFABETO[b % 32]).join("");
+    const r = await db.prepare("INSERT OR IGNORE INTO ref_codigos (codigo, cuenta, creado) VALUES (?, ?, ?)").bind(codigo, cuenta.id, Date.now()).run();
+    if (r.meta.changes) return codigo;
+  }
+  throw new Problema("No se pudo crear tu código de invitación. Inténtalo de nuevo.", 500);
+}
+async function misReferidos(db, cuenta) {
+  const cfg = await leerConfig(db);
+  const codigo = await codigoReferido(db, cuenta);
+  const desde = Date.now() - 365 * 864e5;
+  const [total, premiados, anio] = await Promise.all([
+    db.prepare("SELECT COUNT(*) AS n FROM referidos WHERE padrino = ?").bind(cuenta.id).first(),
+    db.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(dias), 0) AS dias FROM plus_regalos WHERE cuenta = ? AND tipo = 'referido'").bind(cuenta.id).first(),
+    db.prepare("SELECT COUNT(*) AS n FROM referidos WHERE padrino = ? AND premiado > ?").bind(cuenta.id, desde).first(),
+  ]);
+  return {
+    codigo,
+    activos: cfg.referidos,
+    dias: cfg.diasReferido,
+    invitados: total.n,
+    premiados: premiados.n,
+    diasGanados: premiados.dias,
+    restantesAnio: Math.max(0, cfg.maxReferidos - anio.n),
+  };
+}
+const CODIGO_REF = /^[2-9A-HJ-NP-Z]{8}$/;
+/** Quien crea su cuenta con el enlace de un colega: el colega gana días de Plus. */
+async function usarReferido(db, env, cuenta, d) {
+  const cfg = await leerConfig(db);
+  const codigo = String((d && d.codigo) || "").toUpperCase().replace(/[^0-9A-Z]/g, "");
+  if (!cfg.referidos) return { ok: false, motivo: "Los referidos están apagados." };
+  if (!CODIGO_REF.test(codigo)) throw new Problema("Código de invitación no válido.", 400);
+  const fila = await db.prepare("SELECT cuenta FROM ref_codigos WHERE codigo = ?").bind(codigo).first();
+  if (!fila) return { ok: false, motivo: "Ese enlace de invitación ya no existe." };
+  if (fila.cuenta === cuenta.id) return { ok: false, motivo: "No puedes invitarte a ti mismo." };
+  const datos = await db.prepare("SELECT creado FROM cuentas WHERE id = ?").bind(cuenta.id).first();
+  // Sólo cuentas nuevas (creadas en los últimos 3 días) cuentan como invitadas.
+  if (!datos || Date.now() - datos.creado > 3 * 864e5) return { ok: false, motivo: "Las invitaciones son para cuentas nuevas." };
+  const huella = await huellaCorreo(env, cuenta.correo);
+  // Un correo cuenta una sola vez como invitado (aunque borre la cuenta y la cree de nuevo).
+  const r = await db.prepare("INSERT OR IGNORE INTO plus_usados (huella, tipo, t) VALUES (?, 'invitado', ?)").bind(huella, Date.now()).run();
+  if (!r.meta.changes) return { ok: false, motivo: "Este correo ya fue invitado antes." };
+  const ahora = Date.now();
+  const anio = await db.prepare("SELECT COUNT(*) AS n FROM referidos WHERE padrino = ? AND premiado > ?").bind(fila.cuenta, ahora - 365 * 864e5).first();
+  const premio = anio.n < cfg.maxReferidos;
+  await db.prepare("INSERT OR IGNORE INTO referidos (invitado, padrino, t, premiado) VALUES (?, ?, ?, ?)").bind(huella, fila.cuenta, ahora, premio ? ahora : null).run();
+  if (premio) await regalar(db, fila.cuenta, "referido", cfg.diasReferido, huella);
+  return { ok: true, premiado: premio };
 }
 
 // Google Play: se confirma la compra con la API de Google (cuenta de servicio en GOOGLE_CUENTA_SERVICIO).
@@ -749,7 +867,10 @@ export default {
         const cuenta = req.headers.get("Authorization") ? await cuentaDeSesion(db, env, req) : null;
         return respuesta(await canjear(db, env, ip, await cuerpo(req), cuenta));
       }
-      if (ruta === "/plus" && req.method === "GET") return respuesta(await plusDeCuenta(db, env, await cuentaDeSesion(db, env, req)));
+      if (ruta === "/plus" && req.method === "GET") return respuesta(await estadoPlus(db, env, await cuentaDeSesion(db, env, req)));
+      if (req.method === "POST" && ruta === "/plus/prueba") return respuesta(await empezarPrueba(db, env, await cuentaDeSesion(db, env, req)));
+      if (ruta === "/referidos" && req.method === "GET") return respuesta(await misReferidos(db, await cuentaDeSesion(db, env, req)));
+      if (req.method === "POST" && ruta === "/referidos/usar") return respuesta(await usarReferido(db, env, await cuentaDeSesion(db, env, req), await cuerpo(req)));
       if (req.method === "POST" && ruta === "/plus/vincular") return respuesta(await vincularCodigo(db, env, await cuentaDeSesion(db, env, req), await cuerpo(req)));
       if (req.method === "POST" && ruta === "/plus/play") return respuesta(await unirPlay(db, env, await cuentaDeSesion(db, env, req), await cuerpo(req)));
       if (req.method === "POST" && ruta === "/plus/verificar") return respuesta(await verificarPlus(db, env, await cuerpo(req)));

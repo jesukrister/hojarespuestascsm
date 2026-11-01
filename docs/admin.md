@@ -14,7 +14,7 @@ secreto `ADMIN_CLAVE`).
 | **Resumen** | Visitas de hoy y del mes, personas distintas, hojas corregidas en la web, cuentas de la nube (web y app) y códigos de Plus en uso. |
 | **Uso de la página** | Visitas, personas, hojas corregidas, hojas de respuesta, pruebas y pautas impresas por día; por página (normal, Pro/CorrigeYa, presentación) y por dispositivo. Descarga en CSV. |
 | **Códigos Plus** | Crear códigos `CY-XXXX-XXXX-XXXX` (cuántos, por cuánto tiempo, en cuántos navegadores, fecha límite para canjear y una nota). Copia un mensaje listo para WhatsApp con el enlace que abre la página con el código escrito. Anular, reactivar o borrar. |
-| **Configuración** | Precio mensual de Plus que muestra la web y la presentación; **la nube pide Plus** (encender al lanzar); permitir canjear códigos; contar visitas; aviso arriba de la página (texto y enlace). |
+| **Configuración** | Precio mensual de Plus que muestra la web y la presentación; **la nube pide Plus** (encender al lanzar); **prueba gratis** y **referidos** (encendidos, días y tope por año); permitir canjear códigos; contar visitas; aviso arriba de la página (texto y enlace). |
 | **App Android** | Dónde ver las estadísticas de la app en Play Console (instalaciones, usuarios activos, errores, suscripciones). |
 | **Servidor** | Estado del servidor y de los correos con código. |
 
@@ -37,6 +37,21 @@ secreto `ADMIN_CLAVE`).
   CorrigeYa lanzado, `?plus=1` ya no activa nada.
 - **Estadísticas:** sólo totales por día, sin datos personales ni IP (ver `privacidad.html`).
   Si alguien quisiera inflarlas a propósito, podría: tómalas como una guía, no como contabilidad.
+
+## Prueba gratis y referidos
+
+- **Prueba gratis** (7 días, se cambia en Configuración): botón «🎁 Probar Plus gratis» en el cuadro
+  de Plus. Pide crear la cuenta de la nube (así el correo queda confirmado) y empieza sola al
+  entrar. Una vez por correo, aunque se borre la cuenta.
+- **Referidos** (15 días por colega): en el cuadro de Plus cada persona ve su enlace
+  `corrigeya.cl/?ref=XXXXXXXX`, con botones para copiarlo o enviarlo por WhatsApp. Cuando un
+  colega entra con ese enlace y crea su cuenta de la nube (con el código que le llega al correo),
+  quien invitó gana los días. Sólo cuentan cuentas nuevas (de los últimos 3 días); nadie se
+  invita a sí mismo; un correo cuenta una sola vez; máximo 12 premios por persona al año.
+- Los días regalados se suman al final de los que ya tenga (prueba, invitaciones anteriores).
+  Funcionan en la web y en la app, porque quedan en la cuenta.
+- Se muestran al lanzar CorrigeYa (antes todo es gratis). El **Resumen** muestra cuántas personas
+  están en prueba y cuántos colegas se invitaron en 30 días.
 
 ## Estadísticas de la app (más adelante)
 
