@@ -42,6 +42,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Número de versión: el número de esta compilación más una base. En el repositorio nuevo
+      # (corrigeya/app) la cuenta de compilaciones vuelve a 1, y Google Play no acepta versiones
+      # más bajas que las ya publicadas desde jesukrister/hojarespuestascsm (llegaron a ~40):
+      # por eso ahí se suma 100. Se puede cambiar con la variable VERSION_BASE.
+      - name: Número de versión
+        env:
+          VERSION_BASE: ${{ vars.VERSION_BASE }}
+        run: |
+          BASE="$VERSION_BASE"
+          if [ -z "$BASE" ]; then
+            if [ "$GITHUB_REPOSITORY" = "jesukrister/hojarespuestascsm" ]; then BASE=0; else BASE=100; fi
+          fi
+          CODE=$(( GITHUB_RUN_NUMBER + BASE ))
+          echo "APP_VERSION_CODE=$CODE" >> "$GITHUB_ENV"
+          echo "APP_VERSION_NAME=1.0.$CODE" >> "$GITHUB_ENV"
+          echo "Versión 1.0.$CODE (código $CODE)"
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -81,7 +98,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/lector-hojas.jks"
+            # Acepta el texto con saltos de línea de Windows o con las líneas «-----BEGIN…» de certutil.
+            printf '%s' "$KEYSTORE_BASE64" | tr -d '\r' | grep -v '^-----' | base64 -d > "$RUNNER_TEMP/lector-hojas.jks"
             echo "KEYSTORE_FILE=$RUNNER_TEMP/lector-hojas.jks" >> "$GITHUB_ENV"
             echo "firmado=true" >> "$GITHUB_OUTPUT"
           else
@@ -94,8 +112,8 @@ jobs:
       - name: Compilar APK y AAB (normal y Pro)
         working-directory: android
         env:
-          VERSION_CODE: ${{ github.run_number }}
-          VERSION_NAME: 1.0.${{ github.run_number }}
+          VERSION_CODE: ${{ env.APP_VERSION_CODE }}
+          VERSION_NAME: ${{ env.APP_VERSION_NAME }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           chmod +x gradlew
@@ -122,7 +140,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: steps.llave.outputs.firmado == 'true'
         with:
-          name: LectorHojas-${{ github.run_number }}
+          name: LectorHojas-${{ env.APP_VERSION_CODE }}
           path: |
             LectorHojas.apk
             LectorHojas-GooglePlay.aab
@@ -138,7 +156,7 @@ jobs:
           gh release delete "$TAG" --yes --cleanup-tag || true
           gh release create "$TAG" LectorHojas.apk LectorHojas-GooglePlay.aab LectorHojasPro.apk LectorHojasPro-GooglePlay.aab \
             --target "$GITHUB_SHA" \
-            --title "App Android · versión 1.0.${{ github.run_number }}" \
+            --title "App Android · versión ${{ env.APP_VERSION_NAME }}" \
             --notes "**LectorHojas.apk**: la app normal, para instalar directamente en un teléfono Android. **LectorHojasPro.apk**: la versión Pro (cursos, libro de notas y respaldo); se instala aparte y puede convivir con la normal. Los archivos **.aab** son los que se suben a Google Play Console (uno por app). Todos firmados con la llave oficial del proyecto. Compilado desde ${GITHUB_REF_NAME} (${GITHUB_SHA::7})." \
             --prerelease
 
@@ -169,8 +187,8 @@ jobs:
           PLAY_SERVICE_ACCOUNT: ${{ vars.PLAY_SERVICE_ACCOUNT }}
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           PLAY_TRACK: ${{ github.event.inputs.segmento || vars.PLAY_TRACK }}
-          PLAY_RELEASE_NAME: 1.0.${{ github.run_number }}
-          PLAY_VERSION_CODE: ${{ github.run_number }}
+          PLAY_RELEASE_NAME: ${{ env.APP_VERSION_NAME }}
+          PLAY_VERSION_CODE: ${{ env.APP_VERSION_CODE }}
         run: |
           node scripts/play-upload.js \
             cl.lectorhojas.app=LectorHojas-GooglePlay.aab,docs/play/novedades.txt \

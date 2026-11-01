@@ -3,7 +3,7 @@
  *
  * El navegador guarda los datos por sitio: lo que el Lector guardó en
  * jesukrister.github.io no se ve en corrigeya.cl. Esta página (traer.html) abre
- * jesukrister.github.io/mudanza/ (mudanza/index.html, publicada en ese sitio),
+ * la dirección antigua, jesukrister.github.io/hojarespuestascsm/ (mudanza/index.html),
  * que lee esos datos y se los manda SÓLO a corrigeya.cl con postMessage. Aquí se
  * guardan tal cual: el almacenamiento local (claves lectorHojas…) y las bases
  * de datos del navegador (fotos de las hojas, cursos, libro de notas…).
@@ -23,7 +23,7 @@
   } catch (e) {
     url = '';
   }
-  url = url || CFG.mudanza || 'https://jesukrister.github.io/mudanza/';
+  url = url || CFG.mudanza || 'https://jesukrister.github.io/hojarespuestascsm/';
   const ORIGEN = new URL(url).origin;
 
   let ventana = null;

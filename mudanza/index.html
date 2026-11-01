@@ -5,15 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
   <meta name="referrer" content="no-referrer">
-  <title>Traer tus datos a CorrigeYa</title>
+  <title>CorrigeYa se mudó a corrigeya.cl</title>
   <!--
     Mudanza de datos: jesukrister.github.io → corrigeya.cl
 
-    Esta página se publica en https://jesukrister.github.io/mudanza/ (repositorio
-    aparte, «jesukrister/mudanza», con GitHub Pages). Está en el mismo sitio que la
-    dirección antigua (jesukrister.github.io/hojarespuestascsm/), así que puede leer
-    lo que el Lector de Hojas guardó en este navegador, y se lo entrega SÓLO a
-    corrigeya.cl, cuando corrigeya.cl/traer.html la abre y la persona acepta.
+    Esta página se publica en la dirección antigua, https://jesukrister.github.io/hojarespuestascsm/
+    (el repositorio jesukrister/hojarespuestascsm, que después de pasar el proyecto a corrigeya/app
+    sólo tiene esta página, como index.html y como 404.html para cualquier ruta antigua).
+    Como está en el mismo sitio, puede leer lo que el Lector de Hojas guardó en este navegador,
+    y se lo entrega SÓLO a corrigeya.cl, cuando corrigeya.cl/traer.html la abre y la persona
+    acepta. Quien llega con un enlace antiguo y no tiene datos pasa directo a corrigeya.cl.
     No envía nada a ningún servidor. Ver docs/mudanza.md.
   -->
   <style>
@@ -28,6 +29,7 @@
     .muted { color: var(--muted); font-size: .92rem; }
     .ok { color: var(--ok); font-weight: 700; }
     a { color: var(--primary); font-weight: 600; }
+    a.btn { display: inline-block; background: #1f4e79; color: #fff; text-decoration: none; padding: 12px 20px; border-radius: 999px; font-weight: 700; }
   </style>
 </head>
 <body>
@@ -44,6 +46,17 @@
       // Para probar en el computador de desarrollo (sólo si esta página corre en localhost).
       if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) DESTINOS.push('http://localhost:8090', 'http://127.0.0.1:8090');
       var PREFIJO = 'lectorHojas';
+      var SITIO = 'https://corrigeya.cl';
+      var ENVIADO = 'lectorHojas.mudanzaEnviada';
+      // La página equivalente en corrigeya.cl para quien llega con un enlace o favorito antiguo.
+      function equivalente() {
+        var ruta = location.pathname.replace(/^\/hojarespuestascsm/, '') || '/';
+        var destino = '/';
+        if (/^\/pro\.html/.test(ruta)) destino = '/app/';
+        else if (/^\/(privacidad\.html|admin\/|traer\.html|lector\.html|app\/)/.test(ruta)) destino = ruta;
+        return SITIO + destino + location.search + location.hash;
+      }
+      function irANuevo() { location.replace(equivalente()); }
       var BASES = ['lectorHojas', 'lectorHojasPro', 'lectorHojasPro.datos'];
       var estado = document.getElementById('estado');
       // La copia de esta página que queda en corrigeya.cl no sirve: tiene que correr en el sitio antiguo.
@@ -178,6 +191,7 @@
           estado.innerHTML = '<p>Enviando tus datos a corrigeya.cl…</p>';
           enviar({ tipo: 'lector-mudanza:datos', datos: datos });
         } else if (e.data.tipo === 'lector-mudanza:recibido') {
+          try { localStorage.setItem(ENVIADO, String(Date.now())); } catch (err) { /* nada */ }
           estado.innerHTML = '<p class="ok">✔ Listo: tus datos ya están en corrigeya.cl.</p><p>Puedes cerrar esta pestaña.</p>';
           setTimeout(function () { window.close(); }, 1500);
         }
@@ -187,7 +201,16 @@
         datos = d;
         resumen = resumir(d);
         if (!opener) {
-          mostrarResumen('<p>Para llevarlos, abre <a href="https://corrigeya.cl/traer.html">corrigeya.cl/traer.html</a> en este mismo navegador y presiona <b>«Buscar mis datos»</b>.</p>');
+          // Llegó con un enlace antiguo: sin datos (o ya los llevó), directo a corrigeya.cl.
+          var yaEnviado = false;
+          try { yaEnviado = !!localStorage.getItem(ENVIADO); } catch (e) { /* nada */ }
+          if (resumen.vacio || yaEnviado) { irANuevo(); return; }
+          document.querySelector('h1').textContent = '📦 CorrigeYa se mudó a corrigeya.cl';
+          mostrarResumen(
+            '<p>El Lector de Hojas ahora es <b>CorrigeYa</b> y está en <b>corrigeya.cl</b>. Lleva tus datos para seguir donde quedaste:</p>' +
+            '<p><a class="btn" href="' + SITIO + '/traer.html">📦 Llevar mis datos a corrigeya.cl</a></p>' +
+            '<p class="muted"><a href="' + equivalente() + '">Ir a corrigeya.cl sin mis datos</a></p>'
+          );
           return;
         }
         mostrarResumen(resumen.vacio ? '' : '<p>Vuelve a la pestaña de <b>corrigeya.cl</b> para confirmar.</p>');

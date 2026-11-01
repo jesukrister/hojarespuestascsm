@@ -1,7 +1,6 @@
 # Panel de administración (`/admin`)
 
-Dirección: `https://jesukrister.github.io/hojarespuestascsm/admin/` (con el dominio propio,
-`https://corrigeya.cl/admin/`). No aparece en Google (`noindex`) y sólo entra quien sabe la
+Dirección: `https://corrigeya.cl/admin/`. No aparece en Google (`noindex`) y sólo entra quien sabe la
 contraseña del panel (`ADMIN_CLAVE`).
 
 **Activarlo una vez:** `nube/GUIA.md`, paso 9 (pegar el servidor nuevo en Cloudflare y crear el

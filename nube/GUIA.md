@@ -87,7 +87,7 @@ página web) usa este mismo servidor. Para activarlo:
    - Nombre: `ADMIN_CLAVE`.
    - Valor: una contraseña larga inventada (12 letras o más; mejor una frase). Es la que vas a
      escribir para entrar al panel. **No la pegues en el chat ni en GitHub.**
-3. **Implementar** y abre `https://jesukrister.github.io/hojarespuestascsm/admin/`.
+3. **Implementar** y abre `https://corrigeya.cl/admin/`.
 
 - Si la olvidas, crea otra con el mismo nombre: las sesiones abiertas del panel se cierran.
 - Tras 5 contraseñas equivocadas desde una misma conexión hay que esperar 15 minutos (y cada vez más).

@@ -31,7 +31,7 @@ tipo **App**, **Gratis**. Acepta las declaraciones.
 
 | Sección | Qué responder |
 | --- | --- |
-| Política de privacidad | `https://jesukrister.github.io/hojarespuestascsm/privacidad.html` |
+| Política de privacidad | `https://corrigeya.cl/privacidad.html` |
 | Acceso a la app | Toda la funcionalidad está disponible sin restricciones (no hay inicio de sesión). |
 | Anuncios | No contiene anuncios. |
 | Clasificación de contenido | Categoría **Utilidad, productividad, comunicación u otra**. Responde **No** a violencia, sexualidad, lenguaje, drogas, apuestas, interacción entre usuarios, compras digitales y ubicación. |
@@ -223,7 +223,7 @@ guardadas.
 ```bash
 PROYECTO=hoja-d-respuesta-cl
 CUENTA=francescodvdo@hoja-d-respuesta-cl.iam.gserviceaccount.com
-REPO=jesukrister/hojarespuestascsm
+REPO=corrigeya/app
 gcloud config set project "$PROYECTO"
 gcloud services enable androidpublisher.googleapis.com iamcredentials.googleapis.com sts.googleapis.com iam.googleapis.com
 gcloud iam workload-identity-pools create github --location=global --display-name="GitHub"

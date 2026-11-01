@@ -29,7 +29,7 @@ tiene que traerlos una vez. La app de Android no se ve afectada.
    ¿Usabas el Lector de Hojas en la dirección antigua? **Traer mis datos**». También está en el
    menú ⋯ de la prueba: «📦 Traer mis datos de la dirección antigua». Mientras se muestra el
    aviso, no se abren el tutorial ni la pregunta del modo.
-2. `traer.html` → **Buscar mis datos** abre en otra pestaña `jesukrister.github.io/mudanza/`.
+2. `traer.html` → **Buscar mis datos** abre en otra pestaña la dirección antigua (`jesukrister.github.io/hojarespuestascsm/`).
 3. Esa página (`mudanza/index.html`) está en el **sitio antiguo**, así que puede leer lo que
    el Lector guardó ahí. Muestra un resumen y se lo manda **sólo** a `corrigeya.cl`
    (`postMessage` con el origen fijo; el navegador no lo entrega a otro sitio).
@@ -40,21 +40,19 @@ tiene que traerlos una vez. La app de Android no se ve afectada.
 
 Nada pasa por un servidor: los datos van de una pestaña a la otra en el mismo navegador.
 
-## Lo que tienes que hacer una vez: publicar la página de mudanza
+## Dónde se publica la página de mudanza
 
-`mudanza/index.html` tiene que estar en `https://jesukrister.github.io/mudanza/`, es decir, en
-un **repositorio aparte** con GitHub Pages (este repositorio ya no se publica en
-`jesukrister.github.io`, porque tiene el dominio propio).
+`mudanza/index.html` se publica en la **dirección antigua**, `https://jesukrister.github.io/hojarespuestascsm/`:
+al pasar el proyecto a `corrigeya/app` (ver `docs/mover-a-corrigeya.md`), el repositorio
+`jesukrister/hojarespuestascsm` queda sólo con esa página, como `index.html` y como `404.html`.
+Así también atiende a quien llega con un enlace o favorito antiguo:
 
-1. En GitHub: **New repository** → nombre `mudanza` → **Public** → Create. (Puede ser privado
-   si tienes GitHub Pro.)
-2. Sube el archivo `mudanza/index.html` de este repositorio como `index.html` en la raíz del
-   repositorio nuevo (**Add file → Upload files**), o pídele a Claude que lo suba.
-3. En el repositorio nuevo: **Settings → Pages → Branch: main / (root) → Save**.
-4. En un minuto, `https://jesukrister.github.io/mudanza/` debe mostrar «📦 Traer tus datos a
-   CorrigeYa».
+- **sin datos guardados** (o si ya los llevó): pasa directo a la página equivalente de
+  `corrigeya.cl` (`pro.html` → `/app/`, la raíz → la portada);
+- **con datos**: ve «CorrigeYa se mudó a corrigeya.cl», lo que encontramos y el botón **Llevar mis
+  datos a corrigeya.cl** (que abre `corrigeya.cl/traer.html`).
 
-No le pongas dominio propio a ese repositorio: tiene que quedar en `jesukrister.github.io`.
+No hace falta un repositorio `mudanza` aparte. El repositorio antiguo no se borra ni se renombra.
 
 ## Probar
 
