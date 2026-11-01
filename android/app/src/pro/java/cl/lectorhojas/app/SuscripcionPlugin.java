@@ -23,6 +23,7 @@ import java.util.List;
 
 /**
  * CorrigeYa Plus: suscripción mensual con Google Play (sólo en la app Pro).
+ * Usa Play Billing Library 9 (Google Play rechaza las versiones anteriores a la 8).
  * La página la usa desde js/pro/plus.js:
  *   estado()    ¿hay una suscripción activa? y su precio en Google Play;
  *   comprar()   abre el pago de Google Play;
@@ -46,6 +47,7 @@ public class SuscripcionPlugin extends Plugin implements PurchasesUpdatedListene
         client = BillingClient.newBuilder(getContext())
             .setListener(this)
             .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
+            .enableAutoServiceReconnection()
             .build();
     }
 
@@ -78,7 +80,8 @@ public class SuscripcionPlugin extends Plugin implements PurchasesUpdatedListene
                     .setProductType(BillingClient.ProductType.SUBS)
                     .build()))
             .build();
-        client.queryProductDetailsAsync(params, (r, lista) -> {
+        client.queryProductDetailsAsync(params, (r, resultado) -> {
+            List<ProductDetails> lista = resultado != null ? resultado.getProductDetailsList() : null;
             ProductDetails d = lista != null && !lista.isEmpty() ? lista.get(0) : null;
             String precio = "";
             if (d != null && d.getSubscriptionOfferDetails() != null && !d.getSubscriptionOfferDetails().isEmpty()) {

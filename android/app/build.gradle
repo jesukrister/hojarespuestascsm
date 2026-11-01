@@ -72,7 +72,7 @@ dependencies {
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
     // CorrigeYa Plus: suscripción con Google Play, sólo en la app Pro (SuscripcionPlugin.java).
-    proImplementation "com.android.billingclient:billing:7.1.1"
+    proImplementation "com.android.billingclient:billing:9.1.0"
 }
 
 apply from: 'capacitor.build.gradle'

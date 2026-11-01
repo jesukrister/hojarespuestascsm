@@ -232,15 +232,24 @@ async function main(argv = process.argv.slice(2), env = process.env, log = conso
         out(`::warning::${app.pkg}: Play Console no encontró la app. Créala y sube el primer .aab a mano, y da acceso a la cuenta de servicio${account ? ` (${account})` : ''}.`);
         continue;
       }
-      const hint =
-        e.status === 401 || e.status === 403
-          ? ` La cuenta de servicio${account ? ` ${account}` : ''} no tiene permiso: en Play Console → Usuarios y permisos, invítala y dale «Lanzar a segmentos de prueba» (y «Lanzar a producción» si publicas ahí).`
-          : '';
-      out(`::error::${app.pkg}: ${e.message}${hint}`);
+      out(`::error::${app.pkg}: ${e.message}${hintFor(e, account)}`);
       failed++;
     }
   }
   return done(failed ? 1 : 0);
+}
+
+/** Explicación en castellano para los rechazos de Google que más se repiten. */
+function hintFor(e, account) {
+  const msg = String(e.message || '');
+  if (/billing library/i.test(msg)) {
+    return ' Google exige una versión más nueva de la biblioteca de pagos: sube el número de com.android.billingclient:billing en android/app/build.gradle.';
+  }
+  if (/already been used/i.test(msg)) return '';
+  if (e.status === 401 || /permission|not authori[sz]ed|insufficient/i.test(msg)) {
+    return ` La cuenta de servicio${account ? ` ${account}` : ''} no tiene permiso: en Play Console → Usuarios y permisos, invítala y dale «Lanzar a segmentos de prueba» (y «Lanzar a producción» si publicas ahí).`;
+  }
+  return '';
 }
 
 if (require.main === module) {
@@ -253,4 +262,4 @@ if (require.main === module) {
   );
 }
 
-module.exports = { main, publish, chooseTrack, getToken, client, parseArgs };
+module.exports = { main, publish, chooseTrack, getToken, client, parseArgs, hintFor };

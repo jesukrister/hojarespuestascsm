@@ -206,3 +206,14 @@ test('play: sin claves, con el token que entrega GitHub (Workload Identity Feder
   }
 });
 
+
+test('play: explica el rechazo según lo que dice Google', () => {
+  const acct = 'pub@p.iam.gserviceaccount.com';
+  const billing = P.hintFor({ status: 403, message: 'Artifact with version code 30 uses Play Billing Library version 7.1.1 and must update to at least version 8.0.0' }, acct);
+  assert.match(billing, /biblioteca de pagos/);
+  assert.doesNotMatch(billing, /no tiene permiso/);
+  assert.match(P.hintFor({ status: 403, message: 'The caller does not have permission' }, acct), /no tiene permiso/);
+  assert.match(P.hintFor({ status: 401, message: 'sin token' }, acct), /no tiene permiso/);
+  assert.equal(P.hintFor({ status: 403, message: 'APK specifies a version code that has already been used.' }, acct), '');
+  assert.equal(P.hintFor({ status: 400, message: 'Otra cosa' }, acct), '');
+});
