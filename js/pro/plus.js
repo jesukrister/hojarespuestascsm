@@ -9,6 +9,10 @@
  * nube, modo simple y agenda piden Plus. En la app de Android, Plus se paga
  * con Google Play (SuscripcionPlugin.java); en la web, por ahora se indica
  * cómo contratarlo desde la app.
+ *
+ * En la web también se activa con un código de CorrigeYa Plus (CY-XXXX-XXXX-XXXX)
+ * creado en el panel /admin, y el precio que se muestra es el del panel
+ * (js/web.js). La app de Android no usa códigos: sigue con Google Play.
  */
 (function () {
   'use strict';
@@ -18,6 +22,8 @@
   const CFG = window.LANZAMIENTO || {};
   const KEY = 'lectorHojasPro.plus';
   const PLAY_KEY = 'lectorHojasPro.plusPlay';
+  const CODE_KEY = 'lectorHojasPro.plusCodigo';
+  const web = window.LectorWeb && !window.LectorWeb.enApp && window.LectorWeb.activo ? window.LectorWeb : null;
   const cap = window.Capacitor;
   const native = !!(cap && cap.isNativePlatform && cap.isNativePlatform() && cap.isPluginAvailable && cap.isPluginAvailable('Suscripcion'));
 
@@ -58,11 +64,29 @@
     }
   }
 
+  // Código de Plus canjeado en este navegador: { token, codigo, hasta (0: sin término), at }.
+  let code = null;
+  try {
+    code = JSON.parse(localStorage.getItem(CODE_KEY) || 'null');
+  } catch (e) {
+    code = null;
+  }
+  function saveCode() {
+    try {
+      if (code) localStorage.setItem(CODE_KEY, JSON.stringify(code));
+      else localStorage.removeItem(CODE_KEY);
+    } catch (e) {
+      /* sin almacenamiento */
+    }
+  }
+  const codeActive = () => !native && !!(code && code.token) && (code.hasta === 0 || code.hasta > Date.now());
+
   const launched = () => !!CFG.corrigeya;
-  const active = () => preview() || !!play.activa;
+  const active = () => preview() || !!play.activa || codeActive();
   /** ¿Se puede usar esa función? Antes del lanzamiento, todo menos la agenda es gratis. */
   const allows = (feature) => active() || (!launched() && feature !== 'agenda');
-  const price = () => play.precio || CFG.plusPrecio || '$1.990 al mes';
+  const webConfig = () => (web && web.config()) || null;
+  const price = () => (native ? play.precio : webConfig() && webConfig().precioTexto) || CFG.plusPrecio || '$1.990 al mes';
 
   const WHY = {
     excel: 'Descargar el Excel y las evidencias es parte de CorrigeYa Plus.',
@@ -125,7 +149,78 @@
     $('#plusWebNote').hidden = native || active();
     $('#plusPlayLink').href = CFG.appPlay || '#';
     $('#plusMsg').textContent = '';
+    if ($('#plusCodeGo')) $('#plusCodeGo').classList.remove('primary');
+    renderCode();
     if (!dlg.open) dlg.showModal();
+  }
+
+  /* ---------- Códigos de CorrigeYa Plus (sólo en la web) ---------- */
+
+  const fecha = (t) => new Date(t).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' });
+  function renderCode() {
+    const box = $('#plusCodeBox');
+    const info = $('#plusCodeInfo');
+    if (!box || !info) return;
+    const cfg = webConfig();
+    box.hidden = !web || active() || (cfg && cfg.canje === false);
+    info.hidden = !codeActive();
+    if (codeActive()) {
+      info.textContent = `Plus activo en este navegador con el código ${code.codigo || ''}${code.hasta ? `, hasta el ${fecha(code.hasta)}` : ''}.`;
+    }
+  }
+
+  async function redeem() {
+    const input = $('#plusCode');
+    const value = input.value.trim();
+    if (!value) {
+      $('#plusMsg').textContent = 'Escribe el código (empieza con CY-).';
+      input.focus();
+      return;
+    }
+    const btn = $('#plusCodeGo');
+    btn.disabled = true;
+    $('#plusMsg').textContent = 'Revisando el código…';
+    try {
+      const r = await web.pedir('/plus/canjear', { codigo: value, equipo: web.equipo() });
+      code = { token: r.token, codigo: r.codigo, hasta: r.hasta, at: Date.now() };
+      saveCode();
+      web.contar('canje');
+      input.value = '';
+      changed();
+      $('#plusDialog').close();
+      app.toast(`¡Listo! CorrigeYa Plus está activo${r.hasta ? ` hasta el ${fecha(r.hasta)}` : ''}. 💚`);
+    } catch (e) {
+      $('#plusMsg').textContent = e.message;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // Revisa el código guardado (si lo anularon o terminó) cada 6 horas, con internet.
+  async function checkCode() {
+    if (!web || !code || !code.token) return;
+    if (code.hasta && code.hasta < Date.now()) {
+      code = null;
+      saveCode();
+      changed();
+      app.toast('Tu CorrigeYa Plus con código terminó.');
+      return;
+    }
+    if (Date.now() - (code.checked || 0) < 6 * 3600000) return;
+    try {
+      const r = await web.pedir('/plus/verificar', { token: code.token });
+      if (r.activa) {
+        code = Object.assign({}, code, { hasta: r.hasta, checked: Date.now() });
+        saveCode();
+      } else {
+        code = null;
+        saveCode();
+        changed();
+        app.toast(r.motivo || 'Tu código de CorrigeYa Plus ya no está activo.');
+      }
+    } catch (e) {
+      /* sin internet: se revisa después */
+    }
   }
 
   const call = (method) => cap.nativePromise('Suscripcion', method, { producto: CFG.plusProducto || 'corrigeya_plus' });
@@ -209,10 +304,32 @@
   $('#plusBuy').addEventListener('click', buy);
   $('#plusRestore').addEventListener('click', restore);
   $('#plusManage').addEventListener('click', () => call('gestionar').catch(() => {}));
+  if ($('#plusCodeGo')) {
+    $('#plusCodeGo').addEventListener('click', redeem);
+    $('#plusCode').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        redeem();
+      }
+    });
+  }
+  // Precio y canje que se cambian en /admin.
+  if (web) {
+    web.onConfig(() => {
+      if ($('#plusDialog').open) {
+        $('#plusPrice').textContent = price();
+        $('#plusBuy').textContent = `⭐ Suscribirme · ${price()}`;
+        renderCode();
+      }
+    });
+  }
 
   // Al volver a la app (por ejemplo, después de pagar o cancelar en Google Play).
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') refresh();
+    if (document.visibilityState === 'visible') {
+      refresh();
+      checkCode();
+    }
   });
 
   Pro.plus = {
@@ -224,6 +341,33 @@
     onChange: (fn) => listeners.push(fn),
   };
 
+  // Enlace con código (?codigo=CY-…), el que se copia en /admin: abre el cuadro
+  // de Plus con el código ya escrito.
+  if (web) {
+    try {
+      const url = new URL(location.href);
+      const given = url.searchParams.get('codigo');
+      if (given !== null) {
+        url.searchParams.delete('codigo');
+        history.replaceState(null, '', url.pathname + url.search + url.hash);
+        setTimeout(() => {
+          upsell(null);
+          if (!active() && $('#plusCode') && !$('#plusCodeBox').hidden) {
+            // Viene con un código: lo importante es canjearlo, no pagar.
+            $('#plusCode').value = given.slice(0, 24);
+            $('#plusWebNote').hidden = true;
+            $('#plusBuy').hidden = true;
+            $('#plusCodeGo').classList.add('primary');
+            $('#plusCodeGo').focus();
+          }
+        }, 400);
+      }
+    } catch (e) {
+      /* sin enlace */
+    }
+  }
+
   changed();
   refresh();
+  checkCode();
 })();

@@ -630,5 +630,10 @@ html[data-tema="oscuro"] .ag-now-card { border-color: #2c6b3f; }
 .plus-price b { font-size: 1.3rem; color: var(--ok); }
 .plus-list { margin: 0 0 10px; padding: 0; list-style: none; display: grid; gap: 6px; }
 .plus-msg { min-height: 1.2em; margin: 8px 0 0; font-weight: 600; color: var(--primary); }
+.plus-code { margin: 12px 0 0; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 10px; }
+.plus-code label { display: block; font-weight: 700; margin: 0 0 6px; }
+.plus-code-row { display: flex; gap: 8px; }
+.plus-code-row input { flex: 1; min-width: 0; font: inherit; font-family: ui-monospace, Menlo, Consolas, monospace; letter-spacing: 0.04em; text-transform: uppercase; }
+.plus-code-info { margin: 10px 0 0; font-weight: 600; color: var(--ok); }
 html[data-plus-gate] :is(#btnExportZip, #btnExportFolder, #btnExportCsv, #proExcel, #proReportTest, #proReportCourse, .pro-fb [data-fb-pdf])::after { content: ' ⭐ Plus'; font-size: 0.8em; font-weight: 800; color: var(--ok); }
 @media (max-width: 560px) { .plus-chip { justify-self: start; } }

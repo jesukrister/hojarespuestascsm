@@ -302,7 +302,7 @@
           </div>
           <div class="plan pro">
             <h3>CorrigeYa <span class="badge">PLUS</span></h3>
-            <span class="tag">$1.990 al mes · Vista previa</span>
+            <span class="tag"><span data-precio>$1.990</span> al mes · Vista previa</span>
             <p class="plan-note">Todo lo gratis, y además tu trabajo docente ordenado:</p>
             <ul>
               <li>📊 Notas y evidencias en Excel (ZIP con cada hoja corregida)</li>
@@ -335,7 +335,7 @@
         <p class="kicker">Preguntas frecuentes</p>
         <h2>Lo que suelen preguntar los profes</h2>
         <div class="faq">
-          <details><summary>¿Tiene costo?</summary><p>Corregir pruebas, los cursos y el libro de notas son gratis, sin anuncios. CorrigeYa Plus, opcional, cuesta $1.990 al mes y suma el Excel, los informes, la nube, el modo simple, la agenda y otras herramientas para el trabajo docente.</p></details>
+          <details><summary>¿Tiene costo?</summary><p>Corregir pruebas, los cursos y el libro de notas son gratis, sin anuncios. CorrigeYa Plus, opcional, cuesta <span data-precio>$1.990</span> al mes y suma el Excel, los informes, la nube, el modo simple, la agenda y otras herramientas para el trabajo docente.</p></details>
           <details><summary>¿Sirve con mi prueba de siempre?</summary><p>Sí. La prueba la haces como siempre (Word, impresa o a mano); los estudiantes marcan sus respuestas en la hoja de respuestas que imprime CorrigeYa. Si quieres, también puedes escribir las preguntas en la app y ella arma la prueba.</p></details>
           <details><summary>¿Las fotos de mis estudiantes se suben a internet?</summary><p>No. La lectura de las hojas se hace en tu propio celular o computador: las fotos y las notas se quedan en tu equipo.</p></details>
           <details><summary>¿Necesito internet?</summary><p>Solo para abrir la página. La corrección se hace en el equipo.</p></details>
@@ -383,6 +383,18 @@
       <span>¿Dudas? Escríbenos a @historiaycosos o @framsesk0 en Instagram · <a href="../privacidad.html">Política de privacidad</a></span>
     </div>
   </footer>
+  <script>window.PAGINA_USO = 'corrigeya';</script>
+  <script src="../js/lanzamiento.js"></script>
+  <script src="../js/web.js"></script>
+  <script>
+    // Precio de CorrigeYa Plus: el que se cambia en el panel /admin.
+    if (window.LectorWeb) {
+      window.LectorWeb.onConfig(function (c) {
+        if (!c || !c.precioCorto) return;
+        document.querySelectorAll('[data-precio]').forEach(function (el) { el.textContent = c.precioCorto; });
+      });
+    }
+  </script>
   <script src="../js/donaciones.js"></script>
   <script>
     // Donaciones: los mismos datos que la app (js/donaciones.js): transferencia

@@ -1448,6 +1448,7 @@
     sheetPageStyle(page.width, page.height);
     $('#printArea').className = 'print-area';
     $('#printArea').innerHTML = pages.map((p) => `<div class="print-page">${p.svg}</div>`).join('');
+    countUse('hojas');
     window.print();
   }
 
@@ -2106,6 +2107,7 @@
     $('#printArea').className = 'print-area print-doc';
     $('#printArea').innerHTML = forms.map((fm) => `<div class="print-form">${renderFormHTML(fm, byQuestion)}</div>`).join('');
     if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    countUse('prueba');
     window.print();
   }
 
@@ -2142,6 +2144,7 @@
     $('#printArea').className = 'print-area print-doc';
     $('#printArea').innerHTML = `<div class="print-form">${html}</div>`;
     if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    countUse('prueba');
     window.print();
     return true;
   }
@@ -2162,6 +2165,7 @@
     $('#printArea').className = 'print-area print-doc';
     $('#printArea').innerHTML = TestDoc.renderAnswerKeyHTML(docForms, docFormat(), { sections: docParsed.sections });
     if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    countUse('pauta');
     window.print();
   }
 
@@ -5382,7 +5386,17 @@
   }
 
   /** Cuenta las hojas corregidas en este equipo (para saber cuándo invitar a donar). */
+  /** Estadísticas anónimas de la página web (js/web.js); en la app no hace nada. */
+  function countUse(evento) {
+    try {
+      if (window.LectorWeb) window.LectorWeb.contar(evento);
+    } catch (e) {
+      /* sin estadísticas */
+    }
+  }
+
   function countSupportSheet() {
+    countUse('corregida');
     const v = supportState();
     v.hojas++;
     saveSupport(v);

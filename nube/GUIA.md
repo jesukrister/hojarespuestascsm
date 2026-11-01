@@ -78,6 +78,20 @@ que cambiarla en tres lugares y subir el cambio:
 
 Cambiar la dirección no borra nada: la base de datos sigue siendo la misma.
 
+## 9. Contraseña del panel /admin (CorrigeYa)
+El panel `…/admin/` (precio de Plus, aviso en la página, códigos de Plus y estadísticas de la
+página web) usa este mismo servidor. Para activarlo:
+1. Actualiza el código del servidor (ver «Actualizar el servidor», al final): pega la versión
+   nueva de `nube/lector-nube.mjs` e **Implementar**. Las tablas nuevas se crean solas.
+2. **lector-nube → Configuración → Variables y secretos → Agregar**, tipo **Secreto**:
+   - Nombre: `ADMIN_CLAVE`.
+   - Valor: una contraseña larga inventada (12 letras o más; mejor una frase). Es la que vas a
+     escribir para entrar al panel. **No la pegues en el chat ni en GitHub.**
+3. **Implementar** y abre `https://jesukrister.github.io/hojarespuestascsm/admin/`.
+
+- Si la olvidas, crea otra con el mismo nombre: las sesiones abiertas del panel se cierran.
+- Tras 5 contraseñas equivocadas desde una misma conexión hay que esperar 15 minutos (y cada vez más).
+
 ## Límites del plan gratis
 - **Cloudflare Workers:** 100.000 solicitudes al día. Cada docente usa unas pocas decenas al día.
 - **D1:** 5 GB en total. Cada cuenta puede usar hasta 40 MB (un curso con su libro de notas ocupa

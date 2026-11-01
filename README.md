@@ -648,6 +648,8 @@ entregar una corrección equivocada sin avisar.
 | `js/pro/nube-core.js`, `js/pro/nube.js` | Nube: cuenta, sincronización y combinación de cambios de dos equipos |
 | `js/pro/modo.js` | Modo simple / avanzado |
 | `js/lanzamiento.js` | Interruptor del lanzamiento de CorrigeYa (nombre y reparto gratis/Plus) |
+| `admin/`, `docs/admin.md` | Panel de administración `/admin`: precio de Plus, aviso en la página, códigos de Plus y estadísticas de uso de la web |
+| `js/web.js` | Página web ↔ servidor: configuración del panel, aviso y estadísticas anónimas (no hace nada en la app) |
 | `js/pro/plus.js` | CorrigeYa Plus: quién lo tiene, funciones que lo piden, cuadro para suscribirse, marca CorrigeYa |
 | `android/app/src/pro/java/…/SuscripcionPlugin.java` | Suscripción Plus con Google Play (sólo app Pro) |
 | `js/pro/agenda-core.js`, `js/pro/agenda.js` | Plus: agenda, recordatorios, horario semanal y calendario .ics |

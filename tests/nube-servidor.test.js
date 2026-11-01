@@ -243,3 +243,143 @@ test('nube servidor: página web para borrar la cuenta con un código', opts, as
     s.restore();
   }
 });
+
+test('nube servidor: panel /admin, configuración y códigos de CorrigeYa Plus', opts, async () => {
+  const s = await setup();
+  try {
+    // Sin ADMIN_CLAVE el panel no abre.
+    let r = await s.call('POST', '/admin/entrar', { body: { clave: 'lo-que-sea' } });
+    assert.equal(r.status, 503);
+    assert.match(r.json.error, /ADMIN_CLAVE/);
+    s.env.ADMIN_CLAVE = 'clave-del-panel-larga';
+
+    // Configuración pública por defecto.
+    r = await s.call('GET', '/config');
+    assert.equal(r.status, 200);
+    assert.equal(r.json.precio, 1990);
+    assert.equal(r.json.precioTexto, '$1.990 al mes');
+    assert.equal(r.json.canje, true);
+
+    // Contraseña equivocada, luego la correcta.
+    assert.equal((await s.call('POST', '/admin/entrar', { body: { clave: 'otra' } })).status, 401);
+    r = await s.call('POST', '/admin/entrar', { body: { clave: 'clave-del-panel-larga' } });
+    assert.equal(r.status, 200, r.text);
+    const admin = r.json.token;
+    assert.equal((await s.call('GET', '/admin/resumen')).status, 401);
+    assert.equal((await s.call('GET', '/admin/resumen', { token: admin.slice(0, -2) + 'xx' })).status, 401);
+
+    r = await s.call('GET', '/admin/resumen', { token: admin });
+    assert.equal(r.status, 200, r.text);
+    assert.equal(r.json.nube.cuentas, 0);
+    assert.equal(r.json.config.precio, 1990);
+
+    // Cambiar precio y aviso (los enlaces que no son https se descartan).
+    r = await s.call('POST', '/admin/config', { token: admin, body: { precio: 2490, aviso: { activo: true, texto: ' Nueva versión ', enlace: 'javascript:alert(1)' } } });
+    assert.equal(r.status, 200, r.text);
+    assert.equal(r.json.precioTexto, '$2.490 al mes');
+    assert.deepEqual(r.json.aviso, { activo: true, texto: 'Nueva versión', enlace: '' });
+    assert.equal((await s.call('GET', '/config')).json.precio, 2490);
+    r = await s.call('POST', '/admin/config', { token: admin, body: { precio: -5 } });
+    assert.equal(r.json.precio, 1990);
+
+    // Crear códigos: uno para un equipo, por 30 días.
+    r = await s.call('POST', '/admin/codigos', { token: admin, body: { cantidad: 2, dias: 30, usosMax: 1, nota: 'Profe de prueba' } });
+    assert.equal(r.status, 200, r.text);
+    assert.equal(r.json.codigos.length, 2);
+    const [codigo, otro] = r.json.codigos;
+    assert.match(codigo, /^CY-[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}$/);
+
+    const equipo = 'a'.repeat(32);
+    // Se puede escribir en minúsculas y sin guiones.
+    r = await s.call('POST', '/plus/canjear', { body: { codigo: codigo.toLowerCase().replace(/-/g, ' '), equipo } });
+    assert.equal(r.status, 200, r.text);
+    assert.equal(r.json.activa, true);
+    assert.ok(r.json.hasta > Date.now() + 29 * 864e5);
+    const plus = r.json.token;
+    // El mismo equipo otra vez: no gasta otro uso.
+    assert.equal((await s.call('POST', '/plus/canjear', { body: { codigo, equipo } })).status, 200);
+    // Otro equipo: ya se usó.
+    r = await s.call('POST', '/plus/canjear', { body: { codigo, equipo: 'b'.repeat(32) } });
+    assert.equal(r.status, 403);
+    assert.match(r.json.error, /otro equipo/);
+    assert.equal((await s.call('POST', '/plus/canjear', { body: { codigo: 'CY-2222-2222-2222', equipo } })).status, 404);
+
+    assert.deepEqual((await s.call('POST', '/plus/verificar', { body: { token: plus } })).json.activa, true);
+    assert.equal((await s.call('POST', '/plus/verificar', { body: { token: plus.slice(0, -2) + 'xx' } })).json.activa, false);
+
+    r = await s.call('GET', '/admin/codigos', { token: admin });
+    const fila = r.json.codigos.find((c) => c.codigo === codigo);
+    assert.equal(fila.usos, 1);
+    assert.equal(fila.nota, 'Profe de prueba');
+    assert.ok(fila.hasta > Date.now());
+    assert.equal(r.json.codigos.find((c) => c.codigo === otro).usos, 0);
+
+    // Anular: el equipo pierde Plus al revisar.
+    assert.equal((await s.call('POST', '/admin/codigos/anular', { token: admin, body: { codigo } })).status, 200);
+    r = await s.call('POST', '/plus/verificar', { body: { token: plus } });
+    assert.equal(r.json.activa, false);
+    assert.match(r.json.motivo, /anulado/);
+    assert.equal((await s.call('POST', '/plus/canjear', { body: { codigo, equipo } })).status, 403);
+    r = await s.call('GET', '/admin/resumen', { token: admin });
+    assert.equal(r.json.plus.codigos, 2);
+    assert.equal(r.json.plus.equiposActivos, 0);
+
+    // Borrar.
+    assert.equal((await s.call('POST', '/admin/codigos/borrar', { token: admin, body: { codigo: otro } })).status, 200);
+    assert.equal((await s.call('GET', '/admin/codigos', { token: admin })).json.codigos.length, 1);
+
+    // Sin canje habilitado.
+    await s.call('POST', '/admin/config', { token: admin, body: { canje: false } });
+    r = await s.call('POST', '/plus/canjear', { body: { codigo: otro, equipo } });
+    assert.equal(r.status, 403);
+
+    // Cambiar ADMIN_CLAVE cierra la sesión del panel.
+    s.env.ADMIN_CLAVE = 'otra-clave-del-panel';
+    assert.equal((await s.call('GET', '/admin/resumen', { token: admin })).status, 401);
+  } finally {
+    s.restore();
+  }
+});
+
+test('nube servidor: estadísticas de uso de la página web', opts, async () => {
+  const s = await setup();
+  try {
+    s.env.ADMIN_CLAVE = 'clave-del-panel-larga';
+    const admin = (await s.call('POST', '/admin/entrar', { body: { clave: 'clave-del-panel-larga' } })).json.token;
+    const v1 = '1'.repeat(32);
+    const v2 = '2'.repeat(32);
+    let r = await s.call('POST', '/uso', { body: { pagina: 'pro', visitante: v1, eventos: ['visita', 'computador', 'corregida', 'corregida', 'inventado'] } });
+    assert.equal(r.status, 200, r.text);
+    assert.equal(r.json.guardado, true);
+    await s.call('POST', '/uso', { body: { pagina: 'pro', visitante: v1, eventos: ['corregida'] } });
+    await s.call('POST', '/uso', { body: { pagina: 'normal', visitante: v2, eventos: ['visita', 'movil', 'hojas'] } });
+    // Texto plano (como lo manda navigator.sendBeacon).
+    r = await s.call('POST', '/uso', { raw: JSON.stringify({ pagina: 'corrigeya', visitante: v2, eventos: ['visita'] }), headers: { 'Content-Type': 'text/plain' } });
+    assert.equal(r.status, 200, r.text);
+    assert.equal((await s.call('POST', '/uso', { body: { pagina: 'otra', eventos: ['visita'] } })).status, 400);
+
+    r = await s.call('GET', '/admin/estadisticas?dias=7', { token: admin });
+    assert.equal(r.status, 200, r.text);
+    const suma = (pag, ev) => r.json.filas.filter((f) => f.pagina === pag && f.evento === ev).reduce((a, f) => a + f.n, 0);
+    assert.equal(suma('pro', 'corregida'), 3);
+    assert.equal(suma('pro', 'visita'), 1);
+    assert.equal(suma('normal', 'hojas'), 1);
+    assert.equal(suma('pro', 'inventado'), 0);
+    assert.equal(r.json.unicosTotal, 2);
+    // Un mismo navegador en dos páginas el mismo día es una sola persona.
+    assert.equal(r.json.unicosDiaTotal[0].n, 2);
+    assert.equal(r.json.unicosDia.reduce((a, u) => a + u.n, 0), 3);
+    assert.equal(r.json.dias, 7);
+    // No se guarda el número del navegador tal cual.
+    const h = s.env.DB.raw.prepare('SELECT h FROM uso_visitantes').all().map((x) => x.h);
+    assert.ok(!h.includes(v1) && !h.includes(v2));
+    assert.equal((await s.call('GET', '/admin/estadisticas')).status, 401);
+
+    // Estadísticas apagadas desde el panel: no se guarda nada.
+    await s.call('POST', '/admin/config', { token: admin, body: { estadisticas: false } });
+    r = await s.call('POST', '/uso', { body: { pagina: 'pro', visitante: v1, eventos: ['visita'] } });
+    assert.equal(r.json.guardado, false);
+  } finally {
+    s.restore();
+  }
+});

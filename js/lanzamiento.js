@@ -23,6 +23,8 @@ window.LANZAMIENTO = {
   plusPrecio: '$1.990 al mes',
   // Ficha de la app en Google Play (la Pro actual, que pasa a ser CorrigeYa).
   appPlay: 'https://play.google.com/store/apps/details?id=cl.lectorhojas.app.pro',
+  // Servidor de la nube (nube/lector-nube.mjs): también guarda lo que se cambia en /admin.
+  servidor: 'https://lector-nube.colegiosmiqq.workers.dev',
 };
 
 // Prueba del lanzamiento sólo en este equipo (?lanzamiento=1 / ?lanzamiento=0).

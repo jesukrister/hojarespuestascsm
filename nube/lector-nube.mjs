@@ -9,11 +9,14 @@
    - Cada documento («libro», «prueba», «recursos») tiene un número de versión: si otro equipo lo
      cambió antes, el servidor responde 409 y la app combina los cambios antes de volver a guardar.
    - Página para borrar la cuenta desde la web (lo pide Google Play): /borrar-cuenta
+   - CorrigeYa: configuración de la página (precio de Plus, aviso), códigos de CorrigeYa Plus y
+     estadísticas de uso anónimas de la página web, todo manejado desde el panel /admin.
    Se pega en el panel de Cloudflare (ver nube/GUIA.md). Necesita:
      DB            enlace a la base de datos D1
      CLAVE_SESION  secreto largo inventado (firma las sesiones)
      CORREO_URL    dirección /exec del script de Google
      CORREO_CLAVE  la misma CLAVE escrita en el script de Google
+     ADMIN_CLAVE   contraseña del panel /admin (al menos 12 letras; sin ella el panel no abre)
    ========================================================== */
 
 const DURACION_SESION = 365 * 864e5;
@@ -53,6 +56,10 @@ async function prepararTablas(db) {
     db.prepare("CREATE TABLE IF NOT EXISTS envios (ip TEXT NOT NULL, correo TEXT NOT NULL, t INTEGER NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS intentos (llave TEXT PRIMARY KEY, fallos INTEGER NOT NULL, hasta INTEGER NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS estado (k TEXT PRIMARY KEY, v TEXT NOT NULL)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS plus_codigos (codigo TEXT PRIMARY KEY, nota TEXT NOT NULL DEFAULT '', dias INTEGER NOT NULL, usos_max INTEGER NOT NULL, usos INTEGER NOT NULL DEFAULT 0, creado INTEGER NOT NULL, caduca INTEGER, revocado INTEGER)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS plus_canjes (codigo TEXT NOT NULL, equipo TEXT NOT NULL, t INTEGER NOT NULL, hasta INTEGER NOT NULL, PRIMARY KEY (codigo, equipo))"),
+    db.prepare("CREATE TABLE IF NOT EXISTS uso (dia TEXT NOT NULL, pagina TEXT NOT NULL, evento TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (dia, pagina, evento))"),
+    db.prepare("CREATE TABLE IF NOT EXISTS uso_visitantes (dia TEXT NOT NULL, h TEXT NOT NULL, pagina TEXT NOT NULL, PRIMARY KEY (dia, h, pagina))"),
   ]);
   tablasListas = true;
 }
@@ -337,6 +344,250 @@ $("#f2").onsubmit=async(e)=>{e.preventDefault();if(!confirm("¿Borrar la cuenta 
 try{await api("borrar-cuenta",{correo:$("#correo").value,codigo:$("#codigo").value});$("#f2").hidden=true;msg("Listo: tu cuenta y tus datos en la nube fueron borrados.")}catch(x){msg(x.message,1);b.disabled=false}};
 </script></body></html>`;
 
+/* ---------- CorrigeYa: configuración de la página ---------- */
+// Lo cambia el panel /admin. Sólo lo usa la página web: la app de Android no lo lee.
+const CONFIG_BASE = { precio: 1990, canje: true, estadisticas: true, aviso: { activo: false, texto: "", enlace: "" } };
+const miles = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+function limpiarConfig(c) {
+  c = c && typeof c === "object" ? c : {};
+  const aviso = c.aviso && typeof c.aviso === "object" ? c.aviso : {};
+  const precio = Math.round(Number(c.precio));
+  const textoAviso = String(aviso.texto || "").trim().slice(0, 280);
+  const enlace = String(aviso.enlace || "").trim().slice(0, 300);
+  return {
+    precio: c.precio !== undefined && Number.isFinite(precio) && precio >= 0 && precio <= 100000 ? precio : CONFIG_BASE.precio,
+    canje: c.canje !== false,
+    estadisticas: c.estadisticas !== false,
+    aviso: { activo: !!aviso.activo && !!textoAviso, texto: textoAviso, enlace: /^https:\/\/[^\s"'<>]+$/i.test(enlace) ? enlace : "" },
+  };
+}
+async function leerConfig(db) {
+  const fila = await db.prepare("SELECT v FROM estado WHERE k = 'config'").first();
+  let c = {};
+  try { c = fila ? JSON.parse(fila.v) : {}; } catch (e) { c = {}; }
+  return limpiarConfig(c);
+}
+// Lo que ve la página (con el precio ya escrito).
+function configPublica(c) {
+  return { ...c, precioTexto: `$${miles(c.precio)} al mes`, precioCorto: `$${miles(c.precio)}` };
+}
+
+/* ---------- Panel /admin ---------- */
+const DURACION_ADMIN = 12 * 3600000;
+// La firma incluye la contraseña del panel: al cambiarla se cierran las sesiones abiertas.
+const llaveAdmin = (env) => crypto.subtle.importKey("raw", texto("admin|" + env.CLAVE_SESION + "|" + env.ADMIN_CLAVE), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
+function adminListo(env) {
+  if (!env.ADMIN_CLAVE || String(env.ADMIN_CLAVE).length < 12) throw new Problema("Falta el secreto ADMIN_CLAVE en el servidor (al menos 12 letras). Mira nube/GUIA.md, paso 9.", 503);
+}
+async function entrarAdmin(db, env, ip, d) {
+  adminListo(env);
+  const porIp = "admin-ip:" + ip;
+  await revisarEspera(db, [porIp, "admin"]);
+  if (!(await mismaClave(String((d && d.clave) || ""), String(env.ADMIN_CLAVE)))) {
+    await anotarFallo(db, "admin", 50);
+    const bloqueado = await anotarFallo(db, porIp, 5);
+    throw new Problema(bloqueado ? "Contraseña incorrecta. Por seguridad, espera 15 minutos antes de intentarlo de nuevo." : "Contraseña incorrecta.", 401);
+  }
+  await db.prepare("DELETE FROM intentos WHERE llave = ?").bind(porIp).run();
+  const vence = Date.now() + DURACION_ADMIN;
+  const datos = b64url(texto(JSON.stringify({ a: 1, e: vence })));
+  return { token: datos + "." + b64url(await crypto.subtle.sign("HMAC", await llaveAdmin(env), texto(datos))), vence };
+}
+async function revisarAdmin(env, req) {
+  adminListo(env);
+  const m = /^Bearer ([A-Za-z0-9_-]{10,200})\.([A-Za-z0-9_-]{20,})$/.exec(req.headers.get("Authorization") || "");
+  const fuera = () => new Problema("La sesión del panel venció. Vuelve a entrar.", 401, { salir: true });
+  if (!m || !(await crypto.subtle.verify("HMAC", await llaveAdmin(env), deB64url(m[2]), texto(m[1])))) throw fuera();
+  let d;
+  try { d = JSON.parse(new TextDecoder().decode(deB64url(m[1]))); } catch (e) { throw fuera(); }
+  if (!d || d.a !== 1 || !(d.e > Date.now())) throw fuera();
+}
+
+async function guardarConfig(db, d) {
+  const c = limpiarConfig({ ...(await leerConfig(db)), ...(d || {}) });
+  await guardarEstado(db, "config", c);
+  return configPublica(c);
+}
+
+async function resumenAdmin(db, env) {
+  const ahora = Date.now();
+  const hace = (dias) => ahora - dias * 864e5;
+  const uno = (sql, ...a) => db.prepare(sql).bind(...a).first();
+  const [cuentas, nuevas, activas7, activas30, espacio, codigos, enUso, plusActivos] = await Promise.all([
+    uno("SELECT COUNT(*) AS n FROM cuentas"),
+    uno("SELECT COUNT(*) AS n FROM cuentas WHERE creado > ?", hace(30)),
+    uno("SELECT COUNT(DISTINCT cuenta) AS n FROM docs WHERE actualizado > ?", hace(7)),
+    uno("SELECT COUNT(DISTINCT cuenta) AS n FROM docs WHERE actualizado > ?", hace(30)),
+    uno("SELECT COALESCE(SUM(tamano), 0) AS n FROM docs"),
+    uno("SELECT COUNT(*) AS n FROM plus_codigos"),
+    uno("SELECT COUNT(*) AS n FROM plus_codigos WHERE usos > 0 AND revocado IS NULL"),
+    uno("SELECT COUNT(*) AS n FROM plus_canjes j JOIN plus_codigos c ON c.codigo = j.codigo WHERE c.revocado IS NULL AND (j.hasta = 0 OR j.hasta > ?)", ahora),
+  ]);
+  const correo = await db.prepare("SELECT v FROM estado WHERE k = 'correo'").first();
+  return {
+    nube: { cuentas: cuentas.n, nuevas30: nuevas.n, activas7: activas7.n, activas30: activas30.n, espacio: espacio.n },
+    plus: { codigos: codigos.n, enUso: enUso.n, equiposActivos: plusActivos.n },
+    config: configPublica(await leerConfig(db)),
+    servidor: { correoConfigurado: !!(env.CORREO_URL && env.CORREO_CLAVE), ultimoCorreo: correo ? JSON.parse(correo.v) : null, hoy: hoy() },
+  };
+}
+
+/* ---------- Códigos de CorrigeYa Plus ---------- */
+// CY-XXXX-XXXX-XXXX con 32 letras que no se confunden (sin 0, O, 1 ni I): 60 bits al azar.
+const ALFABETO = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+function nuevoCodigo() {
+  const s = [...crypto.getRandomValues(new Uint8Array(12))].map((b) => ALFABETO[b % 32]).join("");
+  return `CY-${s.slice(0, 4)}-${s.slice(4, 8)}-${s.slice(8)}`;
+}
+function normalizarCodigo(c) {
+  let s = String(c || "").toUpperCase().replace(/[^0-9A-Z]/g, "");
+  if (s.length === 14 && s.startsWith("CY")) s = s.slice(2);
+  if (s.length !== 12 || [...s].some((ch) => !ALFABETO.includes(ch))) return null;
+  return `CY-${s.slice(0, 4)}-${s.slice(4, 8)}-${s.slice(8)}`;
+}
+const entero = (v, min, max, base) => {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : base;
+};
+
+async function crearCodigos(db, d) {
+  d = d || {};
+  const cantidad = entero(d.cantidad, 1, 100, 1);
+  const dias = entero(d.dias, 0, 3650, 30); // 0: Plus sin fecha de término
+  const usosMax = entero(d.usosMax, 1, 50, 1); // equipos (navegadores) que pueden usarlo
+  const caducaDias = entero(d.caducaDias, 0, 3650, 0); // 0: se puede canjear cuando sea
+  const nota = String(d.nota || "").trim().slice(0, 80);
+  const ahora = Date.now();
+  const caduca = caducaDias ? ahora + caducaDias * 864e5 : null;
+  const codigos = [];
+  while (codigos.length < cantidad) {
+    const c = nuevoCodigo();
+    if (!codigos.includes(c)) codigos.push(c);
+  }
+  await db.batch(codigos.map((c) => db.prepare("INSERT INTO plus_codigos (codigo, nota, dias, usos_max, usos, creado, caduca, revocado) VALUES (?, ?, ?, ?, 0, ?, ?, NULL)").bind(c, nota, dias, usosMax, ahora, caduca)));
+  return { codigos };
+}
+async function listarCodigos(db) {
+  const { results } = await db.prepare(
+    "SELECT c.codigo, c.nota, c.dias, c.usos_max AS usosMax, c.usos, c.creado, c.caduca, c.revocado, MAX(j.t) AS ultimoCanje, MAX(CASE WHEN j.hasta = 0 THEN 9e15 ELSE j.hasta END) AS hasta FROM plus_codigos c LEFT JOIN plus_canjes j ON j.codigo = c.codigo GROUP BY c.codigo ORDER BY c.creado DESC, c.codigo LIMIT 1000"
+  ).all();
+  return { codigos: results.map((r) => ({ ...r, hasta: r.hasta === null ? null : r.hasta >= 9e15 ? 0 : r.hasta })), ahora: Date.now() };
+}
+async function anularCodigo(db, d) {
+  const codigo = normalizarCodigo(d && d.codigo);
+  if (!codigo) throw new Problema("Código no válido.", 400);
+  const r = await db.prepare("UPDATE plus_codigos SET revocado = ? WHERE codigo = ?").bind(d.anular === false ? null : Date.now(), codigo).run();
+  if (!r.meta.changes) throw new Problema("Ese código no existe.", 404);
+  return { ok: true };
+}
+async function borrarCodigo(db, d) {
+  const codigo = normalizarCodigo(d && d.codigo);
+  if (!codigo) throw new Problema("Código no válido.", 400);
+  await db.batch([db.prepare("DELETE FROM plus_canjes WHERE codigo = ?").bind(codigo), db.prepare("DELETE FROM plus_codigos WHERE codigo = ?").bind(codigo)]);
+  return { ok: true };
+}
+
+// Plus canjeado en un navegador: la página guarda esta firma y la revisa de vez en cuando.
+const llavePlus = (env) => crypto.subtle.importKey("raw", texto("plus|" + env.CLAVE_SESION), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
+const EQUIPO = /^[0-9a-f]{32}$/;
+async function firmarPlus(env, codigo, equipo) {
+  const datos = b64url(texto(JSON.stringify({ c: codigo, q: equipo })));
+  return datos + "." + b64url(await crypto.subtle.sign("HMAC", await llavePlus(env), texto(datos)));
+}
+async function canjear(db, env, ip, d) {
+  d = d || {};
+  if (!(await leerConfig(db)).canje) throw new Problema("Por ahora no se pueden canjear códigos.", 403);
+  const porIp = "canje-ip:" + ip;
+  await revisarEspera(db, [porIp]);
+  const equipo = String(d.equipo || "");
+  if (!EQUIPO.test(equipo)) throw new Problema("Solicitud incompleta.", 400);
+  const codigo = normalizarCodigo(d.codigo);
+  const fila = codigo ? await db.prepare("SELECT * FROM plus_codigos WHERE codigo = ?").bind(codigo).first() : null;
+  if (!fila) {
+    await anotarFallo(db, porIp, 10);
+    throw new Problema("Ese código no existe. Revisa que esté bien escrito (CY- y 12 letras o números).", 404);
+  }
+  if (fila.revocado) throw new Problema("Ese código fue anulado.", 403);
+  const ahora = Date.now();
+  const previo = await db.prepare("SELECT hasta FROM plus_canjes WHERE codigo = ? AND equipo = ?").bind(codigo, equipo).first();
+  let hasta;
+  if (previo) {
+    hasta = previo.hasta; // el mismo navegador otra vez: no gasta otro uso
+  } else {
+    if (fila.caduca && fila.caduca < ahora) throw new Problema("Ese código ya venció: había que canjearlo antes.", 403);
+    const usado = () => new Problema(fila.usos_max === 1 ? "Ese código ya se usó en otro equipo." : `Ese código ya se usó en ${fila.usos_max} equipos.`, 403);
+    if (fila.usos >= fila.usos_max) throw usado();
+    const r = await db.prepare("UPDATE plus_codigos SET usos = usos + 1 WHERE codigo = ? AND usos < usos_max").bind(codigo).run();
+    if (!r.meta.changes) throw usado();
+    hasta = fila.dias > 0 ? ahora + fila.dias * 864e5 : 0;
+    await db.prepare("INSERT INTO plus_canjes (codigo, equipo, t, hasta) VALUES (?, ?, ?, ?)").bind(codigo, equipo, ahora, hasta).run();
+  }
+  if (hasta && hasta < ahora) throw new Problema("El Plus de este código ya terminó.", 403);
+  return { ok: true, activa: true, hasta, codigo, token: await firmarPlus(env, codigo, equipo) };
+}
+async function verificarPlus(db, env, d) {
+  const m = /^([A-Za-z0-9_-]{10,300})\.([A-Za-z0-9_-]{20,})$/.exec(String((d && d.token) || ""));
+  const no = (motivo) => ({ activa: false, motivo });
+  if (!m || !(await crypto.subtle.verify("HMAC", await llavePlus(env), deB64url(m[2]), texto(m[1])))) return no("El código guardado en este equipo no es válido.");
+  let t;
+  try { t = JSON.parse(new TextDecoder().decode(deB64url(m[1]))); } catch (e) { return no("El código guardado en este equipo no es válido."); }
+  const fila = await db.prepare("SELECT c.revocado, j.hasta FROM plus_codigos c JOIN plus_canjes j ON j.codigo = c.codigo WHERE c.codigo = ? AND j.equipo = ?").bind(t.c, t.q).first();
+  if (!fila) return no("Ese código ya no existe.");
+  if (fila.revocado) return no("Ese código fue anulado.");
+  if (fila.hasta && fila.hasta < Date.now()) return no("El Plus de tu código terminó.");
+  return { activa: true, hasta: fila.hasta };
+}
+
+/* ---------- Estadísticas de uso de la página web ---------- */
+// Sólo números por día: cuántas visitas y cuántas hojas se corrigen o imprimen. Sin correos,
+// nombres ni direcciones IP. Cada navegador manda un número al azar (no se guarda tal cual,
+// sino una huella) para poder contar visitantes distintos.
+const PAGINAS = ["normal", "pro", "corrigeya"];
+const EVENTOS = ["visita", "movil", "computador", "corregida", "hojas", "prueba", "pauta", "canje"];
+const ZONA = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago", year: "numeric", month: "2-digit", day: "2-digit" });
+const hoy = () => ZONA.format(new Date());
+function diaHace(n) {
+  const [a, m, d] = hoy().split("-").map(Number);
+  return new Date(Date.UTC(a, m - 1, d - n)).toISOString().slice(0, 10);
+}
+async function anotarUso(db, d) {
+  d = d || {};
+  if (!(await leerConfig(db)).estadisticas) return { ok: true, guardado: false };
+  const pagina = String(d.pagina || "");
+  if (!PAGINAS.includes(pagina)) throw new Problema("Página no válida.", 400);
+  const dia = hoy();
+  const cuenta = {};
+  for (const ev of Array.isArray(d.eventos) ? d.eventos.slice(0, 200) : []) {
+    if (EVENTOS.includes(ev)) cuenta[ev] = Math.min((cuenta[ev] || 0) + 1, 100);
+  }
+  const lista = Object.entries(cuenta).map(([ev, n]) =>
+    db.prepare("INSERT INTO uso (dia, pagina, evento, n) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(dia, pagina, evento) DO UPDATE SET n = n + ?4").bind(dia, pagina, ev, n)
+  );
+  const visitante = String(d.visitante || "");
+  if (lista.length && EQUIPO.test(visitante)) {
+    const h = hexDe(await crypto.subtle.digest("SHA-256", texto("uso|" + visitante))).slice(0, 20);
+    lista.push(db.prepare("INSERT OR IGNORE INTO uso_visitantes (dia, h, pagina) VALUES (?, ?, ?)").bind(dia, h, pagina));
+  }
+  if (lista.length) await db.batch(lista);
+  // De vez en cuando se borran los visitantes de hace más de 13 meses (los totales por día quedan).
+  if (Math.random() < 0.01) await db.prepare("DELETE FROM uso_visitantes WHERE dia < ?").bind(diaHace(400)).run();
+  return { ok: true, guardado: lista.length > 0 };
+}
+async function estadisticas(db, dias) {
+  dias = entero(dias, 1, 400, 30);
+  const desde = diaHace(dias - 1);
+  const todos = (sql) => db.prepare(sql).bind(desde).all().then((r) => r.results);
+  const [filas, unicosDia, unicosDiaTotal, unicos, total] = await Promise.all([
+    todos("SELECT dia, pagina, evento, n FROM uso WHERE dia >= ? ORDER BY dia"),
+    todos("SELECT dia, pagina, COUNT(*) AS n FROM uso_visitantes WHERE dia >= ? GROUP BY dia, pagina ORDER BY dia"),
+    todos("SELECT dia, COUNT(DISTINCT h) AS n FROM uso_visitantes WHERE dia >= ? GROUP BY dia ORDER BY dia"),
+    todos("SELECT pagina, COUNT(DISTINCT h) AS n FROM uso_visitantes WHERE dia >= ? GROUP BY pagina"),
+    db.prepare("SELECT COUNT(DISTINCT h) AS n FROM uso_visitantes WHERE dia >= ?").bind(desde).first(),
+  ]);
+  return { desde, hasta: hoy(), dias, filas, unicosDia, unicosDiaTotal, unicos, unicosTotal: total.n };
+}
+
 /* ---------- Respuestas ---------- */
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -377,6 +628,26 @@ export default {
       if (req.method === "POST" && ruta === "/clave") return respuesta(await elegirClave(db, env, await cuerpo(req)));
       if (req.method === "POST" && ruta === "/entrar") return respuesta(await entrar(db, env, ip, await cuerpo(req)));
       if (req.method === "POST" && ruta === "/borrar-cuenta") return respuesta(await borrarCuenta(db, env, req, ip, await cuerpo(req)));
+
+      // CorrigeYa: lo que usa la página web
+      if (ruta === "/config" && req.method === "GET") return respuesta(configPublica(await leerConfig(db)));
+      if (req.method === "POST" && ruta === "/uso") return respuesta(await anotarUso(db, await cuerpo(req)));
+      if (req.method === "POST" && ruta === "/plus/canjear") return respuesta(await canjear(db, env, ip, await cuerpo(req)));
+      if (req.method === "POST" && ruta === "/plus/verificar") return respuesta(await verificarPlus(db, env, await cuerpo(req)));
+
+      // Panel /admin
+      if (req.method === "POST" && ruta === "/admin/entrar") return respuesta(await entrarAdmin(db, env, ip, await cuerpo(req)));
+      if (ruta.startsWith("/admin/")) {
+        await revisarAdmin(env, req);
+        if (req.method === "GET" && ruta === "/admin/resumen") return respuesta(await resumenAdmin(db, env));
+        if (req.method === "GET" && ruta === "/admin/estadisticas") return respuesta(await estadisticas(db, url.searchParams.get("dias")));
+        if (req.method === "GET" && ruta === "/admin/config") return respuesta(configPublica(await leerConfig(db)));
+        if (req.method === "POST" && ruta === "/admin/config") return respuesta(await guardarConfig(db, await cuerpo(req)));
+        if (req.method === "GET" && ruta === "/admin/codigos") return respuesta(await listarCodigos(db));
+        if (req.method === "POST" && ruta === "/admin/codigos") return respuesta(await crearCodigos(db, await cuerpo(req)));
+        if (req.method === "POST" && ruta === "/admin/codigos/anular") return respuesta(await anularCodigo(db, await cuerpo(req)));
+        if (req.method === "POST" && ruta === "/admin/codigos/borrar") return respuesta(await borrarCodigo(db, await cuerpo(req)));
+      }
 
       if (ruta === "/datos" && req.method === "GET") return respuesta(await listar(db, await cuentaDeSesion(db, env, req)));
       const m = /^\/datos\/([^/]+)$/.exec(ruta);
